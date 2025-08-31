@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["python3", "pip"]
+
+[phases.install]
+cmds = [
+    "pip install -r requirements.txt",
+    "pip install -r dashboard/requirements.txt"
+]
+
+[phases.build]
+cmds = ["python main.py --mode setup"]
+
+[start]
+cmd = "cd dashboard && python app.py"
