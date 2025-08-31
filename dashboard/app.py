@@ -225,12 +225,19 @@ def api_charts():
             }
         ],
         'layout': {
-            'title': 'Floor Price Trends',
-            'xaxis': {'title': 'Date'},
-            'yaxis': {'title': 'Floor Price (ETH)'},
+            'title': 'Floor Price Trends - Last 30 Days',
+            'xaxis': {'title': 'Date', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
+            'yaxis': {'title': 'Floor Price (ETH)', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
             'hovermode': 'x unified',
             'plot_bgcolor': 'rgba(0,0,0,0)',
-            'paper_bgcolor': 'rgba(0,0,0,0)'
+            'paper_bgcolor': 'rgba(0,0,0,0)',
+            'legend': {
+                'x': 0,
+                'y': 1,
+                'bgcolor': 'rgba(255,255,255,0.8)',
+                'bordercolor': 'rgba(0,0,0,0.2)',
+                'borderwidth': 1
+            }
         }
     }
     
@@ -262,29 +269,56 @@ def api_charts():
         }
     }
     
-    # Genuine Undead Supply Growth Chart
+    # Genuine Undead Supply Growth Chart with optimal scaling
     if historical['undead_history']:
+        supply_values = [h.get('total_supply', 0) for h in historical['undead_history']]
+        if supply_values:
+            min_supply = min(supply_values)
+            max_supply = max(supply_values)
+            range_supply = max_supply - min_supply
+            
+            # Calculate optimal Y-axis range for better visibility
+            if range_supply < max_supply * 0.1:  # Less than 10% change
+                # Zoom in to show small changes
+                padding = max(range_supply * 0.1, 50)  # At least 50 unit padding
+                y_min = max(0, min_supply - padding)
+                y_max = max_supply + padding
+            else:
+                # Normal scaling with padding
+                padding = range_supply * 0.05
+                y_min = max(0, min_supply - padding)
+                y_max = max_supply + padding
+        else:
+            y_min, y_max = 0, 10000
+        
         supply_chart = {
             'data': [{
                 'x': [h['snapshot_date'] for h in historical['undead_history']],
-                'y': [h.get('total_supply', 0) for h in historical['undead_history']],
+                'y': supply_values,
                 'type': 'scatter',
                 'mode': 'lines+markers',
-                'name': 'Total Supply',
+                'name': 'Collection Supply',
                 'line': {'color': '#10b981', 'width': 4},
                 'marker': {'size': 6},
                 'fill': 'tonexty',
-                'fillcolor': 'rgba(16, 185, 129, 0.1)'
+                'fillcolor': 'rgba(16, 185, 129, 0.1)',
+                'hovertemplate': '<b>%{y:,}</b> NFTs<br>Date: %{x}<extra></extra>'
             }],
             'layout': {
-                'title': 'Genuine Undead Collection Growth',
-                'xaxis': {'title': 'Date'},
-                'yaxis': {'title': 'Total Supply'},
+                'title': 'Genuine Undead Collection Growth - Last 30 Days',
+                'xaxis': {'title': 'Date', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
+                'yaxis': {
+                    'title': 'Total Supply', 
+                    'range': [y_min, y_max],
+                    'showgrid': True, 
+                    'gridcolor': 'rgba(128,128,128,0.2)',
+                    'tickformat': ',.0f'
+                },
                 'hovermode': 'x unified',
                 'plot_bgcolor': 'rgba(0,0,0,0)',
                 'paper_bgcolor': 'rgba(0,0,0,0)',
                 'annotations': [{
-                    'text': 'Shows organic growth + migrations',
+                    'text': f'Growth: +{max_supply - min_supply:,} NFTs (organic + migrations)',
                     'x': 0.5,
                     'y': 1.1,
                     'xref': 'paper',
@@ -361,14 +395,21 @@ def api_charts():
             }
         ],
         'layout': {
-            'title': 'Market Cap: GU Ecosystem vs Industry Average',
-            'xaxis': {'title': 'Date'},
-            'yaxis': {'title': 'Market Cap (USD)', 'tickformat': '$,.0f'},
+            'title': 'Combined Market Cap vs NFT Industry Average - Last 30 Days',
+            'xaxis': {'title': 'Date', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
+            'yaxis': {'title': 'Market Cap (USD)', 'tickformat': '$,.0f', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
             'hovermode': 'x unified',
             'plot_bgcolor': 'rgba(0,0,0,0)',
             'paper_bgcolor': 'rgba(0,0,0,0)',
+            'legend': {
+                'x': 0,
+                'y': 1,
+                'bgcolor': 'rgba(255,255,255,0.8)',
+                'bordercolor': 'rgba(0,0,0,0.2)',
+                'borderwidth': 1
+            },
             'annotations': [{
-                'text': 'Combined Origins + Undead vs typical NFT project',
+                'text': 'GU Ecosystem (Origins + Genuine Undead) compared to typical NFT collection',
                 'x': 0.5,
                 'y': 1.1,
                 'xref': 'paper',
@@ -379,50 +420,78 @@ def api_charts():
         }
     }
     
-    # Migration chart
+    # Migration chart with corrected cumulative calculation
     migration_breakdown = historical['migration_stats'].get('daily_breakdown', [])
     if migration_breakdown:
-        # Calculate cumulative migrations for better visualization
+        # Sort by date to ensure correct cumulative calculation
+        migration_breakdown = sorted(migration_breakdown, key=lambda x: x['migration_date'])
+        
+        # Calculate cumulative migrations properly
         cumulative_migrations = []
         total = 0
+        daily_counts = []
+        dates = []
+        
         for m in migration_breakdown:
-            total += m['daily_count']
+            daily_count = m.get('daily_count', 0)
+            total += daily_count
+            
+            dates.append(m['migration_date'])
+            daily_counts.append(daily_count)
             cumulative_migrations.append(total)
+        
         
         migration_chart = {
             'data': [
                 {
-                    'x': [m['migration_date'] for m in migration_breakdown],
-                    'y': [m['daily_count'] for m in migration_breakdown],
+                    'x': dates,
+                    'y': daily_counts,
                     'type': 'bar',
                     'name': 'Daily Migrations',
                     'marker': {'color': '#45b7d1', 'opacity': 0.7},
-                    'yaxis': 'y'
+                    'yaxis': 'y',
+                    'hovertemplate': '<b>%{y}</b> migrations<br>%{x}<extra></extra>'
                 },
                 {
-                    'x': [m['migration_date'] for m in migration_breakdown],
+                    'x': dates,
                     'y': cumulative_migrations,
                     'type': 'scatter',
                     'mode': 'lines+markers',
-                    'name': 'Cumulative Migrations',
+                    'name': 'Cumulative Total',
                     'line': {'color': '#dc2626', 'width': 3},
                     'marker': {'size': 6},
-                    'yaxis': 'y2'
+                    'yaxis': 'y2',
+                    'hovertemplate': '<b>%{y}</b> total migrations<br>%{x}<extra></extra>'
                 }
             ],
             'layout': {
-                'title': 'Migration Activity Over Time',
-                'xaxis': {'title': 'Date'},
-                'yaxis': {'title': 'Daily Migrations', 'side': 'left'},
+                'title': 'Migration Activity - Last 30 Days (Origins → Genuine Undead)',
+                'xaxis': {'title': 'Date', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
+                'yaxis': {
+                    'title': 'Daily Migrations', 
+                    'side': 'left',
+                    'showgrid': True,
+                    'gridcolor': 'rgba(128,128,128,0.2)'
+                },
                 'yaxis2': {
                     'title': 'Cumulative Total',
                     'side': 'right',
                     'overlaying': 'y',
-                    'showgrid': False
+                    'showgrid': False,
+                    'tickformat': ',.0f'
                 },
                 'hovermode': 'x unified',
                 'plot_bgcolor': 'rgba(0,0,0,0)',
-                'paper_bgcolor': 'rgba(0,0,0,0)'
+                'paper_bgcolor': 'rgba(0,0,0,0)',
+                'annotations': [{
+                    'text': f'Total migrations in 30 days: {total:,}',
+                    'x': 0.5,
+                    'y': 1.1,
+                    'xref': 'paper',
+                    'yref': 'paper',
+                    'showarrow': False,
+                    'font': {'size': 12, 'color': 'gray'}
+                }]
             }
         }
     else:

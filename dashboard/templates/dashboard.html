@@ -153,23 +153,27 @@
 
         <!-- Migration Stats -->
         <div class="card rounded-xl shadow-lg p-6 mb-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Migration Analytics</h2>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Migration Analytics - Last 30 Days</h2>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="text-center">
                     <div class="text-3xl font-bold text-blue-600" id="totalMigrations">---</div>
                     <div class="text-sm text-gray-600">Total Migrations</div>
+                    <div class="text-xs text-gray-500">Origins → Genuine Undead</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-3xl font-bold text-green-600" id="migrationRate">---%</div>
-                    <div class="text-sm text-gray-600">Migration Rate</div>
+                    <div class="text-3xl font-bold text-green-600" id="migrationPercent">---%</div>
+                    <div class="text-sm text-gray-600">Migration % of Supply</div>
+                    <div class="text-xs text-gray-500">Based on 10,000 Origins</div>
                 </div>
                 <div class="text-center">
                     <div class="text-3xl font-bold text-purple-600" id="floorPriceRatio">-.--x</div>
-                    <div class="text-sm text-gray-600">Price Ratio</div>
+                    <div class="text-sm text-gray-600">GU vs Origins Price</div>
+                    <div class="text-xs text-gray-500">Genuine Undead premium</div>
                 </div>
                 <div class="text-center">
                     <div class="text-3xl font-bold text-orange-600" id="ecosystemValue">$--M</div>
-                    <div class="text-sm text-gray-600">Ecosystem Value</div>
+                    <div class="text-sm text-gray-600">Combined Market Cap</div>
+                    <div class="text-xs text-gray-500">Origins + Genuine Undead</div>
                 </div>
             </div>
         </div>
@@ -283,15 +287,28 @@
                 document.getElementById('undeadHolders').textContent = data.undead.holders_count.toLocaleString();
             }
             
-            // Migration analytics
+            // Migration analytics with proper calculations
             const migration = data.migration_analytics?.migration_rate || {};
-            document.getElementById('totalMigrations').textContent = (migration.total_migrations || 0).toLocaleString();
-            document.getElementById('migrationRate').textContent = (migration.migration_rate_percent || 0).toFixed(1) + '%';
+            const totalMigrations = migration.total_migrations || 0;
             
-            // Price ratio
+            document.getElementById('totalMigrations').textContent = totalMigrations.toLocaleString();
+            
+            // Calculate migration percentage of total supply (assuming 10,000 Origins)
+            const migrationPercent = (totalMigrations / 10000) * 100;
+            document.getElementById('migrationPercent').textContent = migrationPercent.toFixed(2) + '%';
+            
+            // Price ratio (GU vs Origins) - show premium/discount
             if (data.origins && data.undead && data.origins.floor_price_eth > 0) {
                 const ratio = data.undead.floor_price_eth / data.origins.floor_price_eth;
                 document.getElementById('floorPriceRatio').textContent = ratio.toFixed(2) + 'x';
+                
+                // Visual indicator for premium/discount
+                const ratioElement = document.getElementById('floorPriceRatio');
+                if (ratio > 1) {
+                    ratioElement.className = 'text-3xl font-bold text-red-600'; // Premium (more expensive)
+                } else {
+                    ratioElement.className = 'text-3xl font-bold text-green-600'; // Discount (cheaper)
+                }
             }
             
             // Ecosystem value
