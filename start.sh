@@ -4,8 +4,18 @@
 echo "Setting up GU Migration Tracker..."
 python main.py --mode setup
 
-# Generate initial mock data report (fast startup for Railway)
-echo "Generating initial dashboard data..."
+# Check if we need to backfill historical data
+if [ ! -f "data/historical_backfilled.flag" ]; then
+    echo "Backfilling 30 days of historical market data..."
+    python scripts/backfill_historical_data.py
+    touch data/historical_backfilled.flag
+    echo "✅ Historical data backfill completed"
+else
+    echo "Historical data already exists, skipping backfill"
+fi
+
+# Generate today's data report
+echo "Generating current market data..."
 python main.py --mode test
 
 # Start the dashboard
