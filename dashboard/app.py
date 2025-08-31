@@ -26,11 +26,16 @@ class DashboardData:
     """Manages data for the dashboard"""
     
     def __init__(self):
-        self.db = DatabaseManager()
+        # Use the correct database path (one level up from dashboard/)
+        db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'gu_migration.db')
+        self.db = DatabaseManager(db_path)
         self.opensea_client = OpenSeaClient()
         self.last_update = None
         self.cache = {}
         self.cache_duration = 300  # 5 minutes
+        
+        import logging
+        self.logger = logging.getLogger(__name__)
     
     async def get_current_data(self, force_refresh=False):
         """Get current market data with caching"""
@@ -154,12 +159,14 @@ class DashboardData:
             undead_history = self.db.get_historical_snapshots(undead_id, 30)
             migration_stats = self.db.get_migration_stats(30)
             
+            
             return {
                 'origins_history': origins_history,
                 'undead_history': undead_history,
                 'migration_stats': migration_stats
             }
-        except:
+        except Exception as e:
+            self.logger.error(f"Error in get_historical_chart_data: {e}")
             return {'origins_history': [], 'undead_history': [], 'migration_stats': {}}
 
 # Global dashboard data instance
@@ -449,6 +456,40 @@ def api_charts():
 def health():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+
+@app.route('/api/export-pdf')
+def export_pdf():
+    """Generate and return a PDF report"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        # Get current data
+        data = loop.run_until_complete(dashboard_data.get_current_data())
+        
+        # Create a simple PDF report using available libraries
+        from flask import make_response
+        import json
+        
+        # For now, return JSON data as downloadable file
+        # In production, you'd use reportlab or similar to create a proper PDF
+        report_data = {
+            'generated_at': datetime.now().isoformat(),
+            'gu_origins': data.get('origins', {}),
+            'genuine_undead': data.get('undead', {}),
+            'eth_price_usd': data.get('eth_price_usd', 0),
+            'migration_analytics': data.get('migration_analytics', {})
+        }
+        
+        response = make_response(json.dumps(report_data, indent=2))
+        response.headers['Content-Type'] = 'application/json'
+        response.headers['Content-Disposition'] = f'attachment; filename="gu_migration_report_{datetime.now().strftime("%Y%m%d_%H%M")}.json"'
+        
+        return response
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        loop.close()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

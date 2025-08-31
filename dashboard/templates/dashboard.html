@@ -56,9 +56,17 @@
                 <div class="flex items-center space-x-4">
                     <span class="status-indicator status-loading" id="statusIndicator"></span>
                     <span class="text-white text-sm" id="lastUpdate">Loading...</span>
-                    <button onclick="refreshData()" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-200">
-                        <i class="fas fa-refresh mr-2"></i>Refresh
-                    </button>
+                    <div class="flex space-x-3">
+                        <button onclick="refreshData()" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-200">
+                            <i class="fas fa-refresh mr-2"></i>Refresh
+                        </button>
+                        <button onclick="shareToTwitter()" class="bg-green-600 bg-opacity-90 hover:bg-opacity-100 text-white px-4 py-2 rounded-lg transition-all duration-200">
+                            <i class="fab fa-twitter mr-2"></i>Share
+                        </button>
+                        <button onclick="exportReport()" class="bg-purple-600 bg-opacity-90 hover:bg-opacity-100 text-white px-4 py-2 rounded-lg transition-all duration-200">
+                            <i class="fas fa-download mr-2"></i>Export
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -367,6 +375,41 @@
                     console.error('Error:', error);
                     updateStatus(false);
                 });
+        }
+
+        function shareToTwitter() {
+            // Get current data for tweet
+            fetch('/api/current')
+                .then(response => response.json())
+                .then(data => {
+                    const originsFloor = formatNumber(data.origins?.floor_price_eth || 0, 4);
+                    const undeadFloor = formatNumber(data.undead?.floor_price_eth || 0, 4);
+                    const originsSupply = formatNumber(data.origins?.total_supply || 0);
+                    const undeadSupply = formatNumber(data.undead?.total_supply || 0);
+                    
+                    const tweetText = `🔥 GU Migration Tracker Update
+📊 GU Origins: ${originsFloor} ETH floor (${originsSupply} supply)
+💀 Genuine Undead: ${undeadFloor} ETH floor (${undeadSupply} supply)
+🔄 Migration analytics & trends live at:`;
+                    
+                    const url = window.location.href;
+                    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(url)}`;
+                    window.open(twitterUrl, '_blank');
+                })
+                .catch(error => {
+                    console.error('Error getting data for tweet:', error);
+                    // Fallback tweet
+                    const tweetText = `📊 Check out the live GU Migration Tracker - real-time analytics for GU Origins → Genuine Undead migrations!`;
+                    const url = window.location.href;
+                    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(url)}`;
+                    window.open(twitterUrl, '_blank');
+                });
+        }
+
+        function exportReport() {
+            // Create a PDF export endpoint request
+            const exportUrl = '/api/export-pdf';
+            window.open(exportUrl, '_blank');
         }
 
         // Initialize dashboard
