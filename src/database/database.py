@@ -20,7 +20,11 @@ class DatabaseManager:
     def init_database(self):
         """Initialize database with schema"""
         try:
-            with open('src/database/schema.sql', 'r') as f:
+            # Get the absolute path to schema.sql
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            schema_path = os.path.join(current_dir, 'schema.sql')
+            
+            with open(schema_path, 'r') as f:
                 schema = f.read()
             
             with self.get_connection() as conn:
