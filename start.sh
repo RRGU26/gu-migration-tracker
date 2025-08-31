@@ -7,4 +7,9 @@ python main.py --mode setup
 # Start the dashboard
 echo "Starting dashboard server..."
 cd dashboard
-python app.py
+
+# Set production environment
+export FLASK_ENV=production
+
+# Start the Flask app
+exec python app.py
