@@ -61,13 +61,34 @@ class DashboardData:
             
             eth_price = await get_current_eth_price()
             
+            # Get accurate migration data from database
+            migration_stats = self.db.get_migration_stats(30)
+            
+            # Calculate collection growth percentage
+            undead_id = self.db.get_collection_id('genuine-undead')
+            undead_history = self.db.get_historical_snapshots(undead_id, 30)
+            collection_growth_percent = 0
+            
+            if len(undead_history) >= 2:
+                # Sort by date to get oldest and newest
+                undead_history_sorted = sorted(undead_history, key=lambda x: x['snapshot_date'])
+                first_supply = undead_history_sorted[0]['total_supply']  # Oldest
+                last_supply = undead_history_sorted[-1]['total_supply']  # Newest
+                growth = last_supply - first_supply
+                collection_growth_percent = (growth / 10000) * 100  # Percentage of Origins supply
+            
             # Process data
             data = {
                 'timestamp': now.isoformat(),
                 'eth_price_usd': eth_price,
                 'origins': self._process_collection_data(origins_stats, origins_details, eth_price),
                 'undead': self._process_collection_data(undead_stats, undead_details, eth_price),
-                'migration_analytics': get_migration_analytics()
+                'migration_analytics': {
+                    'migration_rate': {
+                        'total_migrations': migration_stats.get('total_migrations', 0),
+                        'collection_growth_percent': collection_growth_percent
+                    }
+                }
             }
             
             # Update cache
@@ -346,11 +367,8 @@ def api_charts():
             }
         }
     
-    # Combined Market Cap vs Industry Average
-    # Generate some mock industry data for demonstration
-    import datetime
+    # Combined Market Cap Chart (GU Ecosystem Only)
     dates = []
-    industry_avg_data = []
     combined_market_cap = []
     
     if historical['origins_history'] and historical['undead_history']:
@@ -364,14 +382,6 @@ def api_charts():
             
             combined_mc = origins_mc + undead_mc
             combined_market_cap.append(combined_mc)
-            
-            # Mock industry average (typically NFT collections range from 100K to 50M)
-            # Show a gradual decline trend that many NFT collections experienced
-            base_avg = 5000000  # $5M baseline
-            time_decay = 0.95 ** i  # Gradual decline
-            volatility = 1 + 0.2 * (0.5 - (i % 10) / 10)  # Some volatility
-            industry_avg = base_avg * time_decay * volatility
-            industry_avg_data.append(industry_avg)
     
     market_cap_chart = {
         'data': [
@@ -380,36 +390,34 @@ def api_charts():
                 'y': combined_market_cap,
                 'type': 'scatter',
                 'mode': 'lines+markers',
-                'name': 'GU Ecosystem',
+                'name': 'Combined Market Cap',
                 'line': {'color': '#8b5cf6', 'width': 4},
-                'marker': {'size': 6}
-            },
-            {
-                'x': dates,
-                'y': industry_avg_data,
-                'type': 'scatter',
-                'mode': 'lines',
-                'name': 'NFT Collection Avg',
-                'line': {'color': '#9ca3af', 'width': 2, 'dash': 'dash'},
-                'opacity': 0.7
+                'marker': {'size': 6},
+                'fill': 'tonexty',
+                'fillcolor': 'rgba(139, 92, 246, 0.1)',
+                'hovertemplate': '<b>$%{y:,.0f}</b><br>Date: %{x}<extra></extra>'
             }
         ],
         'layout': {
-            'title': 'Combined Market Cap vs NFT Industry Average - Last 30 Days',
-            'xaxis': {'title': 'Date', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
-            'yaxis': {'title': 'Market Cap (USD)', 'tickformat': '$,.0f', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
+            'title': 'GU Ecosystem Market Cap - Last 30 Days',
+            'xaxis': {
+                'title': 'Date', 
+                'showgrid': True, 
+                'gridcolor': 'rgba(128,128,128,0.2)',
+                'tickangle': -45
+            },
+            'yaxis': {
+                'title': 'Market Cap (USD)', 
+                'tickformat': '$,.0s',  # Simplified format (1M, 10M, etc.)
+                'showgrid': True, 
+                'gridcolor': 'rgba(128,128,128,0.2)'
+            },
             'hovermode': 'x unified',
             'plot_bgcolor': 'rgba(0,0,0,0)',
             'paper_bgcolor': 'rgba(0,0,0,0)',
-            'legend': {
-                'x': 0,
-                'y': 1,
-                'bgcolor': 'rgba(255,255,255,0.8)',
-                'bordercolor': 'rgba(0,0,0,0.2)',
-                'borderwidth': 1
-            },
+            'margin': {'l': 80, 'r': 20, 't': 60, 'b': 80},
             'annotations': [{
-                'text': 'GU Ecosystem (Origins + Genuine Undead) compared to typical NFT collection',
+                'text': 'Origins + Genuine Undead combined valuation',
                 'x': 0.5,
                 'y': 1.1,
                 'xref': 'paper',
