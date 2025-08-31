@@ -37,7 +37,7 @@ def generate_historical_data():
     
     undead_base_floor = 0.0383
     undead_base_volume = 0.8
-    undead_supply = 5306
+    undead_supply = 2000  # Start lower to show significant migration growth
     undead_holders = 692
     
     eth_price_base = 4500
@@ -65,11 +65,17 @@ def generate_historical_data():
         undead_volume_24h = undead_base_volume * volume_multiplier * random.uniform(0.8, 1.5)
         undead_volume_7d = undead_volume_24h * random.uniform(4, 7)
         
-        # Simulate gradual collection growth (migrations)
-        if i < 20:  # More recent growth
-            growth_factor = random.uniform(1.0, 1.002)  # 0-0.2% daily growth
-            undead_supply = int(undead_supply * growth_factor)
-            undead_holders = int(undead_holders * random.uniform(1.0, 1.001))
+        # Simulate significant migration growth over 30 days  
+        # Target: exactly 5391 total supply for 53.91% migration rate
+        target_final_supply = 5391
+        progress = (30 - i) / 30  # 0 to 1 over 30 days
+        
+        # Exponential growth curve for realistic migration pattern  
+        growth_curve = progress ** 0.7  # Slightly accelerated growth
+        current_supply = int(2000 + (target_final_supply - 2000) * growth_curve)
+        undead_supply = max(undead_supply, current_supply)  # Ensure monotonic growth
+        
+        undead_holders = int(undead_holders * random.uniform(1.0, 1.005))
         
         undead_market_cap = undead_floor * undead_supply * eth_price
         
@@ -117,24 +123,30 @@ def generate_historical_data():
         
         db.save_daily_snapshot(undead_id, undead_snapshot)
         
-        # Simulate some migrations (random 0-3 per day)
-        if random.random() > 0.6:  # 40% chance of migrations on any day
-            migrations_today = random.randint(1, 3)
-            for _ in range(migrations_today):
-                # Generate mock data
-                token_id = str(random.randint(1, 10000))
-                wallet_address = f"0x{''.join(random.choices('0123456789abcdef', k=40))}"
-                transaction_hash = f"0x{''.join(random.choices('0123456789abcdef', k=64))}"
-                
-                # Use the save_migration method
-                db.save_migration(
-                    token_id=token_id,
-                    from_collection_id=origins_id,
-                    to_collection_id=undead_id,
-                    migration_date=date,
-                    transaction_hash=transaction_hash,
-                    block_number=random.randint(18000000, 18500000)
-                )
+        # Simulate realistic migration activity matching supply growth
+        # Calculate expected daily migrations based on supply growth
+        if i < 30:
+            prev_supply = int(2000 + (target_final_supply - 2000) * ((30 - (i + 1)) / 30) ** 0.7)
+            daily_migration_growth = current_supply - prev_supply
+            migrations_today = max(daily_migration_growth, random.randint(0, 5))  # At least the growth amount
+        else:
+            migrations_today = random.randint(0, 3)
+            
+        for _ in range(migrations_today):
+            # Generate mock data
+            token_id = str(random.randint(1, 10000))
+            wallet_address = f"0x{''.join(random.choices('0123456789abcdef', k=40))}"
+            transaction_hash = f"0x{''.join(random.choices('0123456789abcdef', k=64))}"
+            
+            # Use the save_migration method
+            db.save_migration(
+                token_id=token_id,
+                from_collection_id=origins_id,
+                to_collection_id=undead_id,
+                migration_date=date,
+                transaction_hash=transaction_hash,
+                block_number=random.randint(18000000, 18500000)
+            )
         
         print(f"Generated data for {date.strftime('%Y-%m-%d')}")
     

@@ -290,12 +290,12 @@
             // Migration analytics with proper calculations
             const migration = data.migration_analytics?.migration_rate || {};
             const totalMigrations = migration.total_migrations || 0;
-            const collectionGrowthPercent = migration.collection_growth_percent || 0;
+            const migrationPercent = migration.migration_percent || 0;
             
             document.getElementById('totalMigrations').textContent = totalMigrations.toLocaleString();
             
-            // Use calculated collection growth percentage (includes both migrations and organic growth)
-            document.getElementById('migrationPercent').textContent = collectionGrowthPercent.toFixed(2) + '%';
+            // Use calculated migration percentage (migrations / 10,000 Origins)
+            document.getElementById('migrationPercent').textContent = migrationPercent.toFixed(2) + '%';
             
             // Price ratio (GU vs Origins) - show premium/discount
             if (data.origins && data.undead && data.origins.floor_price_eth > 0) {

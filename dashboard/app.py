@@ -64,18 +64,17 @@ class DashboardData:
             # Get accurate migration data from database
             migration_stats = self.db.get_migration_stats(30)
             
-            # Calculate collection growth percentage
+            # Calculate migrations from Genuine Undead collection supply
+            # The collection represents migrated Origins NFTs (total possible: 10,000)
             undead_id = self.db.get_collection_id('genuine-undead')
-            undead_history = self.db.get_historical_snapshots(undead_id, 30)
-            collection_growth_percent = 0
+            latest_snapshot = self.db.get_latest_snapshot(undead_id)
             
-            if len(undead_history) >= 2:
-                # Sort by date to get oldest and newest
-                undead_history_sorted = sorted(undead_history, key=lambda x: x['snapshot_date'])
-                first_supply = undead_history_sorted[0]['total_supply']  # Oldest
-                last_supply = undead_history_sorted[-1]['total_supply']  # Newest
-                growth = last_supply - first_supply
-                collection_growth_percent = (growth / 10000) * 100  # Percentage of Origins supply
+            # Current Genuine Undead supply = total migrations (out of 10,000 Origins)
+            current_gu_supply = latest_snapshot.get('total_supply', 0) if latest_snapshot else 0
+            total_migrations = current_gu_supply  # Each Genuine Undead NFT represents a migrated Origin
+            
+            # Migration percentage of total Origins supply (10,000)
+            migration_percent = (total_migrations / 10000) * 100
             
             # Process data
             data = {
@@ -85,8 +84,8 @@ class DashboardData:
                 'undead': self._process_collection_data(undead_stats, undead_details, eth_price),
                 'migration_analytics': {
                     'migration_rate': {
-                        'total_migrations': migration_stats.get('total_migrations', 0),
-                        'collection_growth_percent': collection_growth_percent
+                        'total_migrations': total_migrations,  # Use calculated migrations from supply
+                        'migration_percent': migration_percent
                     }
                 }
             }
