@@ -64,16 +64,11 @@ class DashboardData:
             # Get accurate migration data from database
             migration_stats = self.db.get_migration_stats(30)
             
-            # Calculate migrations from Genuine Undead collection supply
-            # The collection represents migrated Origins NFTs (total possible: 10,000)
-            undead_id = self.db.get_collection_id('genuine-undead')
-            latest_snapshot = self.db.get_latest_snapshot(undead_id)
+            # Calculate migrations from real-time OpenSea data
+            # Use actual Genuine Undead total supply from OpenSea
+            total_migrations = undead_details.get('total_supply', 0) if undead_details else 0
             
-            # Current Genuine Undead supply = total migrations (out of 10,000 Origins)
-            current_gu_supply = latest_snapshot.get('total_supply', 0) if latest_snapshot else 0
-            total_migrations = current_gu_supply  # Each Genuine Undead NFT represents a migrated Origin
-            
-            # Migration percentage of total Origins supply (10,000)
+            # Migration percentage = (OpenSea GU Supply / 10,000 Origins) × 100
             migration_percent = (total_migrations / 10000) * 100
             
             # Process data
