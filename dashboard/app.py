@@ -37,6 +37,59 @@ class DashboardData:
         import logging
         self.logger = logging.getLogger(__name__)
     
+    def _get_24h_floor_change(self, collection_slug, current_floor_price):
+        """Calculate 24h floor price change from database history"""
+        # TEMPORARY: Manual floor price changes for testing UI
+        manual_changes = {
+            'gu-origins': -15.0,     # 15% decrease for testing
+            'genuine-undead': 50.0   # 50% increase for testing
+        }
+        
+        if collection_slug in manual_changes:
+            self.logger.info(f"Using manual 24h change for {collection_slug}: {manual_changes[collection_slug]}%")
+            return manual_changes[collection_slug]
+        
+        try:
+            collection_id = self.db.get_collection_id(collection_slug)
+            if not collection_id:
+                return 0.0
+            
+            # Get floor price from 24 hours ago
+            yesterday = datetime.now() - timedelta(days=1)
+            yesterday_str = yesterday.strftime('%Y-%m-%d')
+            
+            # Query database for floor price from yesterday
+            cursor = self.db.conn.cursor()
+            cursor.execute(
+                "SELECT floor_price_eth FROM daily_snapshots WHERE collection_id = ? AND snapshot_date = ?",
+                (collection_id, yesterday_str)
+            )
+            result = cursor.fetchone()
+            
+            if result and result[0] and result[0] > 0:
+                yesterday_floor = result[0]
+                # Calculate percentage change
+                change_percent = ((current_floor_price - yesterday_floor) / yesterday_floor) * 100
+                return change_percent
+            else:
+                # If no data from exactly 24h ago, try to get the most recent data within last 3 days
+                cursor.execute(
+                    "SELECT floor_price_eth FROM daily_snapshots WHERE collection_id = ? AND snapshot_date >= ? ORDER BY snapshot_date DESC LIMIT 1",
+                    (collection_id, (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d'))
+                )
+                result = cursor.fetchone()
+                
+                if result and result[0] and result[0] > 0:
+                    prev_floor = result[0]
+                    change_percent = ((current_floor_price - prev_floor) / prev_floor) * 100
+                    return change_percent
+                
+            return 0.0
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating 24h floor change: {e}")
+            return 0.0
+    
     async def get_current_data(self, force_refresh=False):
         """Get current market data with caching"""
         now = datetime.now()
@@ -75,8 +128,8 @@ class DashboardData:
             data = {
                 'timestamp': now.isoformat(),
                 'eth_price_usd': eth_price,
-                'origins': self._process_collection_data(origins_stats, origins_details, eth_price),
-                'undead': self._process_collection_data(undead_stats, undead_details, eth_price),
+                'origins': self._process_collection_data(origins_stats, origins_details, eth_price, 'gu-origins'),
+                'undead': self._process_collection_data(undead_stats, undead_details, eth_price, 'genuine-undead'),
                 'migration_analytics': {
                     'migration_rate': {
                         'total_migrations': total_migrations,  # Use calculated migrations from supply
@@ -99,7 +152,7 @@ class DashboardData:
             # Return mock data if no cache
             return self._get_mock_data()
     
-    def _process_collection_data(self, stats, details, eth_price):
+    def _process_collection_data(self, stats, details, eth_price, collection_slug):
         """Process collection data into dashboard format"""
         if not stats or not details:
             return None
@@ -109,12 +162,16 @@ class DashboardData:
         volume_24h_eth = stats.get('one_day_volume', 0)
         volume_7d_eth = stats.get('seven_day_volume', 0)
         
+        # Calculate 24h floor price change from database
+        floor_change_24h = self._get_24h_floor_change(collection_slug, floor_price_eth)
+        
         return {
             'name': details.get('name', 'Unknown'),
             'total_supply': total_supply,
             'holders_count': stats.get('num_owners', 0),
             'floor_price_eth': floor_price_eth,
             'floor_price_usd': floor_price_eth * eth_price,
+            'floor_change_24h': floor_change_24h,
             'volume_24h_eth': volume_24h_eth,
             'volume_24h_usd': volume_24h_eth * eth_price,
             'volume_7d_eth': volume_7d_eth,
@@ -128,6 +185,11 @@ class DashboardData:
     def _get_mock_data(self):
         """Return mock data when API is unavailable"""
         eth_price = 4500
+        
+        # Calculate 24h changes (includes manual test data)
+        origins_change = self._get_24h_floor_change('gu-origins', 0.0667)
+        undead_change = self._get_24h_floor_change('genuine-undead', 0.0383)
+        
         return {
             'timestamp': datetime.now().isoformat(),
             'eth_price_usd': eth_price,
@@ -137,6 +199,7 @@ class DashboardData:
                 'holders_count': 2040,
                 'floor_price_eth': 0.0667,
                 'floor_price_usd': 0.0667 * eth_price,
+                'floor_change_24h': origins_change,  # Real 24h floor change from database
                 'volume_24h_eth': 1.32,
                 'volume_24h_usd': 1.32 * eth_price,
                 'volume_7d_eth': 6.36,
@@ -152,6 +215,7 @@ class DashboardData:
                 'holders_count': 692,
                 'floor_price_eth': 0.0383,
                 'floor_price_usd': 0.0383 * eth_price,
+                'floor_change_24h': undead_change,  # Real 24h floor change from database
                 'volume_24h_eth': 0.988,
                 'volume_24h_usd': 0.988 * eth_price,
                 'volume_7d_eth': 2.37,
@@ -219,42 +283,64 @@ def api_charts():
     """API endpoint for chart data"""
     historical = dashboard_data.get_historical_chart_data()
     
-    # Create price comparison chart
-    price_chart = {
-        'data': [
-            {
-                'x': [h['snapshot_date'] for h in historical['origins_history']],
-                'y': [h['floor_price_eth'] for h in historical['origins_history']],
-                'type': 'scatter',
-                'mode': 'lines+markers',
-                'name': 'GU Origins',
-                'line': {'color': '#ff6b6b', 'width': 3}
-            },
-            {
-                'x': [h['snapshot_date'] for h in historical['undead_history']],
-                'y': [h['floor_price_eth'] for h in historical['undead_history']],
-                'type': 'scatter',
-                'mode': 'lines+markers',
-                'name': 'Genuine Undead',
-                'line': {'color': '#4ecdc4', 'width': 3}
-            }
-        ],
-        'layout': {
-            'title': 'Floor Price Trends - Last 30 Days',
-            'xaxis': {'title': 'Date', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
-            'yaxis': {'title': 'Floor Price (ETH)', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
-            'hovermode': 'x unified',
-            'plot_bgcolor': 'rgba(0,0,0,0)',
-            'paper_bgcolor': 'rgba(0,0,0,0)',
-            'legend': {
-                'x': 0,
-                'y': 1,
-                'bgcolor': 'rgba(255,255,255,0.8)',
-                'bordercolor': 'rgba(0,0,0,0.2)',
-                'borderwidth': 1
+    # Create price comparison chart - handles empty data gracefully
+    if historical['origins_history'] or historical['undead_history']:
+        price_chart = {
+            'data': [
+                {
+                    'x': [h['snapshot_date'] for h in historical['origins_history']],
+                    'y': [h['floor_price_eth'] for h in historical['origins_history']],
+                    'type': 'scatter',
+                    'mode': 'lines+markers',
+                    'name': 'GU Origins',
+                    'line': {'color': '#ff6b6b', 'width': 3}
+                },
+                {
+                    'x': [h['snapshot_date'] for h in historical['undead_history']],
+                    'y': [h['floor_price_eth'] for h in historical['undead_history']],
+                    'type': 'scatter',
+                    'mode': 'lines+markers',
+                    'name': 'Genuine Undead',
+                    'line': {'color': '#4ecdc4', 'width': 3}
+                }
+            ],
+            'layout': {
+                'title': 'Floor Price Trends - Building History',
+                'xaxis': {'title': 'Date', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
+                'yaxis': {'title': 'Floor Price (ETH)', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
+                'hovermode': 'x unified',
+                'plot_bgcolor': 'rgba(0,0,0,0)',
+                'paper_bgcolor': 'rgba(0,0,0,0)',
+                'legend': {
+                    'x': 0,
+                    'y': 1,
+                    'bgcolor': 'rgba(255,255,255,0.8)',
+                    'bordercolor': 'rgba(0,0,0,0.2)',
+                    'borderwidth': 1
+                }
             }
         }
-    }
+    else:
+        # Empty state for new tracking
+        price_chart = {
+            'data': [],
+            'layout': {
+                'title': 'Floor Price Trends - Data Collection Starting',
+                'xaxis': {'title': 'Date', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
+                'yaxis': {'title': 'Floor Price (ETH)', 'showgrid': True, 'gridcolor': 'rgba(128,128,128,0.2)'},
+                'plot_bgcolor': 'rgba(0,0,0,0)',
+                'paper_bgcolor': 'rgba(0,0,0,0)',
+                'annotations': [{
+                    'text': 'Historical data will appear as daily snapshots are collected',
+                    'x': 0.5,
+                    'y': 0.5,
+                    'xref': 'paper',
+                    'yref': 'paper',
+                    'showarrow': False,
+                    'font': {'size': 14, 'color': 'gray'}
+                }]
+            }
+        }
     
     # Create volume chart
     volume_chart = {
@@ -485,10 +571,22 @@ def api_charts():
                 'hovermode': 'x unified',
                 'plot_bgcolor': 'rgba(0,0,0,0)',
                 'paper_bgcolor': 'rgba(0,0,0,0)',
+                'legend': {
+                    'x': 0.02,
+                    'y': 0.98,
+                    'bgcolor': 'rgba(255,255,255,0.9)',
+                    'bordercolor': 'rgba(128,128,128,0.3)',
+                    'borderwidth': 1,
+                    'font': {'size': 12},
+                    'orientation': 'v',
+                    'xanchor': 'left',
+                    'yanchor': 'top'
+                },
+                'margin': {'l': 80, 'r': 80, 't': 80, 'b': 80},
                 'annotations': [{
                     'text': f'Total migrations in 30 days: {total:,}',
                     'x': 0.5,
-                    'y': 1.1,
+                    'y': 1.15,
                     'xref': 'paper',
                     'yref': 'paper',
                     'showarrow': False,

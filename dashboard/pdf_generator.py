@@ -164,8 +164,12 @@ class PDFReportGenerator:
             c.setFillColor(HexColor('#374151'))
             c.setFont("Helvetica", 10)
             
+            # Format 24h change with color indicator
+            floor_change = collection.get('floor_change_24h', 0)
+            change_text = f"({floor_change:+.1f}%)"
+            
             metrics_list = [
-                f"Floor: {collection.get('floor_price_eth', 0):.4f} ETH",
+                f"Floor: {collection.get('floor_price_eth', 0):.4f} ETH {change_text}",
                 f"Volume 24h: {collection.get('volume_24h_eth', 0):.2f} ETH",
                 f"Market Cap: ${collection.get('market_cap_usd', 0)/1e6:.1f}M",
                 f"Holders: {collection.get('holders_count', 0):,}",
@@ -189,11 +193,15 @@ class PDFReportGenerator:
         c.setFillColor(HexColor('#4b5563'))
         c.setFont("Helvetica", 10)
         
+        # Add 24h changes to insights
+        origins_change = data.get('origins', {}).get('floor_change_24h', 0)
+        undead_change = data.get('undead', {}).get('floor_change_24h', 0)
+        
         insights = [
             f"• {data.get('migration_percent', 0):.1f}% of Origins have migrated to Genuine Undead",
             f"• Genuine Undead trades at {data.get('price_ratio', 1):.2f}x Origins floor price",
-            f"• Combined ecosystem value: ${data.get('ecosystem_value', 0)/1e6:.1f}M",
-            f"• {data.get('total_migrations', 0):,} successful migrations in the last 30 days"
+            f"• 24h floor changes: Origins {origins_change:+.1f}%, Genuine Undead {undead_change:+.1f}%",
+            f"• Combined ecosystem value: ${data.get('ecosystem_value', 0)/1e6:.1f}M"
         ]
         
         for insight in insights:
@@ -299,14 +307,17 @@ class PDFReportGenerator:
         c.setFont("Helvetica", 10)
         c.setFillColor(HexColor('#4b5563'))
         
-        # Origins stats
+        # Origins stats with 24h changes
         y = 180
-        c.drawString(50, y, f"Floor: {origins.get('floor_price_eth', 0):.4f} ETH")
+        origins_change = origins.get('floor_change_24h', 0)
+        undead_change = undead.get('floor_change_24h', 0)
+        
+        c.drawString(50, y, f"Floor: {origins.get('floor_price_eth', 0):.4f} ETH ({origins_change:+.1f}%)")
         c.drawString(50, y - 15, f"Volume: {origins.get('volume_24h_eth', 0):.2f} ETH")
         c.drawString(50, y - 30, f"Supply: {origins.get('total_supply', 0):,}")
         
-        # Undead stats
-        c.drawString(350, y, f"Floor: {undead.get('floor_price_eth', 0):.4f} ETH")
+        # Undead stats with 24h changes
+        c.drawString(350, y, f"Floor: {undead.get('floor_price_eth', 0):.4f} ETH ({undead_change:+.1f%})")
         c.drawString(350, y - 15, f"Volume: {undead.get('volume_24h_eth', 0):.2f} ETH")
         c.drawString(350, y - 30, f"Supply: {undead.get('total_supply', 0):,}")
         
