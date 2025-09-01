@@ -294,62 +294,90 @@ class PDFReportGenerator:
             c.setFont("Helvetica-Bold", 18)
             c.drawCentredString(x, y - 20, value)
         
-        # Quick stats
-        y = 200
-        c.setFillColor(HexColor('#1f2937'))
+        # Collection comparison section with enhanced styling
+        y = 210
+        
+        # Draw collection cards with subtle backgrounds
+        c.setFillColor(HexColor('#f8fafc'))
+        c.rect(40, y - 45, 250, 60, fill=1, stroke=0)
+        c.rect(310, y - 45, 250, 60, fill=1, stroke=0)
+        
+        # Collection headers with icons
+        c.setFillColor(HexColor('#dc2626'))  # Red for Origins
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, y, "GU ORIGINS")
-        c.drawString(350, y, "GENUINE UNDEAD")
+        c.drawString(50, y, "🔴 GU ORIGINS")
+        
+        c.setFillColor(HexColor('#059669'))  # Green for Undead
+        c.drawString(320, y, "💀 GENUINE UNDEAD")
         
         origins = data.get('origins', {})
         undead = data.get('undead', {})
         
-        c.setFont("Helvetica", 10)
-        c.setFillColor(HexColor('#4b5563'))
-        
-        # Origins stats with 24h changes
-        y = 180
+        # Origins stats with icons and enhanced formatting
+        y = 190
         origins_change = origins.get('floor_change_24h', 0)
         undead_change = undead.get('floor_change_24h', 0)
         
-        c.drawString(50, y, f"Floor: {origins.get('floor_price_eth', 0):.4f} ETH ({origins_change:+.1f}%)")
-        c.drawString(50, y - 15, f"Volume: {origins.get('volume_24h_eth', 0):.2f} ETH")
-        c.drawString(50, y - 30, f"Supply: {origins.get('total_supply', 0):,}")
+        c.setFont("Helvetica", 10)
+        c.setFillColor(HexColor('#374151'))
         
-        # Undead stats with 24h changes
-        c.drawString(350, y, f"Floor: {undead.get('floor_price_eth', 0):.4f} ETH ({undead_change:+.1f}%)")
-        c.drawString(350, y - 15, f"Volume: {undead.get('volume_24h_eth', 0):.2f} ETH")
-        c.drawString(350, y - 30, f"Supply: {undead.get('total_supply', 0):,}")
+        # Origins with change color coding
+        floor_color = HexColor('#dc2626') if origins_change < 0 else HexColor('#059669')
+        c.setFillColor(floor_color)
+        c.drawString(50, y, f"💰 Floor: {origins.get('floor_price_eth', 0):.4f} ETH ({origins_change:+.1f}%)")
+        
+        c.setFillColor(HexColor('#374151'))
+        c.drawString(50, y - 15, f"📊 Volume: {origins.get('volume_24h_eth', 0):.2f} ETH")
+        c.drawString(50, y - 30, f"📦 Supply: {origins.get('total_supply', 0):,}")
+        
+        # Undead with change color coding
+        floor_color = HexColor('#dc2626') if undead_change < 0 else HexColor('#059669')
+        c.setFillColor(floor_color)
+        c.drawString(320, y, f"💰 Floor: {undead.get('floor_price_eth', 0):.4f} ETH ({undead_change:+.1f}%)")
+        
+        c.setFillColor(HexColor('#374151'))
+        c.drawString(320, y - 15, f"📊 Volume: {undead.get('volume_24h_eth', 0):.2f} ETH")
+        c.drawString(320, y - 30, f"📦 Supply: {undead.get('total_supply', 0):,}")
         
         # Visual separator
         c.setStrokeColor(HexColor('#e5e7eb'))
         c.setLineWidth(1)
         c.line(50, 120, 550, 120)
         
-        # Key insight with enhanced styling
-        c.setFillColor(HexColor('#1e40af'))
-        c.setFont("Helvetica-Bold", 12)
-        insight = f"{data.get('migration_percent', 0):.1f}% of Origins migrated → {data.get('price_ratio', 1):.2f}x premium"
-        c.drawCentredString(300, 90, insight)
+        # Enhanced insight section with background
+        c.setFillColor(HexColor('#eff6ff'))
+        c.rect(40, 60, 520, 50, fill=1, stroke=0)
         
-        # Add 24h change summary
+        # Main insight with icon
+        c.setFillColor(HexColor('#1e40af'))
+        c.setFont("Helvetica-Bold", 13)
+        insight = f"🎯 {data.get('migration_percent', 0):.1f}% of Origins migrated → {data.get('price_ratio', 1):.2f}x premium"
+        c.drawCentredString(300, 95, insight)
+        
+        # Add 24h change summary with trend icons
         origins_change = data.get('origins', {}).get('floor_change_24h', 0)
         undead_change = data.get('undead', {}).get('floor_change_24h', 0)
         
+        origins_icon = "📈" if origins_change >= 0 else "📉"
+        undead_icon = "📈" if undead_change >= 0 else "📉"
+        
         c.setFillColor(HexColor('#374151'))
-        c.setFont("Helvetica", 10)
-        change_summary = f"24h Changes: Origins {origins_change:+.1f}% • Genuine Undead {undead_change:+.1f}%"
-        c.drawCentredString(300, 70, change_summary)
+        c.setFont("Helvetica", 11)
+        change_summary = f"{origins_icon} Origins {origins_change:+.1f}% • {undead_icon} Genuine Undead {undead_change:+.1f}%"
+        c.drawCentredString(300, 75, change_summary)
         
-        # Enhanced footer
-        c.setFillColor(HexColor('#6b7280'))
-        c.setFont("Helvetica", 8)
-        c.drawCentredString(300, 35, "Real-time blockchain analytics • Generated by RR GU Analytic Tracker")
+        # Professional footer with enhanced styling
+        c.setFillColor(HexColor('#1e293b'))
+        c.rect(0, 0, 600, 45, fill=1, stroke=0)
         
-        # Twitter handle
-        c.setFillColor(HexColor('#1d9bf0'))
-        c.setFont("Helvetica-Bold", 8)
-        c.drawCentredString(300, 20, "🐦 @RRGU_Analytics • Share this report!")
+        c.setFillColor(HexColor('#cbd5e1'))
+        c.setFont("Helvetica", 9)
+        c.drawCentredString(300, 30, "⚡ Real-time blockchain analytics • Generated by RR GU Analytic Tracker")
+        
+        # Twitter handle with enhanced styling
+        c.setFillColor(HexColor('#38bdf8'))
+        c.setFont("Helvetica-Bold", 9)
+        c.drawCentredString(300, 15, "🐦 @RRGU_Analytics • Share this report! 🚀")
         
         c.save()
         buffer.seek(0)
