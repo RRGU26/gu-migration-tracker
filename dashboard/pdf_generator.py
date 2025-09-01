@@ -605,13 +605,13 @@ class PDFReportGenerator:
             c.setFont("Helvetica", 8)
             c.drawCentredString(170, y_charts - 70, "Real data loading...")
         
-        # Floor Price Comparison Chart (more useful than migration for now)
+        # Migration Activity Chart 
         try:
-            floor_chart_img = self._create_chart_image(None, "floor_price")
+            mig_chart_img = self._create_chart_image(None, "migration")
             from reportlab.lib.utils import ImageReader
-            c.drawImage(ImageReader(floor_chart_img), 310, y_charts - 120, width=240, height=120)
+            c.drawImage(ImageReader(mig_chart_img), 310, y_charts - 120, width=240, height=120)
         except Exception as e:
-            print(f"Error creating floor price chart: {e}")
+            print(f"Error creating migration chart: {e}")
             # Draw professional placeholder if chart fails
             c.setFillColor(HexColor('#f8fafc'))
             c.rect(310, y_charts - 120, 240, 120, fill=1, stroke=0)
