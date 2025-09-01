@@ -629,32 +629,44 @@ def health():
 @app.route('/api/export-pdf')
 def export_pdf():
     """Generate and return a PDF report"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     try:
+        # Import Flask response tools
+        from flask import make_response
+        
         # Get current data
-        data = loop.run_until_complete(dashboard_data.get_current_data())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            data = loop.run_until_complete(dashboard_data.get_current_data())
+        finally:
+            loop.close()
         
         # Import PDF generator
         from pdf_generator import PDFReportGenerator
-        from flask import make_response
         
-        # Prepare data for PDF
+        # Prepare data for PDF with proper error handling
         migration = data.get('migration_analytics', {}).get('migration_rate', {})
+        origins = data.get('origins', {})
+        undead = data.get('undead', {})
+        
+        # Calculate price ratio safely
+        origins_floor = origins.get('floor_price_eth', 0)
+        undead_floor = undead.get('floor_price_eth', 0)
+        price_ratio = undead_floor / origins_floor if origins_floor > 0 else 1.0
         
         pdf_data = {
             'total_migrations': migration.get('total_migrations', 0),
             'migration_percent': migration.get('migration_percent', 0),
-            'price_ratio': data['undead']['floor_price_eth'] / data['origins']['floor_price_eth'] if data.get('origins') and data.get('undead') and data['origins']['floor_price_eth'] > 0 else 1,
-            'ecosystem_value': (data.get('origins', {}).get('market_cap_usd', 0) + data.get('undead', {}).get('market_cap_usd', 0)),
-            'origins': data.get('origins', {}),
-            'undead': data.get('undead', {}),
+            'price_ratio': price_ratio,
+            'ecosystem_value': (origins.get('market_cap_usd', 0) + undead.get('market_cap_usd', 0)),
+            'origins': origins,
+            'undead': undead,
             'eth_price': data.get('eth_price_usd', 0)
         }
         
         # Generate PDF
         generator = PDFReportGenerator()
-        pdf_buffer = generator.generate_compact_report(pdf_data)  # Use compact for Twitter
+        pdf_buffer = generator.generate_compact_report(pdf_data)
         
         # Create response
         response = make_response(pdf_buffer.getvalue())
@@ -664,9 +676,11 @@ def export_pdf():
         return response
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        loop.close()
+        # Log the error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"PDF export failed: {str(e)}")
+        return jsonify({'error': f'PDF generation failed: {str(e)}'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
