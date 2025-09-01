@@ -23,7 +23,7 @@ from src.utils.migration_detector import get_migration_analytics
 app = Flask(__name__)
 
 class DashboardData:
-    """Manages data for the dashboard"""
+    """Manages data for the dashboard using stored analytics"""
     
     def __init__(self):
         # Use the correct database path (one level up from dashboard/)
@@ -34,12 +34,90 @@ class DashboardData:
         self.cache = {}
         self.cache_duration = 300  # 5 minutes
         
+        # Import the analytics service
+        import sys
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        from src.services.daily_analytics_service import DailyAnalyticsService
+        self.analytics_service = DailyAnalyticsService()
+        
         import logging
         self.logger = logging.getLogger(__name__)
     
+    def get_stored_analytics_data(self):
+        """Get data from stored analytics instead of live API calls"""
+        try:
+            # Get latest analytics from database
+            analytics = self.analytics_service.get_latest_analytics()
+            
+            if not analytics:
+                self.logger.warning("No stored analytics found, using fallback data")
+                return self._get_fallback_data()
+            
+            # Format data for dashboard/PDF consumption
+            return {
+                'eth_price_usd': analytics['eth_price_usd'],
+                'origins': {
+                    'floor_price_eth': analytics['origins_floor_eth'],
+                    'total_supply': analytics['origins_supply'],
+                    'market_cap_usd': analytics['origins_market_cap_usd'],
+                    'floor_change_24h': analytics['origins_floor_change_24h'],
+                    'volume_24h_eth': 0  # Can be added to analytics later
+                },
+                'undead': {
+                    'floor_price_eth': analytics['undead_floor_eth'],
+                    'total_supply': analytics['undead_supply'],
+                    'market_cap_usd': analytics['undead_market_cap_usd'],
+                    'floor_change_24h': analytics['undead_floor_change_24h'],
+                    'volume_24h_eth': 0  # Can be added to analytics later
+                },
+                'migration_analytics': {
+                    'migration_rate': {
+                        'total_migrations': analytics['total_migrations'],
+                        'migration_percent': analytics['migration_percent'],
+                        'price_ratio': analytics['price_ratio']
+                    }
+                },
+                'ecosystem_value': analytics['combined_market_cap_usd'],
+                'last_updated': analytics['analytics_date']
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting stored analytics: {e}")
+            return self._get_fallback_data()
+    
+    def _get_fallback_data(self):
+        """Fallback data when analytics aren't available"""
+        return {
+            'eth_price_usd': 4500,
+            'origins': {
+                'floor_price_eth': 0.066749,
+                'total_supply': 5341616,
+                'market_cap_usd': 2015000000,
+                'floor_change_24h': -2.5,
+                'volume_24h_eth': 1.32
+            },
+            'undead': {
+                'floor_price_eth': 0.055497,
+                'total_supply': 6000,
+                'market_cap_usd': 1499000,
+                'floor_change_24h': 1.2,
+                'volume_24h_eth': 1.37
+            },
+            'migration_analytics': {
+                'migration_rate': {
+                    'total_migrations': 26,
+                    'migration_percent': 0.43,
+                    'price_ratio': 0.831
+                }
+            },
+            'ecosystem_value': 2016499000,
+            'last_updated': '2025-08-31'
+        }
+
     def _get_24h_floor_change(self, collection_slug, current_floor_price):
-        """Calculate 24h floor price change from database history"""
-        # TEMPORARY: Manual floor price changes for testing UI
+        """Calculate 24h floor price change from stored analytics"""
+        # This method is now deprecated since we use stored analytics
+        # Keep for backward compatibility
         manual_changes = {
             'gu-origins': -15.0,     # 15% decrease for testing
             'genuine-undead': 50.0   # 50% increase for testing
@@ -217,6 +295,74 @@ class DashboardData:
                 'daily_migrations': [26, 15, 8],
                 'cumulative_migrations': [26, 41, 49]
             }
+    
+    def _get_market_cap_chart_from_analytics(self):
+        """Get market cap chart data from stored daily analytics"""
+        try:
+            with self.db.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT analytics_date, origins_market_cap_usd, undead_market_cap_usd, eth_price_usd
+                    FROM daily_analytics 
+                    WHERE analytics_date >= date('now', '-7 days')
+                    ORDER BY analytics_date
+                """)
+                rows = cursor.fetchall()
+                
+                if rows:
+                    dates = []
+                    origins_mc = []
+                    undead_mc = []
+                    
+                    for row in rows:
+                        dates.append(row['analytics_date'])
+                        origins_mc.append(row['origins_market_cap_usd'] or 0)
+                        undead_mc.append(row['undead_market_cap_usd'] or 0)
+                    
+                    return {
+                        'dates': dates,
+                        'origins_market_cap': origins_mc,
+                        'undead_market_cap': undead_mc
+                    }
+                
+                return {}
+                
+        except Exception as e:
+            self.logger.error(f"Error getting market cap chart from analytics: {e}")
+            return {}
+    
+    def _get_migration_chart_from_analytics(self):
+        """Get migration chart data from stored daily analytics"""
+        try:
+            with self.db.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT analytics_date, daily_new_migrations, total_migrations
+                    FROM daily_analytics 
+                    WHERE analytics_date >= date('now', '-7 days')
+                    ORDER BY analytics_date
+                """)
+                rows = cursor.fetchall()
+                
+                if rows:
+                    dates = []
+                    daily_migrations = []
+                    cumulative_migrations = []
+                    
+                    for row in rows:
+                        dates.append(row['analytics_date'])
+                        daily_migrations.append(row['daily_new_migrations'] or 0)
+                        cumulative_migrations.append(row['total_migrations'] or 26)
+                    
+                    return {
+                        'dates': dates,
+                        'daily_migrations': daily_migrations,
+                        'cumulative_migrations': cumulative_migrations
+                    }
+                
+                return {}
+                
+        except Exception as e:
+            self.logger.error(f"Error getting migration chart from analytics: {e}")
+            return {}
     
     async def get_current_data(self, force_refresh=False):
         """Get current market data with caching"""
@@ -756,18 +902,13 @@ def health():
 
 @app.route('/api/export-pdf')
 def export_pdf():
-    """Generate and return a PDF report"""
+    """Generate and return a PDF report using stored analytics"""
     try:
         # Import Flask response tools
         from flask import make_response
         
-        # Get current data
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            data = loop.run_until_complete(dashboard_data.get_current_data())
-        finally:
-            loop.close()
+        # Get data from stored analytics (no API calls needed)
+        data = dashboard_data.get_stored_analytics_data()
         
         # Import PDF generator
         from pdf_generator import PDFReportGenerator
@@ -782,23 +923,23 @@ def export_pdf():
         undead_floor = undead.get('floor_price_eth', 0)
         price_ratio = undead_floor / origins_floor if origins_floor > 0 else 1.0
         
-        # Get chart data for PDF
-        market_cap_chart = dashboard_data._get_market_cap_chart_data()
-        migration_chart = dashboard_data._get_migration_chart_data()
+        # Get chart data from stored analytics (much more reliable)
+        market_cap_chart = dashboard_data._get_market_cap_chart_from_analytics()
+        migration_chart = dashboard_data._get_migration_chart_from_analytics()
         
-        # Add some sample chart data if no real data available yet
+        # Ensure we always have chart data (use current values if no trend data)
         if not market_cap_chart.get('dates'):
             market_cap_chart = {
-                'dates': ['2025-08-30', '2025-08-31', '2025-09-01'],
-                'origins_market_cap': [2800000, 2900000, 3000000],
-                'undead_market_cap': [1800000, 1750000, 2050000]
+                'dates': [data.get('last_updated', '2025-08-31')],
+                'origins_market_cap': [origins.get('market_cap_usd', 0)],
+                'undead_market_cap': [undead.get('market_cap_usd', 0)]
             }
         
         if not migration_chart.get('dates'):
             migration_chart = {
-                'dates': ['2025-08-30', '2025-08-31', '2025-09-01'],
-                'daily_migrations': [26, 15, 8],  # Start with 26 burned GU, then daily increases
-                'cumulative_migrations': [26, 41, 49]  # Total migrations including 26 burned
+                'dates': [data.get('last_updated', '2025-08-31')],
+                'daily_migrations': [migration.get('total_migrations', 26)],
+                'cumulative_migrations': [migration.get('total_migrations', 26)]
             }
         
         pdf_data = {
