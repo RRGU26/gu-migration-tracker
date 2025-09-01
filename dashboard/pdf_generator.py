@@ -273,7 +273,7 @@ class PDFReportGenerator:
             if dates and origins_mc and undead_mc:
                 ax.plot(dates, origins_mc, color='#dc2626', linewidth=2, label='GU Origins', marker='o', markersize=3)
                 ax.plot(dates, undead_mc, color='#059669', linewidth=2, label='Genuine Undead', marker='o', markersize=3)
-                ax.set_title('Market Cap Trends (7 Days)', fontsize=12, fontweight='bold')
+                ax.set_title('Market Cap Trends (Recent)', fontsize=12, fontweight='bold')
                 ax.set_ylabel('Market Cap (USD)', fontsize=10)
                 ax.legend(loc='upper right', fontsize=8)
             else:
@@ -294,7 +294,7 @@ class PDFReportGenerator:
                     ax2.plot(dates, cumulative, color='#dc2626', linewidth=2, marker='o', markersize=3, label='Cumulative')
                     ax2.set_ylabel('Cumulative Total', fontsize=10, color='#dc2626')
                 
-                ax.set_title('Migration Activity (7 Days)', fontsize=12, fontweight='bold')
+                ax.set_title('Migration Activity (Recent)', fontsize=12, fontweight='bold')
                 ax.set_ylabel('Daily Migrations', fontsize=10)
                 ax.legend(loc='upper left', fontsize=8)
             else:
@@ -339,8 +339,8 @@ class PDFReportGenerator:
         c.setFont("Helvetica-Bold", 11)
         c.drawCentredString(300, 745, f"⟠ ETH: ${eth_price:,.2f}")
         
-        # Main metrics grid
-        y = 700
+        # Main metrics grid - moved up to reduce white space
+        y = 720
         metrics = [
             ("MIGRATIONS", f"{data.get('total_migrations', 0):,}", "#3b82f6"),
             ("MIGRATION %", f"{data.get('migration_percent', 0):.2f}%", "#10b981"),
@@ -360,8 +360,8 @@ class PDFReportGenerator:
             c.setFont("Helvetica-Bold", 18)
             c.drawCentredString(x, y - 20, value)
         
-        # Generate and place charts
-        y_charts = 500
+        # Generate and place charts - moved up significantly
+        y_charts = 650
         
         # Market Cap Change Chart
         market_cap_data = data.get('market_cap_chart', {})
@@ -413,8 +413,8 @@ class PDFReportGenerator:
         c.drawCentredString(170, y_charts - 135, "📈 Market Cap Trends")
         c.drawCentredString(430, y_charts - 135, "🔄 Migration Activity")
         
-        # Collection comparison section with enhanced styling
-        y = 330
+        # Collection comparison section with enhanced styling - moved up
+        y = 480
         
         # Draw collection cards with subtle backgrounds
         c.setFillColor(HexColor('#f8fafc'))
@@ -432,8 +432,8 @@ class PDFReportGenerator:
         origins = data.get('origins', {})
         undead = data.get('undead', {})
         
-        # Origins stats with icons and enhanced formatting
-        y = 310
+        # Origins stats with icons and enhanced formatting - moved up
+        y = 460
         origins_change = origins.get('floor_change_24h', 0)
         undead_change = undead.get('floor_change_24h', 0)
         
@@ -458,20 +458,20 @@ class PDFReportGenerator:
         c.drawString(320, y - 15, f"📊 Volume: {undead.get('volume_24h_eth', 0):.2f} ETH")
         c.drawString(320, y - 30, f"📦 Supply: {undead.get('total_supply', 0):,}")
         
-        # Visual separator
+        # Visual separator - moved up
         c.setStrokeColor(HexColor('#e5e7eb'))
         c.setLineWidth(1)
-        c.line(50, 240, 550, 240)
+        c.line(50, 390, 550, 390)
         
-        # Enhanced insight section with background
+        # Enhanced insight section with background - moved up
         c.setFillColor(HexColor('#eff6ff'))
-        c.rect(40, 180, 520, 50, fill=1, stroke=0)
+        c.rect(40, 330, 520, 50, fill=1, stroke=0)
         
         # Main insight with icon
         c.setFillColor(HexColor('#1e40af'))
         c.setFont("Helvetica-Bold", 13)
         insight = f"🎯 {data.get('migration_percent', 0):.1f}% of Origins migrated → {data.get('price_ratio', 1):.2f}x premium"
-        c.drawCentredString(300, 215, insight)
+        c.drawCentredString(300, 365, insight)
         
         # Add 24h change summary with trend icons
         origins_change = data.get('origins', {}).get('floor_change_24h', 0)
@@ -483,7 +483,7 @@ class PDFReportGenerator:
         c.setFillColor(HexColor('#374151'))
         c.setFont("Helvetica", 11)
         change_summary = f"{origins_icon} Origins {origins_change:+.1f}% • {undead_icon} Genuine Undead {undead_change:+.1f}%"
-        c.drawCentredString(300, 195, change_summary)
+        c.drawCentredString(300, 345, change_summary)
         
         # Professional footer with enhanced styling
         c.setFillColor(HexColor('#1e293b'))

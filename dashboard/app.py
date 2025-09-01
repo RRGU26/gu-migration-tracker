@@ -91,11 +91,12 @@ class DashboardData:
             return 0.0
     
     def _get_market_cap_chart_data(self):
-        """Get market cap data for last 7 days for PDF charts"""
+        """Get market cap data for yesterday and today for PDF charts"""
         try:
-            # Get last 7 days of data
-            end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=7)
+            # Get yesterday and today data
+            today = datetime.now().date()
+            yesterday = today - timedelta(days=1)
+            start_date = yesterday - timedelta(days=2)  # Get a few extra days for context
             
             with self.db.get_connection() as conn:
                 cursor = conn.execute("""
@@ -104,7 +105,7 @@ class DashboardData:
                     JOIN collections c ON ds.collection_id = c.id
                     WHERE ds.snapshot_date >= ? AND ds.snapshot_date <= ?
                     ORDER BY ds.snapshot_date, c.slug
-                """, (start_date.isoformat(), end_date.isoformat()))
+                """, (start_date.isoformat(), today.isoformat()))
                 
                 rows = cursor.fetchall()
                 
@@ -146,11 +147,12 @@ class DashboardData:
             return {}
     
     def _get_migration_chart_data(self):
-        """Get migration data for last 7 days for PDF charts"""
+        """Get migration data for yesterday and today for PDF charts"""
         try:
-            # Get last 7 days of migration data
-            end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=7)
+            # Get yesterday and today migration data
+            today = datetime.now().date()
+            yesterday = today - timedelta(days=1)
+            start_date = yesterday - timedelta(days=2)  # Get a few extra days for context
             
             with self.db.get_connection() as conn:
                 cursor = conn.execute("""
@@ -159,7 +161,7 @@ class DashboardData:
                     WHERE migration_date >= ? AND migration_date <= ?
                     GROUP BY migration_date
                     ORDER BY migration_date
-                """, (start_date.isoformat(), end_date.isoformat()))
+                """, (start_date.isoformat(), today.isoformat()))
                 
                 rows = cursor.fetchall()
                 
