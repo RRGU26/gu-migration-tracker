@@ -318,29 +318,29 @@ class PDFReportGenerator:
     def generate_compact_report(self, data):
         """Generate enhanced report with charts for Twitter"""
         buffer = BytesIO()
-        c = canvas.Canvas(buffer, pagesize=(600, 800))  # Expanded height for charts
+        c = canvas.Canvas(buffer, pagesize=(600, 600))  # Reduced height to eliminate white space
         
-        # Gradient background effect
+        # Gradient background effect - made taller for ETH price
         c.setFillColor(HexColor('#1e293b'))
-        c.rect(0, 750, 600, 50, fill=1)
+        c.rect(0, 540, 600, 60, fill=1)
         
         # Title
         c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 20)
-        c.drawCentredString(300, 775, "RR GU ANALYTIC TRACKER")
+        c.setFont("Helvetica-Bold", 18)
+        c.drawCentredString(300, 575, "RR GU ANALYTIC TRACKER")
         
-        # Timestamp and ETH Price
-        c.setFont("Helvetica", 10)
+        # Timestamp
+        c.setFont("Helvetica", 9)
         timestamp = datetime.now().strftime("%b %d, %Y • %I:%M %p")
-        c.drawCentredString(300, 760, timestamp)
+        c.drawCentredString(300, 560, timestamp)
         
-        # ETH Price display
+        # ETH Price display - moved down to be visible
         eth_price = data.get('eth_price', 0)
         c.setFont("Helvetica-Bold", 11)
-        c.drawCentredString(300, 745, f"⟠ ETH: ${eth_price:,.2f}")
+        c.drawCentredString(300, 545, f"⟠ ETH: ${eth_price:,.2f}")
         
-        # Main metrics grid - moved up to reduce white space
-        y = 720
+        # Main metrics grid - adjusted for 600px height
+        y = 510
         metrics = [
             ("MIGRATIONS", f"{data.get('total_migrations', 0):,}", "#3b82f6"),
             ("MIGRATION %", f"{data.get('migration_percent', 0):.2f}%", "#10b981"),
@@ -360,8 +360,8 @@ class PDFReportGenerator:
             c.setFont("Helvetica-Bold", 18)
             c.drawCentredString(x, y - 20, value)
         
-        # Generate and place charts - moved up significantly
-        y_charts = 650
+        # Generate and place charts - adjusted for 600px height
+        y_charts = 440
         
         # Market Cap Change Chart
         market_cap_data = data.get('market_cap_chart', {})
@@ -413,8 +413,8 @@ class PDFReportGenerator:
         c.drawCentredString(170, y_charts - 135, "📈 Market Cap Trends")
         c.drawCentredString(430, y_charts - 135, "🔄 Migration Activity")
         
-        # Collection comparison section with enhanced styling - moved up
-        y = 480
+        # Collection comparison section with enhanced styling - adjusted for 600px height
+        y = 270
         
         # Draw collection cards with subtle backgrounds
         c.setFillColor(HexColor('#f8fafc'))
@@ -432,8 +432,8 @@ class PDFReportGenerator:
         origins = data.get('origins', {})
         undead = data.get('undead', {})
         
-        # Origins stats with icons and enhanced formatting - moved up
-        y = 460
+        # Origins stats with icons and enhanced formatting - adjusted for 600px height
+        y = 250
         origins_change = origins.get('floor_change_24h', 0)
         undead_change = undead.get('floor_change_24h', 0)
         
@@ -458,20 +458,20 @@ class PDFReportGenerator:
         c.drawString(320, y - 15, f"📊 Volume: {undead.get('volume_24h_eth', 0):.2f} ETH")
         c.drawString(320, y - 30, f"📦 Supply: {undead.get('total_supply', 0):,}")
         
-        # Visual separator - moved up
+        # Visual separator - adjusted for 600px height
         c.setStrokeColor(HexColor('#e5e7eb'))
         c.setLineWidth(1)
-        c.line(50, 390, 550, 390)
+        c.line(50, 180, 550, 180)
         
-        # Enhanced insight section with background - moved up
+        # Enhanced insight section with background - adjusted for 600px height
         c.setFillColor(HexColor('#eff6ff'))
-        c.rect(40, 330, 520, 50, fill=1, stroke=0)
+        c.rect(40, 120, 520, 50, fill=1, stroke=0)
         
         # Main insight with icon
         c.setFillColor(HexColor('#1e40af'))
         c.setFont("Helvetica-Bold", 13)
         insight = f"🎯 {data.get('migration_percent', 0):.1f}% of Origins migrated → {data.get('price_ratio', 1):.2f}x premium"
-        c.drawCentredString(300, 365, insight)
+        c.drawCentredString(300, 155, insight)
         
         # Add 24h change summary with trend icons
         origins_change = data.get('origins', {}).get('floor_change_24h', 0)
@@ -483,20 +483,20 @@ class PDFReportGenerator:
         c.setFillColor(HexColor('#374151'))
         c.setFont("Helvetica", 11)
         change_summary = f"{origins_icon} Origins {origins_change:+.1f}% • {undead_icon} Genuine Undead {undead_change:+.1f}%"
-        c.drawCentredString(300, 345, change_summary)
+        c.drawCentredString(300, 135, change_summary)
         
-        # Professional footer with enhanced styling
+        # Professional footer with enhanced styling - smaller for 600px height
         c.setFillColor(HexColor('#1e293b'))
-        c.rect(0, 0, 600, 45, fill=1, stroke=0)
+        c.rect(0, 0, 600, 35, fill=1, stroke=0)
         
         c.setFillColor(HexColor('#cbd5e1'))
-        c.setFont("Helvetica", 9)
-        c.drawCentredString(300, 30, "⚡ Real-time blockchain analytics • Generated by RR GU Analytic Tracker")
+        c.setFont("Helvetica", 8)
+        c.drawCentredString(300, 20, "⚡ Real-time blockchain analytics • Generated by RR GU Analytic Tracker")
         
         # Twitter handle with enhanced styling
         c.setFillColor(HexColor('#38bdf8'))
-        c.setFont("Helvetica-Bold", 9)
-        c.drawCentredString(300, 15, "🐦 @RRGU_Analytics • Share this report! 🚀")
+        c.setFont("Helvetica-Bold", 8)
+        c.drawCentredString(300, 8, "🐦 @RRGU_Analytics • Share this report! 🚀")
         
         c.save()
         buffer.seek(0)
