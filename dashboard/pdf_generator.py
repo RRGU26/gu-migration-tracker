@@ -15,6 +15,10 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 from io import BytesIO
 import base64
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import numpy as np
+from datetime import datetime, timedelta
 
 class PDFReportGenerator:
     def __init__(self):
@@ -254,27 +258,89 @@ class PDFReportGenerator:
         buffer.seek(0)
         return buffer
     
+    def _create_chart_image(self, chart_data, chart_type="market_cap"):
+        """Create chart image and return as BytesIO buffer"""
+        plt.style.use('default')
+        fig, ax = plt.subplots(figsize=(5, 2.5), dpi=100)
+        fig.patch.set_facecolor('white')
+        
+        if chart_type == "market_cap":
+            # Market Cap Chart
+            dates = chart_data.get('dates', [])
+            origins_mc = chart_data.get('origins_market_cap', [])
+            undead_mc = chart_data.get('undead_market_cap', [])
+            
+            if dates and origins_mc and undead_mc:
+                ax.plot(dates, origins_mc, color='#dc2626', linewidth=2, label='GU Origins', marker='o', markersize=3)
+                ax.plot(dates, undead_mc, color='#059669', linewidth=2, label='Genuine Undead', marker='o', markersize=3)
+                ax.set_title('Market Cap Trends (7 Days)', fontsize=12, fontweight='bold')
+                ax.set_ylabel('Market Cap (USD)', fontsize=10)
+                ax.legend(loc='upper right', fontsize=8)
+            else:
+                ax.text(0.5, 0.5, 'Chart data will appear\nafter daily collection', 
+                       ha='center', va='center', transform=ax.transAxes, fontsize=10)
+                ax.set_title('Market Cap Trends - Building Data', fontsize=12)
+        
+        elif chart_type == "migration":
+            # Migration Chart
+            dates = chart_data.get('dates', [])
+            daily_migrations = chart_data.get('daily_migrations', [])
+            cumulative = chart_data.get('cumulative_migrations', [])
+            
+            if dates and daily_migrations:
+                ax.bar(dates, daily_migrations, color='#3b82f6', alpha=0.7, label='Daily Migrations')
+                if cumulative:
+                    ax2 = ax.twinx()
+                    ax2.plot(dates, cumulative, color='#dc2626', linewidth=2, marker='o', markersize=3, label='Cumulative')
+                    ax2.set_ylabel('Cumulative Total', fontsize=10, color='#dc2626')
+                
+                ax.set_title('Migration Activity (7 Days)', fontsize=12, fontweight='bold')
+                ax.set_ylabel('Daily Migrations', fontsize=10)
+                ax.legend(loc='upper left', fontsize=8)
+            else:
+                ax.text(0.5, 0.5, 'Migration data will appear\nafter daily tracking', 
+                       ha='center', va='center', transform=ax.transAxes, fontsize=10)
+                ax.set_title('Migration Activity - Building Data', fontsize=12)
+        
+        # Format axes
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(axis='x', rotation=45, labelsize=8)
+        ax.tick_params(axis='y', labelsize=8)
+        plt.tight_layout()
+        
+        # Save to buffer
+        img_buffer = BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=100, bbox_inches='tight')
+        plt.close()
+        img_buffer.seek(0)
+        return img_buffer
+    
     def generate_compact_report(self, data):
-        """Generate ultra-compact version for Twitter"""
+        """Generate enhanced report with charts for Twitter"""
         buffer = BytesIO()
-        c = canvas.Canvas(buffer, pagesize=(600, 400))  # Twitter-optimized size
+        c = canvas.Canvas(buffer, pagesize=(600, 800))  # Expanded height for charts
         
         # Gradient background effect
         c.setFillColor(HexColor('#1e293b'))
-        c.rect(0, 350, 600, 50, fill=1)
+        c.rect(0, 750, 600, 50, fill=1)
         
         # Title
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 20)
-        c.drawCentredString(300, 370, "RR GU ANALYTIC TRACKER")
+        c.drawCentredString(300, 775, "RR GU ANALYTIC TRACKER")
         
-        # Timestamp
+        # Timestamp and ETH Price
         c.setFont("Helvetica", 10)
         timestamp = datetime.now().strftime("%b %d, %Y • %I:%M %p")
-        c.drawCentredString(300, 355, timestamp)
+        c.drawCentredString(300, 760, timestamp)
+        
+        # ETH Price display
+        eth_price = data.get('eth_price', 0)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawCentredString(300, 745, f"⟠ ETH: ${eth_price:,.2f}")
         
         # Main metrics grid
-        y = 300
+        y = 700
         metrics = [
             ("MIGRATIONS", f"{data.get('total_migrations', 0):,}", "#3b82f6"),
             ("MIGRATION %", f"{data.get('migration_percent', 0):.2f}%", "#10b981"),
@@ -294,8 +360,61 @@ class PDFReportGenerator:
             c.setFont("Helvetica-Bold", 18)
             c.drawCentredString(x, y - 20, value)
         
+        # Generate and place charts
+        y_charts = 500
+        
+        # Market Cap Change Chart
+        market_cap_data = data.get('market_cap_chart', {})
+        if market_cap_data:
+            try:
+                mc_chart_img = self._create_chart_image(market_cap_data, "market_cap")
+                from reportlab.lib.utils import ImageReader
+                c.drawImage(ImageReader(mc_chart_img), 50, y_charts - 120, width=240, height=120)
+            except Exception as e:
+                # Draw placeholder if chart fails
+                c.setStrokeColor(HexColor('#e5e7eb'))
+                c.rect(50, y_charts - 120, 240, 120, fill=0, stroke=1)
+                c.setFillColor(HexColor('#9ca3af'))
+                c.setFont("Helvetica", 10)
+                c.drawCentredString(170, y_charts - 60, "Chart data building...")
+        else:
+            # Draw placeholder
+            c.setStrokeColor(HexColor('#e5e7eb'))
+            c.rect(50, y_charts - 120, 240, 120, fill=0, stroke=1)
+            c.setFillColor(HexColor('#9ca3af'))
+            c.setFont("Helvetica", 10)
+            c.drawCentredString(170, y_charts - 60, "Market cap data building...")
+        
+        # Migration Totals Chart  
+        migration_data = data.get('migration_chart', {})
+        if migration_data:
+            try:
+                mig_chart_img = self._create_chart_image(migration_data, "migration")
+                from reportlab.lib.utils import ImageReader
+                c.drawImage(ImageReader(mig_chart_img), 310, y_charts - 120, width=240, height=120)
+            except Exception as e:
+                # Draw placeholder if chart fails
+                c.setStrokeColor(HexColor('#e5e7eb'))
+                c.rect(310, y_charts - 120, 240, 120, fill=0, stroke=1)
+                c.setFillColor(HexColor('#9ca3af'))
+                c.setFont("Helvetica", 10)
+                c.drawCentredString(430, y_charts - 60, "Chart data building...")
+        else:
+            # Draw placeholder
+            c.setStrokeColor(HexColor('#e5e7eb'))
+            c.rect(310, y_charts - 120, 240, 120, fill=0, stroke=1)
+            c.setFillColor(HexColor('#9ca3af'))
+            c.setFont("Helvetica", 10)
+            c.drawCentredString(430, y_charts - 60, "Migration data building...")
+        
+        # Chart titles
+        c.setFillColor(HexColor('#1e293b'))
+        c.setFont("Helvetica-Bold", 11)
+        c.drawCentredString(170, y_charts - 135, "📈 Market Cap Trends")
+        c.drawCentredString(430, y_charts - 135, "🔄 Migration Activity")
+        
         # Collection comparison section with enhanced styling
-        y = 210
+        y = 330
         
         # Draw collection cards with subtle backgrounds
         c.setFillColor(HexColor('#f8fafc'))
@@ -314,7 +433,7 @@ class PDFReportGenerator:
         undead = data.get('undead', {})
         
         # Origins stats with icons and enhanced formatting
-        y = 190
+        y = 310
         origins_change = origins.get('floor_change_24h', 0)
         undead_change = undead.get('floor_change_24h', 0)
         
@@ -342,17 +461,17 @@ class PDFReportGenerator:
         # Visual separator
         c.setStrokeColor(HexColor('#e5e7eb'))
         c.setLineWidth(1)
-        c.line(50, 120, 550, 120)
+        c.line(50, 240, 550, 240)
         
         # Enhanced insight section with background
         c.setFillColor(HexColor('#eff6ff'))
-        c.rect(40, 60, 520, 50, fill=1, stroke=0)
+        c.rect(40, 180, 520, 50, fill=1, stroke=0)
         
         # Main insight with icon
         c.setFillColor(HexColor('#1e40af'))
         c.setFont("Helvetica-Bold", 13)
         insight = f"🎯 {data.get('migration_percent', 0):.1f}% of Origins migrated → {data.get('price_ratio', 1):.2f}x premium"
-        c.drawCentredString(300, 95, insight)
+        c.drawCentredString(300, 215, insight)
         
         # Add 24h change summary with trend icons
         origins_change = data.get('origins', {}).get('floor_change_24h', 0)
@@ -364,7 +483,7 @@ class PDFReportGenerator:
         c.setFillColor(HexColor('#374151'))
         c.setFont("Helvetica", 11)
         change_summary = f"{origins_icon} Origins {origins_change:+.1f}% • {undead_icon} Genuine Undead {undead_change:+.1f}%"
-        c.drawCentredString(300, 75, change_summary)
+        c.drawCentredString(300, 195, change_summary)
         
         # Professional footer with enhanced styling
         c.setFillColor(HexColor('#1e293b'))

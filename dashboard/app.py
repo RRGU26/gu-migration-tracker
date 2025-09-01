@@ -90,6 +90,108 @@ class DashboardData:
             self.logger.error(f"Error calculating 24h floor change: {e}")
             return 0.0
     
+    def _get_market_cap_chart_data(self):
+        """Get market cap data for last 7 days for PDF charts"""
+        try:
+            # Get last 7 days of data
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=7)
+            
+            with self.db.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT ds.snapshot_date, c.slug, ds.floor_price_eth, ds.total_supply
+                    FROM daily_snapshots ds
+                    JOIN collections c ON ds.collection_id = c.id
+                    WHERE ds.snapshot_date >= ? AND ds.snapshot_date <= ?
+                    ORDER BY ds.snapshot_date, c.slug
+                """, (start_date.isoformat(), end_date.isoformat()))
+                
+                rows = cursor.fetchall()
+                
+                # Organize data by date and collection
+                dates = []
+                origins_mc = []
+                undead_mc = []
+                
+                current_eth_price = 4500  # Default, could be fetched from API
+                
+                # Group by date
+                from collections import defaultdict
+                by_date = defaultdict(dict)
+                
+                for row in rows:
+                    date_str = row['snapshot_date']
+                    slug = row['slug']
+                    floor_eth = row['floor_price_eth']
+                    supply = row['total_supply']
+                    
+                    market_cap_usd = floor_eth * supply * current_eth_price
+                    by_date[date_str][slug] = market_cap_usd
+                
+                # Convert to arrays for plotting
+                sorted_dates = sorted(by_date.keys())
+                for date_str in sorted_dates:
+                    dates.append(date_str)
+                    origins_mc.append(by_date[date_str].get('gu-origins', 0))
+                    undead_mc.append(by_date[date_str].get('genuine-undead', 0))
+                
+                return {
+                    'dates': dates,
+                    'origins_market_cap': origins_mc,
+                    'undead_market_cap': undead_mc
+                }
+                
+        except Exception as e:
+            self.logger.error(f"Error getting market cap chart data: {e}")
+            return {}
+    
+    def _get_migration_chart_data(self):
+        """Get migration data for last 7 days for PDF charts"""
+        try:
+            # Get last 7 days of migration data
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=7)
+            
+            with self.db.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT migration_date, COUNT(*) as daily_count
+                    FROM migrations
+                    WHERE migration_date >= ? AND migration_date <= ?
+                    GROUP BY migration_date
+                    ORDER BY migration_date
+                """, (start_date.isoformat(), end_date.isoformat()))
+                
+                rows = cursor.fetchall()
+                
+                dates = []
+                daily_migrations = []
+                cumulative_migrations = []
+                total = 0
+                
+                for row in rows:
+                    dates.append(row['migration_date'])
+                    daily_count = row['daily_count']
+                    daily_migrations.append(daily_count)
+                    total += daily_count
+                    cumulative_migrations.append(total)
+                
+                # Fill in missing dates with zeros if needed
+                all_dates = []
+                current_date = start_date
+                while current_date <= end_date:
+                    all_dates.append(current_date.isoformat())
+                    current_date += timedelta(days=1)
+                
+                return {
+                    'dates': dates,
+                    'daily_migrations': daily_migrations,
+                    'cumulative_migrations': cumulative_migrations
+                }
+                
+        except Exception as e:
+            self.logger.error(f"Error getting migration chart data: {e}")
+            return {}
+    
     async def get_current_data(self, force_refresh=False):
         """Get current market data with caching"""
         now = datetime.now()
@@ -654,6 +756,10 @@ def export_pdf():
         undead_floor = undead.get('floor_price_eth', 0)
         price_ratio = undead_floor / origins_floor if origins_floor > 0 else 1.0
         
+        # Get chart data for PDF
+        market_cap_chart = dashboard_data._get_market_cap_chart_data()
+        migration_chart = dashboard_data._get_migration_chart_data()
+        
         pdf_data = {
             'total_migrations': migration.get('total_migrations', 0),
             'migration_percent': migration.get('migration_percent', 0),
@@ -661,7 +767,9 @@ def export_pdf():
             'ecosystem_value': (origins.get('market_cap_usd', 0) + undead.get('market_cap_usd', 0)),
             'origins': origins,
             'undead': undead,
-            'eth_price': data.get('eth_price_usd', 0)
+            'eth_price': data.get('eth_price_usd', 0),
+            'market_cap_chart': market_cap_chart,
+            'migration_chart': migration_chart
         }
         
         # Generate PDF
