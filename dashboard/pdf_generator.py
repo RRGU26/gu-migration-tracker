@@ -261,7 +261,11 @@ class PDFReportGenerator:
     def _create_chart_image(self, chart_data, chart_type="market_cap"):
         """Create chart image and return as BytesIO buffer"""
         plt.style.use('default')
-        fig, ax = plt.subplots(figsize=(5, 2.5), dpi=100)
+        # Make market cap chart taller to prevent legend overlap
+        if chart_type == "market_cap":
+            fig, ax = plt.subplots(figsize=(5, 3.2), dpi=100)  # Taller for market cap
+        else:
+            fig, ax = plt.subplots(figsize=(5, 2.5), dpi=100)  # Standard height for migration
         fig.patch.set_facecolor('white')
         
         if chart_type == "market_cap":

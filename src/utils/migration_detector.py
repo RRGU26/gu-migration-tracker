@@ -195,6 +195,8 @@ class MigrationDetector:
                 return {'error': 'No Origins collection data available'}
             
             total_migrations = self.db.get_total_migrations()
+            # Add 26 burned GU that were migrated to the new collection
+            total_migrations += 26
             original_supply = latest_origins.get('total_supply', 0)
             current_supply = latest_origins.get('total_supply', 0)  # This should be updated based on migrations
             
