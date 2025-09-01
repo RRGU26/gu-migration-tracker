@@ -537,23 +537,31 @@ def export_pdf():
         # Get current data
         data = loop.run_until_complete(dashboard_data.get_current_data())
         
-        # Create a simple PDF report using available libraries
+        # Import PDF generator
+        from pdf_generator import PDFReportGenerator
         from flask import make_response
-        import json
         
-        # For now, return JSON data as downloadable file
-        # In production, you'd use reportlab or similar to create a proper PDF
-        report_data = {
-            'generated_at': datetime.now().isoformat(),
-            'gu_origins': data.get('origins', {}),
-            'genuine_undead': data.get('undead', {}),
-            'eth_price_usd': data.get('eth_price_usd', 0),
-            'migration_analytics': data.get('migration_analytics', {})
+        # Prepare data for PDF
+        migration = data.get('migration_analytics', {}).get('migration_rate', {})
+        
+        pdf_data = {
+            'total_migrations': migration.get('total_migrations', 0),
+            'migration_percent': migration.get('migration_percent', 0),
+            'price_ratio': data['undead']['floor_price_eth'] / data['origins']['floor_price_eth'] if data.get('origins') and data.get('undead') and data['origins']['floor_price_eth'] > 0 else 1,
+            'ecosystem_value': (data.get('origins', {}).get('market_cap_usd', 0) + data.get('undead', {}).get('market_cap_usd', 0)),
+            'origins': data.get('origins', {}),
+            'undead': data.get('undead', {}),
+            'eth_price': data.get('eth_price_usd', 0)
         }
         
-        response = make_response(json.dumps(report_data, indent=2))
-        response.headers['Content-Type'] = 'application/json'
-        response.headers['Content-Disposition'] = f'attachment; filename="gu_migration_report_{datetime.now().strftime("%Y%m%d_%H%M")}.json"'
+        # Generate PDF
+        generator = PDFReportGenerator()
+        pdf_buffer = generator.generate_compact_report(pdf_data)  # Use compact for Twitter
+        
+        # Create response
+        response = make_response(pdf_buffer.getvalue())
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename="RR_GU_Analytics_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf"'
         
         return response
         
