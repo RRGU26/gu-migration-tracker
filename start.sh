@@ -1,39 +1,41 @@
 #!/bin/bash
 
-# Initialize the database
-echo "Setting up RR GU Analytic Tracker..."
-python main.py --mode setup
+echo "🚀 Starting RR GU Analytic Tracker on Railway..."
 
-# Clear mock data on first run and start fresh tracking
-if [ ! -f "data/real_tracking_started.flag" ]; then
-    echo "Clearing mock data and starting real tracking..."
-    python scripts/clear_mock_data.py
-    touch data/real_tracking_started.flag
-    echo "✅ Real data tracking initialized"
-fi
+# Create necessary directories
+mkdir -p data logs
 
-# Generate today's data snapshot
-echo "Collecting today's market data..."
-python main.py --mode daily
+# Initialize the database schema
+echo "📊 Setting up database schema..."
+python -c "
+import sys
+sys.path.append('src')
+from src.database.database import DatabaseManager
+db = DatabaseManager('data/gu_migration.db')
+print('Database initialized successfully')
+"
 
-# Start background scheduler for automated daily reports
-echo "Starting background scheduler..."
-nohup python main.py --mode scheduler > logs/scheduler.log 2>&1 &
-SCHEDULER_PID=$!
-echo "Scheduler started with PID: $SCHEDULER_PID"
+# Run initial data collection
+echo "🔄 Collecting initial data..."
+python src/services/daily_collection_runner.py
 
-# Create PID file for cleanup
-echo $SCHEDULER_PID > data/scheduler.pid
-
-# Start the dashboard
-echo "Starting dashboard server..."
+# Start the dashboard in production mode
+echo "🌐 Starting dashboard server..."
 cd dashboard
 
 # Set production environment
 export FLASK_ENV=production
+export PORT=${PORT:-8000}
 
-# Create cleanup handler for scheduler
-trap 'echo "Stopping scheduler..."; kill $SCHEDULER_PID 2>/dev/null; rm -f ../data/scheduler.pid' EXIT
+# Start the Flask app with Railway port configuration
+exec python -c "
+import sys
+import os
+sys.path.append('../src')
+from app import app
 
-# Start the Flask app
-exec python app.py
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8000))
+    print(f'Starting server on port {port}')
+    app.run(host='0.0.0.0', port=port)
+"

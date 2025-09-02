@@ -22,8 +22,15 @@ from src.api.price_client import get_current_eth_price
 class DailyAnalyticsService:
     """Service for collecting and calculating daily analytics"""
     
-    def __init__(self):
-        self.db = DatabaseManager()
+    def __init__(self, db_path=None):
+        # Use provided db_path or default to the main database
+        if db_path is None:
+            import os
+            # Get the path relative to the src directory  
+            current_dir = os.path.dirname(__file__)
+            db_path = os.path.join(current_dir, '..', '..', 'data', 'gu_migration.db')
+        
+        self.db = DatabaseManager(db_path)
         self.opensea_client = OpenSeaClient()
         self.logger = logging.getLogger(__name__)
         

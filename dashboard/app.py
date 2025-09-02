@@ -38,7 +38,8 @@ class DashboardData:
         import sys
         sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
         from src.services.daily_analytics_service import DailyAnalyticsService
-        self.analytics_service = DailyAnalyticsService()
+        # Pass the same database path to the analytics service
+        self.analytics_service = DailyAnalyticsService(db_path)
         
         import logging
         self.logger = logging.getLogger(__name__)
