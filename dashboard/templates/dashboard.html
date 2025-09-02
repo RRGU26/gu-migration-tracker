@@ -272,11 +272,11 @@
             // Origins data
             if (data.origins) {
                 document.getElementById('originsFloorETH').textContent = data.origins.floor_price_eth.toFixed(4) + ' ETH';
-                document.getElementById('originsFloorUSD').textContent = formatCurrency(data.origins.floor_price_usd);
+                document.getElementById('originsFloorUSD').textContent = formatCurrency((data.origins.floor_price_eth * data.eth_price_usd));
                 document.getElementById('originsVolume').textContent = data.origins.volume_24h_eth.toFixed(2) + ' ETH';
-                document.getElementById('originsVolumeUSD').textContent = formatCurrency(data.origins.volume_24h_usd);
+                document.getElementById('originsVolumeUSD').textContent = formatCurrency((data.origins.volume_24h_eth * data.eth_price_usd));
                 document.getElementById('originsMarketCap').textContent = formatCurrency(data.origins.market_cap_usd);
-                document.getElementById('originsHolders').textContent = data.origins.holders_count.toLocaleString();
+                document.getElementById('originsHolders').textContent = (data.origins.holders_count || data.origins.total_supply || 0).toLocaleString();
                 
                 // 24h floor price change
                 const originsChange = data.origins.floor_change_24h || 0;
@@ -288,11 +288,11 @@
             // Undead data
             if (data.undead) {
                 document.getElementById('undeadFloorETH').textContent = data.undead.floor_price_eth.toFixed(4) + ' ETH';
-                document.getElementById('undeadFloorUSD').textContent = formatCurrency(data.undead.floor_price_usd);
+                document.getElementById('undeadFloorUSD').textContent = formatCurrency((data.undead.floor_price_eth * data.eth_price_usd));
                 document.getElementById('undeadVolume').textContent = data.undead.volume_24h_eth.toFixed(2) + ' ETH';
-                document.getElementById('undeadVolumeUSD').textContent = formatCurrency(data.undead.volume_24h_usd);
+                document.getElementById('undeadVolumeUSD').textContent = formatCurrency((data.undead.volume_24h_eth * data.eth_price_usd));
                 document.getElementById('undeadMarketCap').textContent = formatCurrency(data.undead.market_cap_usd);
-                document.getElementById('undeadHolders').textContent = data.undead.holders_count.toLocaleString();
+                document.getElementById('undeadHolders').textContent = (data.undead.holders_count || data.undead.total_supply || 0).toLocaleString();
                 
                 // 24h floor price change
                 const undeadChange = data.undead.floor_change_24h || 0;
