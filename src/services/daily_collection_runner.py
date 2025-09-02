@@ -49,32 +49,68 @@ class DailyCollectionRunner:
         self.burned_gu = 26  # GU burned in new collection
         
     async def run_daily_process(self):
-        """Execute the complete 9-step daily process"""
+        """Execute the complete 9-step daily process with smart caching"""
         logger.info(f"Starting daily collection for {date.today()}")
         
+        # Check if we already have data for today
+        with self.db.get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT * FROM daily_analytics 
+                WHERE analytics_date = ?
+            """, (date.today().isoformat(),))
+            existing_data = cursor.fetchone()
+            
+            if existing_data:
+                logger.info("Today's data already collected, skipping API calls")
+                return True
+        
         try:
-            # STEP 1: Get latest Ethereum price
+            # STEP 1: Get latest Ethereum price (always fresh)
             eth_price = await self._get_eth_price()
             
-            # STEPS 2-4: Get collection data from OpenSea
-            origins_data = await self._get_collection_data('gu-origins')
-            undead_data = await self._get_collection_data('genuine-undead')
+            # Get yesterday's data as baseline
+            yesterday = date.today() - timedelta(days=1)
+            with self.db.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT origins_floor_eth, undead_floor_eth, undead_supply
+                    FROM daily_analytics 
+                    WHERE analytics_date = ?
+                """, (yesterday.isoformat(),))
+                yesterday_data = cursor.fetchone()
             
-            # Extract key metrics
-            origins_floor = origins_data.get('floor_price', {}).get('eth', 0) if origins_data else 0
-            undead_floor = undead_data.get('floor_price', {}).get('eth', 0) if undead_data else 0
-            undead_supply = undead_data.get('total_supply', 0) if undead_data else 0
+            # Use yesterday's data as starting point if available
+            if yesterday_data:
+                origins_floor = yesterday_data[0] or 0.0575
+                undead_floor = yesterday_data[1] or 0.0383
+                undead_supply = yesterday_data[2] or 5037
+                logger.info("Using yesterday's data as baseline")
+            else:
+                origins_floor = 0.0575
+                undead_floor = 0.0383
+                undead_supply = 5037
             
-            # Fallback to known values if API fails
-            if not origins_floor:
-                origins_floor = 0.0575  # Known current value
-                logger.warning("Using fallback Origins floor price")
-            if not undead_floor:
-                undead_floor = 0.0383  # Known current value
-                logger.warning("Using fallback Undead floor price")
-            if not undead_supply:
-                undead_supply = 5037  # Known current value
-                logger.warning("Using fallback Undead supply")
+            # Try to get fresh data from OpenSea (but don't fail if rate limited)
+            try:
+                # STEPS 2-4: Get collection data from OpenSea
+                origins_data = await self._get_collection_data('gu-origins')
+                undead_data = await self._get_collection_data('genuine-undead')
+                
+                # Update values if we got fresh data
+                if origins_data:
+                    new_floor = origins_data.get('floor_price', {}).get('eth', 0)
+                    if new_floor > 0:
+                        origins_floor = new_floor
+                        
+                if undead_data:
+                    new_floor = undead_data.get('floor_price', {}).get('eth', 0)
+                    new_supply = undead_data.get('total_supply', 0)
+                    if new_floor > 0:
+                        undead_floor = new_floor
+                    if new_supply > 0:
+                        undead_supply = new_supply
+                        
+            except Exception as e:
+                logger.warning(f"OpenSea API error (using cached values): {e}")
             
             # STEP 5: Log all data points
             logger.info(f"ETH Price: ${eth_price:,.2f}")

@@ -7,6 +7,8 @@ import json
 from contextlib import contextmanager
 
 class DatabaseManager:
+    _initialized = False  # Class variable to track initialization
+    
     def __init__(self, db_path: str = "data/gu_migration.db"):
         self.db_path = db_path
         self.logger = logging.getLogger(__name__)
@@ -14,12 +16,23 @@ class DatabaseManager:
         # Ensure data directory exists
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         
-        # Initialize database
-        self.init_database()
+        # Only initialize once per process
+        if not DatabaseManager._initialized or os.environ.get('DB_FORCE_INIT'):
+            self.init_database()
+            DatabaseManager._initialized = True
     
     def init_database(self):
-        """Initialize database with schema"""
+        """Initialize database with schema - only runs once"""
         try:
+            # Check if database already exists and has tables
+            if os.path.exists(self.db_path):
+                with self.get_connection() as conn:
+                    cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                    tables = cursor.fetchall()
+                    if len(tables) >= 5:  # We expect at least 5 main tables
+                        self.logger.debug("Database already initialized with tables")
+                        return
+            
             # Get the absolute path to schema.sql
             current_dir = os.path.dirname(os.path.abspath(__file__))
             schema_path = os.path.join(current_dir, 'schema.sql')
@@ -31,10 +44,12 @@ class DatabaseManager:
                 conn.executescript(schema)
                 conn.commit()
                 
-            self.logger.info("Database initialized successfully")
+            self.logger.info("Database schema created successfully")
         except Exception as e:
             self.logger.error(f"Failed to initialize database: {e}")
-            raise
+            # Don't raise if DB already exists
+            if "already exists" not in str(e):
+                raise
     
     @contextmanager
     def get_connection(self):
