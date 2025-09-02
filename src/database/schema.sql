@@ -84,6 +84,45 @@ CREATE TABLE IF NOT EXISTS alerts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Daily ETH prices table
+CREATE TABLE IF NOT EXISTS daily_eth_prices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    price_date DATE UNIQUE NOT NULL,
+    eth_price_usd DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Daily analytics table (stores all calculated metrics)
+CREATE TABLE IF NOT EXISTS daily_analytics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    analytics_date DATE UNIQUE NOT NULL,
+    eth_price_usd DECIMAL(10,2) NOT NULL,
+    
+    -- Origins data
+    origins_floor_eth DECIMAL(18,6),
+    origins_supply INTEGER,
+    origins_market_cap_usd DECIMAL(15,2),
+    origins_floor_change_24h DECIMAL(8,4),
+    
+    -- Genuine Undead data  
+    undead_floor_eth DECIMAL(18,6),
+    undead_supply INTEGER,
+    undead_market_cap_usd DECIMAL(15,2),
+    undead_floor_change_24h DECIMAL(8,4),
+    undead_supply_change_24h INTEGER,
+    
+    -- Migration calculations (includes +26 burned GU)
+    total_migrations INTEGER DEFAULT 26, -- Start with 26 burned
+    migration_percent DECIMAL(8,4),
+    price_ratio DECIMAL(8,4),
+    combined_market_cap_usd DECIMAL(15,2),
+    
+    -- Daily migration activity  
+    daily_new_migrations INTEGER DEFAULT 0,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_daily_snapshots_date ON daily_snapshots(snapshot_date);
 CREATE INDEX IF NOT EXISTS idx_daily_snapshots_collection ON daily_snapshots(collection_id);
@@ -94,6 +133,8 @@ CREATE INDEX IF NOT EXISTS idx_token_holders_token ON token_holders(collection_i
 CREATE INDEX IF NOT EXISTS idx_api_logs_date ON api_logs(called_at);
 CREATE INDEX IF NOT EXISTS idx_alerts_date ON alerts(created_at);
 CREATE INDEX IF NOT EXISTS idx_alerts_resolved ON alerts(resolved);
+CREATE INDEX IF NOT EXISTS idx_daily_eth_prices_date ON daily_eth_prices(price_date);
+CREATE INDEX IF NOT EXISTS idx_daily_analytics_date ON daily_analytics(analytics_date);
 
 -- Insert initial collection data
 INSERT OR IGNORE INTO collections (slug, name, contract_address, opensea_url) VALUES 
