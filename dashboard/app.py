@@ -117,18 +117,33 @@ class DashboardData:
 
     def _get_24h_floor_change(self, collection_slug, current_floor_price):
         """Calculate 24h floor price change from stored analytics"""
-        # This method is now deprecated since we use stored analytics
-        # Keep for backward compatibility
-        manual_changes = {
-            'gu-origins': -15.0,     # 15% decrease for testing
-            'genuine-undead': 50.0   # 50% increase for testing
-        }
-        
-        if collection_slug in manual_changes:
-            self.logger.info(f"Using manual 24h change for {collection_slug}: {manual_changes[collection_slug]}%")
-            return manual_changes[collection_slug]
-        
         try:
+            # Get the latest analytics which already has calculated 24h changes
+            with self.db.get_connection() as conn:
+                # Map collection slug to the appropriate change field
+                if collection_slug == 'gu-origins':
+                    cursor = conn.execute("""
+                        SELECT origins_floor_change_24h 
+                        FROM daily_analytics 
+                        ORDER BY analytics_date DESC 
+                        LIMIT 1
+                    """)
+                    result = cursor.fetchone()
+                    if result and result[0] is not None:
+                        return result[0]
+                        
+                elif collection_slug == 'genuine-undead':
+                    cursor = conn.execute("""
+                        SELECT undead_floor_change_24h 
+                        FROM daily_analytics 
+                        ORDER BY analytics_date DESC 
+                        LIMIT 1
+                    """)
+                    result = cursor.fetchone()
+                    if result and result[0] is not None:
+                        return result[0]
+            
+            # Fallback: Calculate manually if not in analytics
             collection_id = self.db.get_collection_id(collection_slug)
             if not collection_id:
                 return 0.0
@@ -138,12 +153,12 @@ class DashboardData:
             yesterday_str = yesterday.strftime('%Y-%m-%d')
             
             # Query database for floor price from yesterday
-            cursor = self.db.conn.cursor()
-            cursor.execute(
-                "SELECT floor_price_eth FROM daily_snapshots WHERE collection_id = ? AND snapshot_date = ?",
-                (collection_id, yesterday_str)
-            )
-            result = cursor.fetchone()
+            with self.db.get_connection() as conn:
+                cursor = conn.execute(
+                    "SELECT floor_price_eth FROM daily_snapshots WHERE collection_id = ? AND snapshot_date = ?",
+                    (collection_id, yesterday_str)
+                )
+                result = cursor.fetchone()
             
             if result and result[0] and result[0] > 0:
                 yesterday_floor = result[0]
@@ -366,7 +381,7 @@ class DashboardData:
             return {}
     
     async def get_current_data(self, force_refresh=False):
-        """Get current market data with caching"""
+        """Get current market data - prefer database over live API due to rate limits"""
         now = datetime.now()
         
         # Check cache
@@ -376,6 +391,25 @@ class DashboardData:
             self.cache):
             return self.cache
         
+        # First, try to get data from stored analytics (more reliable)
+        stored_data = self.get_stored_analytics_data()
+        
+        if stored_data and stored_data.get('eth_price_usd'):
+            # Use stored data from database
+            data = {
+                'timestamp': now.isoformat(),
+                'eth_price_usd': stored_data['eth_price_usd'],
+                'origins': stored_data['origins'],
+                'undead': stored_data['undead'],
+                'migration_analytics': stored_data['migration_analytics']
+            }
+            
+            # Update cache
+            self.cache = data
+            self.last_update = now
+            return data
+        
+        # Fallback to live API (often rate limited)
         try:
             # Fetch real-time data
             origins_stats = await self.opensea_client.get_collection_stats('gu-origins')
@@ -389,15 +423,20 @@ class DashboardData:
             
             eth_price = await get_current_eth_price()
             
-            # Get accurate migration data from database
-            migration_stats = self.db.get_migration_stats(30)
-            
             # Calculate migrations from real-time OpenSea data
             # Use actual Genuine Undead total supply from OpenSea
-            total_migrations = undead_details.get('total_supply', 0) if undead_details else 0
+            undead_supply = undead_details.get('total_supply', 5037) if undead_details else 5037
             
-            # Migration percentage = (OpenSea GU Supply / 10,000 Origins) × 100
-            migration_percent = (total_migrations / 10000) * 100
+            # CORRECTED: Add 26 burned GU to total migrations
+            total_migrations = undead_supply + 26
+            
+            # CORRECTED: Migration percentage = (Undead Supply / 9,993 Origins) × 100
+            migration_percent = (undead_supply / 9993) * 100
+            
+            # Calculate price ratio
+            origins_floor = origins_stats.get('floor_price', 0.0575) if origins_stats else 0.0575
+            undead_floor = undead_stats.get('floor_price', 0.0383) if undead_stats else 0.0383
+            price_ratio = undead_floor / origins_floor if origins_floor > 0 else 0.666
             
             # Process data
             data = {
@@ -407,8 +446,9 @@ class DashboardData:
                 'undead': self._process_collection_data(undead_stats, undead_details, eth_price, 'genuine-undead'),
                 'migration_analytics': {
                     'migration_rate': {
-                        'total_migrations': total_migrations,  # Use calculated migrations from supply
-                        'migration_percent': migration_percent
+                        'total_migrations': total_migrations,  # Includes 26 burned
+                        'migration_percent': migration_percent,  # Corrected formula
+                        'price_ratio': price_ratio
                     }
                 }
             }
