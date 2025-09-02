@@ -88,6 +88,11 @@ class DailyCollectionRunner:
                 origins_floor = 0.0575
                 undead_floor = 0.0383
                 undead_supply = 5037
+n            # Initialize volume and holders data
+            origins_volume = 0
+            origins_holders = self.origins_supply
+            undead_volume = 0
+            undead_holders = undead_supply
             
             # Try to get fresh data from OpenSea (but don't fail if rate limited)
             try:
@@ -100,6 +105,10 @@ class DailyCollectionRunner:
                     new_floor = origins_data.get('floor_price', {}).get('eth', 0)
                     if new_floor > 0:
                         origins_floor = new_floor
+n                    # Extract volume and holders from stats
+                    if "stats" in origins_data:
+                        origins_volume = origins_data["stats"].get("one_day_volume", 0)
+                        origins_holders = origins_data["stats"].get("num_owners", self.origins_supply)
                         
                 if undead_data:
                     new_floor = undead_data.get('floor_price', {}).get('eth', 0)
@@ -108,6 +117,10 @@ class DailyCollectionRunner:
                         undead_floor = new_floor
                     if new_supply > 0:
                         undead_supply = new_supply
+n                    # Extract volume and holders from stats
+                    if "stats" in undead_data:
+                        undead_volume = undead_data["stats"].get("one_day_volume", 0)
+                        undead_holders = undead_data["stats"].get("num_owners", undead_supply)
                         
             except Exception as e:
                 logger.warning(f"OpenSea API error (using cached values): {e}")
@@ -258,13 +271,13 @@ class DailyCollectionRunner:
             ]:
                 conn.execute("""
                     INSERT OR REPLACE INTO daily_snapshots (
-                        collection_id, snapshot_date, total_supply, floor_price_eth,
+                        collection_id, snapshot_date, total_supply, holders_count, floor_price_eth,
                         floor_price_usd, market_cap_eth, market_cap_usd,
                         volume_24h_eth, volume_24h_usd
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    collection_id, analytics_date.isoformat(), supply, floor,
-                    floor * eth_price, floor * supply, market_cap, 0, 0
+                    collection_id, analytics_date.isoformat(), supply, (origins_holders if collection_id == 1 else undead_holders), floor,
+                    floor * eth_price, floor * supply, market_cap, (origins_volume if collection_id == 1 else undead_volume), (origins_volume if collection_id == 1 else undead_volume) * eth_price
                 ))
             
             conn.commit()

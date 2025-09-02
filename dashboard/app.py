@@ -62,14 +62,14 @@ class DashboardData:
                     'total_supply': analytics['origins_supply'],
                     'market_cap_usd': analytics['origins_market_cap_usd'],
                     'floor_change_24h': analytics['origins_floor_change_24h'],
-                    'volume_24h_eth': 0  # Can be added to analytics later
+                    'volume_24h_eth': 0  # Will be enhanced with live data
                 },
                 'undead': {
                     'floor_price_eth': analytics['undead_floor_eth'],
                     'total_supply': analytics['undead_supply'],
                     'market_cap_usd': analytics['undead_market_cap_usd'],
                     'floor_change_24h': analytics['undead_floor_change_24h'],
-                    'volume_24h_eth': 0  # Can be added to analytics later
+                    'volume_24h_eth': 0  # Will be enhanced with live data
                 },
                 'migration_analytics': {
                     'migration_rate': {
