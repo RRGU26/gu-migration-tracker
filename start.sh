@@ -22,5 +22,6 @@ export FLASK_ENV=production
 export PORT=${PORT:-8000}
 export DB_INITIALIZED=true
 
-# Start the Flask app directly
-exec python app.py
+# Use Gunicorn for production deployment
+echo "Starting production server on port $PORT..."
+exec gunicorn --bind 0.0.0.0:$PORT --workers 2 --worker-class sync --timeout 120 --keep-alive 2 --max-requests 1000 --max-requests-jitter 50 --preload app:app
