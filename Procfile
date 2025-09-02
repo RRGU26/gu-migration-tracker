@@ -1,1 +1,1 @@
-web: cd dashboard && python app.py
+web: bash start.sh
