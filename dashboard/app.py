@@ -941,6 +941,54 @@ def health():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
 
+@app.route('/api/fix-data')
+def fix_data():
+    """Fix historical price data"""
+    try:
+        with dashboard_data.db.get_connection() as conn:
+            # Fix Aug 31 - Genuine Undead was ~0.03 ETH, not 0.0555
+            conn.execute("""
+                UPDATE daily_analytics 
+                SET undead_floor_eth = 0.0300,
+                    origins_floor_eth = 0.0575,
+                    undead_floor_change_24h = 0,
+                    origins_floor_change_24h = 0
+                WHERE analytics_date = '2025-08-31'
+            """)
+            
+            # Fix Sep 1 - Undead increased to 0.0383 (27.7% gain)
+            conn.execute("""
+                UPDATE daily_analytics 
+                SET undead_floor_eth = 0.0383,
+                    origins_floor_eth = 0.0575,
+                    origins_floor_change_24h = 0.0,
+                    undead_floor_change_24h = 27.67
+                WHERE analytics_date = '2025-09-01'  
+            """)
+            
+            # Fix Sep 2 and 3 - Prices stable (0% change)
+            conn.execute("""
+                UPDATE daily_analytics 
+                SET origins_floor_change_24h = 0.0,
+                    undead_floor_change_24h = 0.0
+                WHERE analytics_date IN ('2025-09-02', '2025-09-03')
+            """)
+            
+            conn.commit()
+            
+            # Clear cache to force refresh
+            dashboard_data.cache = {}
+            dashboard_data.last_update = None
+            
+            return jsonify({
+                'status': 'success', 
+                'message': 'Historical data corrected',
+                'timestamp': datetime.now().isoformat()
+            })
+            
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
 @app.route('/api/export-pdf')
 def export_pdf():
     """Generate and return a PDF report using stored analytics"""
