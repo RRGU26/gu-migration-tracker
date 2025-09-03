@@ -9,6 +9,10 @@ mkdir -p data logs
 echo "Setting up database..."
 python init_database.py || echo "Database initialization warning, continuing..."
 
+# Fix historical price data
+echo "Correcting historical data..."
+python fix_railway_data.py || echo "Historical data fix skipped"
+
 # Try to collect fresh data (but don't fail if rate limited)
 echo "Attempting data collection..."
 timeout 20 python src/services/daily_collection_runner.py 2>/dev/null || echo "Data collection skipped (API rate limited or timeout)"
