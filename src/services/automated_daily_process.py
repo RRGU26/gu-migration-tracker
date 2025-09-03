@@ -11,10 +11,12 @@ import logging
 import schedule
 import time
 
-# Add src to path
+# Add project root and src to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 src_dir = os.path.dirname(current_dir)
+project_root = os.path.dirname(src_dir)
 sys.path.append(src_dir)
+sys.path.append(project_root)
 
 from database.database import DatabaseManager
 from api.opensea_client import OpenSeaClient
