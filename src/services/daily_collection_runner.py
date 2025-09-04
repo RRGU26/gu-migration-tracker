@@ -9,10 +9,12 @@ import sys
 from datetime import date, timedelta
 import logging
 
-# Add src to path
+# Add src and root to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 src_dir = os.path.dirname(current_dir)
+root_dir = os.path.dirname(src_dir)
 sys.path.append(src_dir)
+sys.path.append(root_dir)
 
 from database.database import DatabaseManager
 from api.opensea_client import OpenSeaClient

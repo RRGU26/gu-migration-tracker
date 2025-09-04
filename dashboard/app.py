@@ -15,6 +15,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 from src.database.database import DatabaseManager
 from src.api.price_client import get_current_eth_price
 import requests
+import subprocess
+import threading
 
 app = Flask(__name__)
 
@@ -145,84 +147,30 @@ def get_current_data():
 
 @app.route('/api/refresh')
 def refresh_data():
-    """Force refresh by getting fresh data with new timestamp and live ETH price"""
+    """Run full daily data collection and return fresh data"""
     try:
-        # Get live ETH price first
-        import asyncio
-        try:
-            live_eth_price = asyncio.run(get_current_eth_price())
-        except:
-            live_eth_price = None
+        # Run the full daily collection process
+        collection_script = os.path.join(os.path.dirname(__file__), '..', 'src', 'services', 'daily_collection_runner.py')
         
-        with db.get_connection() as conn:
-            # Get the latest analytics data
-            cursor = conn.execute("""
-                SELECT 
-                    analytics_date, eth_price_usd, origins_floor_eth, origins_supply,
-                    origins_market_cap_usd, origins_floor_change_24h, undead_floor_eth, 
-                    undead_supply, undead_market_cap_usd, undead_floor_change_24h,
-                    total_migrations, migration_percent, price_ratio, combined_market_cap_usd
-                FROM daily_analytics
-                ORDER BY analytics_date DESC
-                LIMIT 1
-            """)
-            
-            row = cursor.fetchone()
-            if not row:
-                return jsonify({'error': 'No data available'}), 404
-            
-            # Update ETH price in database if we got a live price
-            current_eth_price = row['eth_price_usd']
-            if live_eth_price and live_eth_price > 0:
-                current_eth_price = live_eth_price
-                # Update the database with fresh ETH price
-                today = date.today().isoformat()
-                cursor = conn.execute("""
-                    INSERT OR REPLACE INTO daily_eth_prices (date, eth_price_usd)
-                    VALUES (?, ?)
-                """, (today, live_eth_price))
-                conn.commit()
-
-            # Get fresh volume data
+        # Run collection in background to avoid timeout
+        def run_collection():
             try:
-                origins_vol, undead_vol = get_quick_volume_data()
-            except:
-                origins_vol, undead_vol = 0.0127, 0.033
-
-            # Build response with fresh timestamp and live ETH price
-            data = {
-                'timestamp': datetime.now().isoformat(),  # Fresh timestamp for refresh
-                'analytics_date': row['analytics_date'],
-                'eth_price_usd': current_eth_price,
-                'origins': {
-                    'floor_price_eth': row['origins_floor_eth'],
-                    'floor_price_usd': row['origins_floor_eth'] * current_eth_price,
-                    'total_supply': row['origins_supply'],
-                    'market_cap_usd': row['origins_market_cap_usd'],
-                    'floor_change_24h': row['origins_floor_change_24h'],
-                    'volume_24h_eth': origins_vol,
-                    'holders_count': row['origins_supply']
-                },
-                'undead': {
-                    'floor_price_eth': row['undead_floor_eth'],
-                    'floor_price_usd': row['undead_floor_eth'] * current_eth_price,
-                    'total_supply': row['undead_supply'],
-                    'market_cap_usd': row['undead_market_cap_usd'],
-                    'floor_change_24h': row['undead_floor_change_24h'],
-                    'volume_24h_eth': undead_vol,
-                    'holders_count': row['undead_supply']
-                },
-                'migration_analytics': {
-                    'migration_rate': {
-                        'total_migrations': row['total_migrations'],
-                        'migration_percent': row['migration_percent'],
-                        'price_ratio': row['price_ratio']
-                    }
-                },
-                'ecosystem_value': row['combined_market_cap_usd']
-            }
-
-            return jsonify(data)
+                subprocess.run([sys.executable, collection_script], 
+                             cwd=os.path.dirname(collection_script),
+                             capture_output=True, text=True, timeout=300)
+            except Exception as e:
+                print(f"Collection error: {e}")
+        
+        # Start collection in background thread
+        collection_thread = threading.Thread(target=run_collection)
+        collection_thread.start()
+        
+        # Wait briefly for collection to start, then return current data
+        import time
+        time.sleep(2)
+        
+        # Return fresh data after collection
+        return get_current_data()
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
