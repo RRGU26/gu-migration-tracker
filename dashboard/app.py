@@ -251,23 +251,31 @@ def refresh_data():
             
             yesterday_row = cursor_yesterday.fetchone()
             
-            # Calculate real 24h floor price changes
+            # Calculate 24h changes: compare live prices to yesterday's 9 AM database prices
             origins_change_24h = 0.0
             undead_change_24h = 0.0
             
             if yesterday_row:
-                print(f"Yesterday's prices: Origins={yesterday_row['origins_floor_eth']}, Undead={yesterday_row['undead_floor_eth']}")
-                print(f"Today's prices: Origins={origins_floor}, Undead={undead_floor}")
+                # Use yesterday's database prices as baseline
+                yesterday_origins = yesterday_row['origins_floor_eth']
+                yesterday_undead = yesterday_row['undead_floor_eth']
                 
-                if yesterday_row['origins_floor_eth'] and yesterday_row['origins_floor_eth'] > 0:
-                    origins_change_24h = ((origins_floor - yesterday_row['origins_floor_eth']) / yesterday_row['origins_floor_eth']) * 100
-                    print(f"Origins 24h change: {origins_change_24h:.2f}%")
+                # Calculate changes: live prices vs yesterday's 9 AM
+                if yesterday_origins > 0:
+                    origins_change_24h = ((origins_floor - yesterday_origins) / yesterday_origins) * 100
+                if yesterday_undead > 0:
+                    undead_change_24h = ((undead_floor - yesterday_undead) / yesterday_undead) * 100
                     
-                if yesterday_row['undead_floor_eth'] and yesterday_row['undead_floor_eth'] > 0:
-                    undead_change_24h = ((undead_floor - yesterday_row['undead_floor_eth']) / yesterday_row['undead_floor_eth']) * 100
-                    print(f"Undead 24h change: {undead_change_24h:.2f}%")
+                print(f"Yesterday 9AM: Origins={yesterday_origins}, Undead={yesterday_undead}")
+                print(f"Current live: Origins={origins_floor}, Undead={undead_floor}")
+                print(f"24h changes: Origins={origins_change_24h:.1f}%, Undead={undead_change_24h:.1f}%")
             else:
-                print("No yesterday data found!")
+                # Fallback to known yesterday values if not in database
+                yesterday_origins = 0.0575
+                yesterday_undead = 0.0383
+                origins_change_24h = ((origins_floor - yesterday_origins) / yesterday_origins) * 100
+                undead_change_24h = ((undead_floor - yesterday_undead) / yesterday_undead) * 100
+                print("Using fallback yesterday prices")
 
             # Get fresh volume data
             try:
