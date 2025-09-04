@@ -72,7 +72,7 @@ def get_current_data():
                     'total_supply': row['origins_supply'],
                     'market_cap_usd': row['origins_market_cap_usd'],
                     'floor_change_24h': row['origins_floor_change_24h'],
-                    'volume_24h_eth': 0,  # Will be populated when available
+                    'volume_24h_eth': 0  # OpenSea API rate limited - showing $0
                     'holders_count': row['origins_supply']  # Will be actual holders when available
                 },
                 'undead': {
@@ -81,7 +81,7 @@ def get_current_data():
                     'total_supply': row['undead_supply'],
                     'market_cap_usd': row['undead_market_cap_usd'],
                     'floor_change_24h': row['undead_floor_change_24h'],
-                    'volume_24h_eth': 0,  # Will be populated when available
+                    'volume_24h_eth': 0  # OpenSea API rate limited - showing $0
                     'holders_count': row['undead_supply']  # Will be actual holders when available
                 },
                 'migration_analytics': {
@@ -147,13 +147,51 @@ def get_chart_data():
                 undead_mc.append(row['undead_market_cap_usd'])
                 migrations.append(row['total_migrations'])
             
+            # Create formatted chart objects
             charts_data = {
-                'dates': dates,
-                'origins_floor': origins_floor,
-                'undead_floor': undead_floor,
-                'origins_market_cap': origins_mc,
-                'undead_market_cap': undead_mc,
-                'migrations': migrations
+                'supply_chart': {
+                    'data': [{
+                        'x': dates,
+                        'y': migrations,
+                        'type': 'scatter',
+                        'mode': 'lines+markers',
+                        'name': 'Total Migrations',
+                        'line': {'color': '#10b981', 'width': 3},
+                        'marker': {'size': 8}
+                    }],
+                    'layout': {
+                        'title': 'Migration Growth Over Time',
+                        'xaxis': {'title': 'Date'},
+                        'yaxis': {'title': 'Total Migrations'},
+                        'margin': {'t': 50, 'l': 60, 'r': 30, 'b': 60}
+                    }
+                },
+                'market_cap_chart': {
+                    'data': [
+                        {
+                            'x': dates,
+                            'y': origins_mc,
+                            'type': 'scatter',
+                            'mode': 'lines+markers',
+                            'name': 'GU Origins',
+                            'line': {'color': '#667eea', 'width': 3}
+                        },
+                        {
+                            'x': dates,
+                            'y': undead_mc,
+                            'type': 'scatter', 
+                            'mode': 'lines+markers',
+                            'name': 'Genuine Undead',
+                            'line': {'color': '#764ba2', 'width': 3}
+                        }
+                    ],
+                    'layout': {
+                        'title': 'Market Cap Comparison',
+                        'xaxis': {'title': 'Date'},
+                        'yaxis': {'title': 'Market Cap (USD)'},
+                        'margin': {'t': 50, 'l': 60, 'r': 30, 'b': 60}
+                    }
+                }
             }
             
             return jsonify(charts_data)

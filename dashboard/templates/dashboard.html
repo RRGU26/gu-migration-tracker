@@ -180,19 +180,7 @@
             </div>
         </div>
 
-        <!-- Charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div class="card rounded-xl shadow-lg p-6">
-                <h3 class="text-xl font-bold text-gray-800 mb-4">Floor Price Trends</h3>
-                <div id="priceChart" style="height: 400px;"></div>
-            </div>
-            
-            <div class="card rounded-xl shadow-lg p-6">
-                <h3 class="text-xl font-bold text-gray-800 mb-4">Volume Comparison</h3>
-                <div id="volumeChart" style="height: 400px;"></div>
-            </div>
-        </div>
-
+        <!-- Essential Charts -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <div class="card rounded-xl shadow-lg p-6">
                 <h3 class="text-xl font-bold text-gray-800 mb-4">
@@ -209,14 +197,6 @@
                 </h3>
                 <div id="marketCapChart" style="height: 400px;"></div>
             </div>
-        </div>
-
-        <div class="card rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold text-gray-800 mb-4">
-                <i class="fas fa-exchange-alt mr-2 text-blue-600"></i>
-                Migration Activity Over Time
-            </h3>
-            <div id="migrationChart" style="height: 400px;"></div>
         </div>
     </div>
 
@@ -342,29 +322,13 @@
                 .then(chartData => {
                     const plotConfig = {responsive: true, displayModeBar: false};
                     
-                    // Price chart
-                    if (chartData.price_chart) {
-                        Plotly.newPlot('priceChart', chartData.price_chart.data, chartData.price_chart.layout, plotConfig);
-                    }
-                    
-                    // Volume chart
-                    if (chartData.volume_chart) {
-                        Plotly.newPlot('volumeChart', chartData.volume_chart.data, chartData.volume_chart.layout, plotConfig);
-                    }
-                    
-                    // Supply growth chart
+                    // Essential charts only - Collection Growth and Market Cap
                     if (chartData.supply_chart) {
                         Plotly.newPlot('supplyChart', chartData.supply_chart.data, chartData.supply_chart.layout, plotConfig);
                     }
                     
-                    // Market cap comparison chart
                     if (chartData.market_cap_chart) {
                         Plotly.newPlot('marketCapChart', chartData.market_cap_chart.data, chartData.market_cap_chart.layout, plotConfig);
-                    }
-                    
-                    // Migration chart
-                    if (chartData.migration_chart) {
-                        Plotly.newPlot('migrationChart', chartData.migration_chart.data, chartData.migration_chart.layout, plotConfig);
                     }
                 })
                 .catch(error => {
