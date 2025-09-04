@@ -177,7 +177,7 @@
                 <div class="text-center">
                     <div class="text-2xl font-bold text-orange-600" id="recentMigrations">+0</div>
                     <div class="text-sm text-gray-600">New Migrations</div>
-                    <div class="text-xs text-gray-500">vs 5,063 baseline</div>
+                    <div class="text-xs text-gray-500">vs 5,333 baseline</div>
                 </div>
                 <div class="text-center">
                     <div class="text-2xl font-bold text-indigo-600" id="marketCapChange">+0.0%</div>
@@ -303,8 +303,8 @@
             }
             
             // Calculate new migrations vs baseline
-            const currentMigrations = data.migration_analytics.migration_rate.total_migrations || 5063;
-            const baseMigrations = 5063;
+            const currentMigrations = data.migration_analytics.migration_rate.total_migrations || 5333;
+            const baseMigrations = 5333;
             const newMigrations = currentMigrations - baseMigrations;
             document.getElementById('recentMigrations').textContent = newMigrations >= 0 ? `+${newMigrations}` : `${newMigrations}`;
             

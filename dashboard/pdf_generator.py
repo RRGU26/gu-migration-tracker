@@ -82,12 +82,12 @@ class PDFReportGenerator:
         
         # Get migration data
         migration_data = data.get('migration_analytics', {}).get('migration_rate', {})
-        total_migrations = migration_data.get('total_migrations', 5063)
+        total_migrations = migration_data.get('total_migrations', 5333)
         migration_percent = migration_data.get('migration_percent', 50.40)
         price_ratio = migration_data.get('price_ratio', 0.67)
         
         # Calculate new analytics
-        new_migrations = total_migrations - 5063
+        new_migrations = total_migrations - 5333
         baseline_mc = 3270218
         current_mc = data.get('ecosystem_value', baseline_mc)
         mc_change = ((current_mc - baseline_mc) / baseline_mc) * 100
