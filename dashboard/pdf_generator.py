@@ -33,10 +33,14 @@ class PDFReportGenerator:
         c.setFont("Helvetica", 11)
         c.drawString(50, self.height - 55, "Real-time NFT migration analytics")
         
-        # Timestamp - September 4, 2025 at 8:35 AM
-        c.setFont("Helvetica-Bold", 10)
-        timestamp = "September 4, 2025 • 8:35 AM EST"
-        c.drawRightString(self.width - 50, self.height - 35, timestamp)
+        # Date and Time - Full format
+        c.setFont("Helvetica-Bold", 12)
+        date_str = "September 4, 2025"
+        c.drawRightString(self.width - 50, self.height - 30, date_str)
+        
+        c.setFont("Helvetica", 10)
+        time_str = "Generated: 8:35:24 AM EST"
+        c.drawRightString(self.width - 50, self.height - 45, time_str)
         
         # Ethereum Price
         eth_price = data.get('eth_price_usd', 4261)
