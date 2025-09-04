@@ -31,8 +31,8 @@ class Config:
     OPENSEA_BASE_URL = 'https://api.opensea.io/api/v2'
     ETHERSCAN_BASE_URL = 'https://api.etherscan.io/api'
     
-    # Rate Limiting
-    API_RATE_LIMIT = 4  # requests per second for OpenSea
+    # Rate Limiting - OpenSea free tier is 1 request per second
+    API_RATE_LIMIT = 0.5  # requests per second for OpenSea (conservative)
     REQUEST_TIMEOUT = 30  # seconds
     
     # Reporting Configuration

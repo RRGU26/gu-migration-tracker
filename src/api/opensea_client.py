@@ -19,6 +19,10 @@ class OpenSeaClient:
         self.last_request_time = 0
         self.request_count = 0
         
+        # Simple cache to prevent duplicate API calls within 5 minutes
+        self.cache = {}
+        self.cache_duration = 300  # 5 minutes
+        
         # Headers for API requests
         self.headers = {
             'X-API-KEY': self.api_key,
@@ -82,6 +86,14 @@ class OpenSeaClient:
     
     async def get_collection_stats(self, collection_slug: str) -> Optional[Dict]:
         """Get collection statistics from OpenSea"""
+        # Check cache first
+        cache_key = f"stats_{collection_slug}"
+        if cache_key in self.cache:
+            cached_time, cached_data = self.cache[cache_key]
+            if time.time() - cached_time < self.cache_duration:
+                self.logger.info(f"Using cached stats for {collection_slug}")
+                return cached_data
+        
         endpoint = f"/collections/{collection_slug}/stats"
         
         async with aiohttp.ClientSession() as session:
@@ -96,7 +108,7 @@ class OpenSeaClient:
                 one_day = next((i for i in intervals if i.get('interval') == 'one_day'), {})
                 seven_day = next((i for i in intervals if i.get('interval') == 'seven_day'), {})
                 
-                return {
+                result = {
                     'total_supply': int(total.get('market_cap', 0) / max(total.get('floor_price', 0.001), 0.001)) if total.get('floor_price') else 10000,  # Estimate
                     'floor_price': total.get('floor_price', 0),
                     'one_day_volume': one_day.get('volume', 0),
@@ -107,6 +119,10 @@ class OpenSeaClient:
                     'num_sales': total.get('sales', 0),
                     'market_cap': total.get('market_cap', 0)
                 }
+                
+                # Cache the result
+                self.cache[cache_key] = (time.time(), result)
+                return result
             return None
     
     async def get_collection_details(self, collection_slug: str) -> Optional[Dict]:
@@ -196,16 +212,27 @@ class OpenSeaClient:
         return owners
     
     async def get_comprehensive_collection_data(self, collection_slug: str) -> Dict[str, Any]:
-        """Get comprehensive collection data in a single batch"""
-        tasks = [
-            self.get_collection_stats(collection_slug),
-            self.get_collection_details(collection_slug),
-            self.get_collection_listings(collection_slug, 50),  # Sample for listing %
-            self.get_collection_events(collection_slug, 'sale', 100),  # Recent sales
-            self.get_nft_owners(collection_slug)
-        ]
+        """Get comprehensive collection data with rate limiting"""
+        # Check cache first
+        cache_key = f"comprehensive_{collection_slug}"
+        if cache_key in self.cache:
+            cached_time, cached_data = self.cache[cache_key]
+            if time.time() - cached_time < self.cache_duration:
+                self.logger.info(f"Using cached comprehensive data for {collection_slug}")
+                return cached_data
         
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Execute API calls sequentially to avoid rate limiting
+        stats = await self.get_collection_stats(collection_slug)
+        await asyncio.sleep(2)  # 2 second delay between calls
+        
+        details = await self.get_collection_details(collection_slug)
+        
+        # Skip expensive calls that aren't critical for our use case
+        listings = []
+        sales = []
+        owners = []
+        
+        results = [stats, details, listings, sales, owners]
         
         stats, details, listings, sales, owners = results
         
@@ -267,7 +294,7 @@ class OpenSeaClient:
         volume_24h_eth = float(stats.get('one_day_volume', 0)) if stats.get('one_day_volume') else 0
         volume_7d_eth = float(stats.get('seven_day_volume', 0)) if stats.get('seven_day_volume') else 0
         
-        return {
+        result = {
             'total_supply': int(total_supply),
             'holders_count': len(set(o.get('holder_address', '') for o in owners if o.get('holder_address'))),
             'floor_price_eth': floor_price_eth,
@@ -284,6 +311,10 @@ class OpenSeaClient:
             'average_price_usd': float(stats.get('average_price', 0)) * eth_to_usd if stats.get('average_price') else 0,
             'num_sales_24h': recent_sales_24h
         }
+        
+        # Cache the result
+        self.cache[cache_key] = (time.time(), result)
+        return result
 
 # Convenience functions for easy use
 async def fetch_collection_data(collection_slug: str) -> Dict[str, Any]:
