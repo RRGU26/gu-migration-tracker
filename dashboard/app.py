@@ -13,6 +13,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from src.database.database import DatabaseManager
+from src.api.price_client import get_current_eth_price
 import requests
 
 app = Flask(__name__)
@@ -144,8 +145,15 @@ def get_current_data():
 
 @app.route('/api/refresh')
 def refresh_data():
-    """Force refresh by getting fresh data with new timestamp"""
+    """Force refresh by getting fresh data with new timestamp and live ETH price"""
     try:
+        # Get live ETH price first
+        import asyncio
+        try:
+            live_eth_price = asyncio.run(get_current_eth_price())
+        except:
+            live_eth_price = None
+        
         with db.get_connection() as conn:
             # Get the latest analytics data
             cursor = conn.execute("""
@@ -162,6 +170,18 @@ def refresh_data():
             row = cursor.fetchone()
             if not row:
                 return jsonify({'error': 'No data available'}), 404
+            
+            # Update ETH price in database if we got a live price
+            current_eth_price = row['eth_price_usd']
+            if live_eth_price and live_eth_price > 0:
+                current_eth_price = live_eth_price
+                # Update the database with fresh ETH price
+                today = date.today().isoformat()
+                cursor = conn.execute("""
+                    INSERT OR REPLACE INTO daily_eth_prices (date, eth_price_usd)
+                    VALUES (?, ?)
+                """, (today, live_eth_price))
+                conn.commit()
 
             # Get fresh volume data
             try:
@@ -169,14 +189,14 @@ def refresh_data():
             except:
                 origins_vol, undead_vol = 0.0127, 0.033
 
-            # Build response with fresh timestamp
+            # Build response with fresh timestamp and live ETH price
             data = {
                 'timestamp': datetime.now().isoformat(),  # Fresh timestamp for refresh
                 'analytics_date': row['analytics_date'],
-                'eth_price_usd': row['eth_price_usd'],
+                'eth_price_usd': current_eth_price,
                 'origins': {
                     'floor_price_eth': row['origins_floor_eth'],
-                    'floor_price_usd': row['origins_floor_eth'] * row['eth_price_usd'],
+                    'floor_price_usd': row['origins_floor_eth'] * current_eth_price,
                     'total_supply': row['origins_supply'],
                     'market_cap_usd': row['origins_market_cap_usd'],
                     'floor_change_24h': row['origins_floor_change_24h'],
@@ -185,7 +205,7 @@ def refresh_data():
                 },
                 'undead': {
                     'floor_price_eth': row['undead_floor_eth'],
-                    'floor_price_usd': row['undead_floor_eth'] * row['eth_price_usd'],
+                    'floor_price_usd': row['undead_floor_eth'] * current_eth_price,
                     'total_supply': row['undead_supply'],
                     'market_cap_usd': row['undead_market_cap_usd'],
                     'floor_change_24h': row['undead_floor_change_24h'],
