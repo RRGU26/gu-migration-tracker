@@ -57,6 +57,33 @@ def get_quick_volume_data():
     except:
         return 0.0127, 0.033  # fallback values
 
+def get_live_floor_prices():
+    """Get live floor prices directly from OpenSea API"""
+    try:
+        headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        
+        # Get Origins floor price
+        origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats', 
+                                       headers=headers, timeout=5)
+        origins_floor = 0.0575  # Fallback
+        if origins_response.status_code == 200:
+            origins_data = origins_response.json()
+            origins_floor = float(origins_data.get('total', {}).get('floor_price', 0.0575))
+        
+        # Get Undead floor price
+        undead_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead/stats',
+                                      headers=headers, timeout=5)
+        undead_floor = 0.0383  # Fallback
+        if undead_response.status_code == 200:
+            undead_data = undead_response.json()
+            undead_floor = float(undead_data.get('total', {}).get('floor_price', 0.0383))
+        
+        return origins_floor, undead_floor
+        
+    except Exception as e:
+        print(f"Floor price fetch error: {e}")
+        return 0.0575, 0.0383
+
 @app.route('/')
 def index():
     """Serve the dashboard"""
@@ -171,14 +198,20 @@ def refresh_data():
                 else:
                     live_eth_price = 4382  # Final fallback to known current price
         
+        # Get live floor prices
+        try:
+            origins_floor, undead_floor = get_live_floor_prices()
+        except:
+            origins_floor, undead_floor = 0.0575, 0.0383  # Fallback
+            
         with db.get_connection() as conn:
-            # Update ETH price in database
+            # Update ETH price and floor prices in database
             today = date.today().isoformat()
             conn.execute("""
                 UPDATE daily_analytics 
-                SET eth_price_usd = ?
+                SET eth_price_usd = ?, origins_floor_eth = ?, undead_floor_eth = ?
                 WHERE analytics_date = ?
-            """, (live_eth_price, today))
+            """, (live_eth_price, origins_floor, undead_floor, today))
             
             conn.execute("""
                 INSERT OR REPLACE INTO daily_eth_prices (price_date, eth_price_usd)
@@ -208,9 +241,9 @@ def refresh_data():
             except:
                 origins_vol, undead_vol = 0.09, 0.49
 
-            # Recalculate market caps with live ETH price
-            origins_mc = row['origins_floor_eth'] * live_eth_price * row['origins_supply']
-            undead_mc = row['undead_floor_eth'] * live_eth_price * row['undead_supply']
+            # Recalculate market caps with live floor prices and ETH price
+            origins_mc = origins_floor * live_eth_price * row['origins_supply']
+            undead_mc = undead_floor * live_eth_price * row['undead_supply']
             
             # Build response with live data
             data = {
@@ -218,8 +251,8 @@ def refresh_data():
                 'analytics_date': row['analytics_date'],
                 'eth_price_usd': live_eth_price,
                 'origins': {
-                    'floor_price_eth': row['origins_floor_eth'],
-                    'floor_price_usd': row['origins_floor_eth'] * live_eth_price,
+                    'floor_price_eth': origins_floor,
+                    'floor_price_usd': origins_floor * live_eth_price,
                     'total_supply': row['origins_supply'],
                     'market_cap_usd': origins_mc,
                     'floor_change_24h': row['origins_floor_change_24h'],
@@ -227,8 +260,8 @@ def refresh_data():
                     'holders_count': row['origins_supply']
                 },
                 'undead': {
-                    'floor_price_eth': row['undead_floor_eth'],
-                    'floor_price_usd': row['undead_floor_eth'] * live_eth_price,
+                    'floor_price_eth': undead_floor,
+                    'floor_price_usd': undead_floor * live_eth_price,
                     'total_supply': row['undead_supply'],
                     'market_cap_usd': undead_mc,
                     'floor_change_24h': row['undead_floor_change_24h'],
