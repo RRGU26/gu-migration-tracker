@@ -99,7 +99,7 @@ class PDFReportGenerator:
             ("Total Migrations", f"{total_migrations:,}", "#3b82f6"),
             ("% Migrated", f"{migration_percent:.1f}%", "#10b981"),
             ("Price Ratio", f"{price_ratio:.2f}x", "#8b5cf6"),
-            ("New Migrations", f"+{new_migrations}" if new_migrations >= 0 else f"{new_migrations}", "#f59e0b"),
+            ("New Migrations (30d)", f"+{new_migrations}" if new_migrations >= 0 else f"{new_migrations}", "#f59e0b"),
             ("MC Change vs Sept 1", f"+{mc_change:.1f}%" if mc_change >= 0 else f"{mc_change:.1f}%", "#6366f1")
         ]
         
