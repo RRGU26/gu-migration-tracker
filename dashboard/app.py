@@ -242,6 +242,7 @@ def refresh_data():
             # Get yesterday's floor prices to calculate real 24h change
             from datetime import timedelta
             yesterday = (date.today() - timedelta(days=1)).isoformat()
+            print(f"Fetching yesterday's data for: {yesterday}")
             cursor_yesterday = conn.execute("""
                 SELECT origins_floor_eth, undead_floor_eth
                 FROM daily_analytics
@@ -255,10 +256,18 @@ def refresh_data():
             undead_change_24h = 0.0
             
             if yesterday_row:
+                print(f"Yesterday's prices: Origins={yesterday_row['origins_floor_eth']}, Undead={yesterday_row['undead_floor_eth']}")
+                print(f"Today's prices: Origins={origins_floor}, Undead={undead_floor}")
+                
                 if yesterday_row['origins_floor_eth'] and yesterday_row['origins_floor_eth'] > 0:
                     origins_change_24h = ((origins_floor - yesterday_row['origins_floor_eth']) / yesterday_row['origins_floor_eth']) * 100
+                    print(f"Origins 24h change: {origins_change_24h:.2f}%")
+                    
                 if yesterday_row['undead_floor_eth'] and yesterday_row['undead_floor_eth'] > 0:
                     undead_change_24h = ((undead_floor - yesterday_row['undead_floor_eth']) / yesterday_row['undead_floor_eth']) * 100
+                    print(f"Undead 24h change: {undead_change_24h:.2f}%")
+            else:
+                print("No yesterday data found!")
 
             # Get fresh volume data
             try:
