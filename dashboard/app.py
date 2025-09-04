@@ -151,10 +151,25 @@ def refresh_data():
     try:
         # Get live ETH price directly
         import asyncio
+        live_eth_price = None
         try:
             live_eth_price = asyncio.run(get_current_eth_price())
-        except:
-            live_eth_price = 4382  # Fallback to known current price
+            if not live_eth_price or live_eth_price <= 0:
+                raise ValueError("Invalid ETH price")
+        except Exception as e:
+            print(f"Error fetching ETH price: {e}")
+            # Use existing database price as fallback
+            with db.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT eth_price_usd FROM daily_analytics 
+                    WHERE analytics_date = ? 
+                    LIMIT 1
+                """, (date.today().isoformat(),))
+                row = cursor.fetchone()
+                if row and row['eth_price_usd']:
+                    live_eth_price = row['eth_price_usd']
+                else:
+                    live_eth_price = 4382  # Final fallback to known current price
         
         with db.get_connection() as conn:
             # Update ETH price in database
