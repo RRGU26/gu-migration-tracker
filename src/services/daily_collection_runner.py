@@ -328,4 +328,19 @@ def main():
     asyncio.run(runner.run_daily_process())
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--force', action='store_true', help='Force refresh even if data exists for today')
+    args = parser.parse_args()
+    
+    if args.force:
+        # Delete today's data to force fresh collection
+        today = date.today().isoformat()
+        db = DatabaseManager()
+        with db.get_connection() as conn:
+            conn.execute("DELETE FROM daily_analytics WHERE analytics_date = ?", (today,))
+            conn.execute("DELETE FROM daily_eth_prices WHERE date = ?", (today,))
+            conn.commit()
+        print(f"🔄 Forcing refresh - deleted existing data for {today}")
+    
     main()

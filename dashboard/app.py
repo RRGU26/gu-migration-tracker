@@ -155,7 +155,8 @@ def refresh_data():
         # Run collection in background to avoid timeout
         def run_collection():
             try:
-                subprocess.run([sys.executable, collection_script], 
+                # Add --force flag to override skip logic
+                subprocess.run([sys.executable, collection_script, '--force'], 
                              cwd=os.path.dirname(collection_script),
                              capture_output=True, text=True, timeout=300)
             except Exception as e:
