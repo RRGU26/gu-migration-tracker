@@ -223,7 +223,7 @@ def refresh_data():
             """, (today, live_eth_price))
             conn.commit()
             
-            # Get updated data
+            # Get today's data for other fields
             cursor = conn.execute("""
                 SELECT 
                     analytics_date, eth_price_usd, origins_floor_eth, origins_supply,
@@ -238,6 +238,27 @@ def refresh_data():
             row = cursor.fetchone()
             if not row:
                 return jsonify({'error': 'No data available'}), 404
+                
+            # Get yesterday's floor prices to calculate real 24h change
+            from datetime import timedelta
+            yesterday = (date.today() - timedelta(days=1)).isoformat()
+            cursor_yesterday = conn.execute("""
+                SELECT origins_floor_eth, undead_floor_eth
+                FROM daily_analytics
+                WHERE analytics_date = ?
+            """, (yesterday,))
+            
+            yesterday_row = cursor_yesterday.fetchone()
+            
+            # Calculate real 24h floor price changes
+            origins_change_24h = 0.0
+            undead_change_24h = 0.0
+            
+            if yesterday_row:
+                if yesterday_row['origins_floor_eth'] and yesterday_row['origins_floor_eth'] > 0:
+                    origins_change_24h = ((origins_floor - yesterday_row['origins_floor_eth']) / yesterday_row['origins_floor_eth']) * 100
+                if yesterday_row['undead_floor_eth'] and yesterday_row['undead_floor_eth'] > 0:
+                    undead_change_24h = ((undead_floor - yesterday_row['undead_floor_eth']) / yesterday_row['undead_floor_eth']) * 100
 
             # Get fresh volume data
             try:
@@ -259,7 +280,7 @@ def refresh_data():
                     'floor_price_usd': origins_floor * live_eth_price,
                     'total_supply': origins_supply,
                     'market_cap_usd': origins_mc,
-                    'floor_change_24h': row['origins_floor_change_24h'],
+                    'floor_change_24h': origins_change_24h,
                     'volume_24h_eth': origins_vol,
                     'holders_count': origins_supply
                 },
@@ -268,7 +289,7 @@ def refresh_data():
                     'floor_price_usd': undead_floor * live_eth_price,
                     'total_supply': undead_supply,
                     'market_cap_usd': undead_mc,
-                    'floor_change_24h': row['undead_floor_change_24h'],
+                    'floor_change_24h': undead_change_24h,
                     'volume_24h_eth': undead_vol,
                     'holders_count': undead_supply
                 },
