@@ -57,32 +57,36 @@ def get_quick_volume_data():
     except:
         return 0.0127, 0.033  # fallback values
 
-def get_live_floor_prices():
-    """Get live floor prices directly from OpenSea API"""
+def get_live_floor_prices_and_supply():
+    """Get live floor prices and supplies directly from OpenSea API"""
     try:
         headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
         
-        # Get Origins floor price
+        # Get Origins floor price and supply
         origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats', 
                                        headers=headers, timeout=5)
         origins_floor = 0.0575  # Fallback
+        origins_supply = 9993  # Fallback
         if origins_response.status_code == 200:
             origins_data = origins_response.json()
             origins_floor = float(origins_data.get('total', {}).get('floor_price', 0.0575))
+            origins_supply = int(origins_data.get('total', {}).get('supply', 9993))
         
-        # Get Undead floor price
+        # Get Undead floor price and supply  
         undead_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead/stats',
                                       headers=headers, timeout=5)
         undead_floor = 0.0383  # Fallback
+        undead_supply = 5307  # Correct fallback based on contract
         if undead_response.status_code == 200:
             undead_data = undead_response.json()
             undead_floor = float(undead_data.get('total', {}).get('floor_price', 0.0383))
+            undead_supply = int(undead_data.get('total', {}).get('supply', 5307))
         
-        return origins_floor, undead_floor
+        return origins_floor, undead_floor, origins_supply, undead_supply
         
     except Exception as e:
-        print(f"Floor price fetch error: {e}")
-        return 0.0575, 0.0383
+        print(f"Floor price/supply fetch error: {e}")
+        return 0.0575, 0.0383, 9993, 5307
 
 @app.route('/')
 def index():
@@ -198,11 +202,11 @@ def refresh_data():
                 else:
                     live_eth_price = 4382  # Final fallback to known current price
         
-        # Get live floor prices
+        # Get live floor prices and supplies
         try:
-            origins_floor, undead_floor = get_live_floor_prices()
+            origins_floor, undead_floor, origins_supply, undead_supply = get_live_floor_prices_and_supply()
         except:
-            origins_floor, undead_floor = 0.0575, 0.0383  # Fallback
+            origins_floor, undead_floor, origins_supply, undead_supply = 0.0575, 0.0383, 9993, 5307  # Fallback
             
         with db.get_connection() as conn:
             # Update ETH price and floor prices in database
@@ -241,9 +245,9 @@ def refresh_data():
             except:
                 origins_vol, undead_vol = 0.09, 0.49
 
-            # Recalculate market caps with live floor prices and ETH price
-            origins_mc = origins_floor * live_eth_price * row['origins_supply']
-            undead_mc = undead_floor * live_eth_price * row['undead_supply']
+            # Recalculate market caps with live floor prices, ETH price, and supplies
+            origins_mc = origins_floor * live_eth_price * origins_supply
+            undead_mc = undead_floor * live_eth_price * undead_supply
             
             # Build response with live data
             data = {
@@ -253,26 +257,26 @@ def refresh_data():
                 'origins': {
                     'floor_price_eth': origins_floor,
                     'floor_price_usd': origins_floor * live_eth_price,
-                    'total_supply': row['origins_supply'],
+                    'total_supply': origins_supply,
                     'market_cap_usd': origins_mc,
                     'floor_change_24h': row['origins_floor_change_24h'],
                     'volume_24h_eth': origins_vol,
-                    'holders_count': row['origins_supply']
+                    'holders_count': origins_supply
                 },
                 'undead': {
                     'floor_price_eth': undead_floor,
                     'floor_price_usd': undead_floor * live_eth_price,
-                    'total_supply': row['undead_supply'],
+                    'total_supply': undead_supply,
                     'market_cap_usd': undead_mc,
                     'floor_change_24h': row['undead_floor_change_24h'],
                     'volume_24h_eth': undead_vol,
-                    'holders_count': row['undead_supply']
+                    'holders_count': undead_supply
                 },
                 'migration_analytics': {
                     'migration_rate': {
-                        'total_migrations': row['total_migrations'],
-                        'migration_percent': row['migration_percent'],
-                        'price_ratio': row['price_ratio']
+                        'total_migrations': undead_supply + 26,  # Current undead supply + 26 burned
+                        'migration_percent': ((undead_supply + 26) / origins_supply) * 100,  
+                        'price_ratio': undead_floor / origins_floor if origins_floor > 0 else row['price_ratio']
                     }
                 },
                 'ecosystem_value': origins_mc + undead_mc
