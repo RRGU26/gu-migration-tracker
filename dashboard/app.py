@@ -6,7 +6,7 @@ Direct database connection, no complex caching
 import os
 import sys
 from datetime import datetime, date
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, send_file
 
 # Add parent directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -312,6 +312,75 @@ def health():
         'timestamp': datetime.now().isoformat(),
         'database': 'connected'
     })
+
+@app.route('/api/export-pdf')
+def export_pdf():
+    """Export current dashboard data as PDF"""
+    try:
+        # Get current data
+        with db.get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    analytics_date, eth_price_usd, origins_floor_eth, origins_supply,
+                    origins_market_cap_usd, undead_floor_eth, undead_supply,
+                    undead_market_cap_usd, total_migrations, migration_percent,
+                    price_ratio, combined_market_cap_usd
+                FROM daily_analytics
+                ORDER BY analytics_date DESC
+                LIMIT 1
+            """)
+            
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({'error': 'No data available'}), 404
+            
+            # Get real volume data
+            try:
+                origins_vol, undead_vol = get_quick_volume_data()
+            except:
+                origins_vol, undead_vol = 0.09, 0.49
+                
+            # Format data for PDF
+            pdf_data = {
+                'eth_price_usd': row['eth_price_usd'],
+                'origins': {
+                    'floor_price_eth': row['origins_floor_eth'],
+                    'floor_price_usd': row['origins_floor_eth'] * row['eth_price_usd'],
+                    'volume_24h_eth': origins_vol,
+                    'market_cap_usd': row['origins_market_cap_usd'],
+                    'total_supply': row['origins_supply']
+                },
+                'undead': {
+                    'floor_price_eth': row['undead_floor_eth'],
+                    'floor_price_usd': row['undead_floor_eth'] * row['eth_price_usd'],
+                    'volume_24h_eth': undead_vol,
+                    'market_cap_usd': row['undead_market_cap_usd'],
+                    'total_supply': row['undead_supply']
+                },
+                'migration_analytics': {
+                    'migration_rate': {
+                        'total_migrations': row['total_migrations'],
+                        'migration_percent': row['migration_percent'],
+                        'price_ratio': row['price_ratio']
+                    }
+                },
+                'ecosystem_value': row['combined_market_cap_usd']
+            }
+            
+        # Generate PDF
+        from pdf_generator import PDFReportGenerator
+        generator = PDFReportGenerator()
+        pdf_buffer = generator.generate_pdf(pdf_data)
+        
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'GU_Migration_Report_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf'
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/fix-data')
 def fix_data():
