@@ -339,7 +339,7 @@ if __name__ == "__main__":
         db = DatabaseManager()
         with db.get_connection() as conn:
             conn.execute("DELETE FROM daily_analytics WHERE analytics_date = ?", (today,))
-            conn.execute("DELETE FROM daily_eth_prices WHERE date = ?", (today,))
+            conn.execute("DELETE FROM daily_eth_prices WHERE price_date = ?", (today,))
             conn.commit()
         print(f"🔄 Forcing refresh - deleted existing data for {today}")
     

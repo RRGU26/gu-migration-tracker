@@ -181,7 +181,7 @@ def refresh_data():
             """, (live_eth_price, today))
             
             conn.execute("""
-                INSERT OR REPLACE INTO daily_eth_prices (date, eth_price_usd)
+                INSERT OR REPLACE INTO daily_eth_prices (price_date, eth_price_usd)
                 VALUES (?, ?)
             """, (today, live_eth_price))
             conn.commit()
