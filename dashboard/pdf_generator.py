@@ -88,7 +88,7 @@ class PDFReportGenerator:
         
         # Calculate new analytics
         new_migrations = total_migrations - 5333
-        baseline_mc = 3270218
+        baseline_mc = 3250000  # September 1st baseline ~$3.25M
         current_mc = data.get('ecosystem_value', baseline_mc)
         mc_change = ((current_mc - baseline_mc) / baseline_mc) * 100
         
@@ -100,7 +100,7 @@ class PDFReportGenerator:
             ("% Migrated", f"{migration_percent:.1f}%", "#10b981"),
             ("Price Ratio", f"{price_ratio:.2f}x", "#8b5cf6"),
             ("New Migrations", f"+{new_migrations}" if new_migrations >= 0 else f"{new_migrations}", "#f59e0b"),
-            ("30-Day MC Change", f"+{mc_change:.1f}%" if mc_change >= 0 else f"{mc_change:.1f}%", "#6366f1")
+            ("MC Change vs Sept 1", f"+{mc_change:.1f}%" if mc_change >= 0 else f"{mc_change:.1f}%", "#6366f1")
         ]
         
         # Arrange in 2 rows
