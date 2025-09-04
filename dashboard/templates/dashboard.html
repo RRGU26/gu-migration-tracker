@@ -235,15 +235,23 @@
         }
 
         function updateUI(data) {
-            // ETH Price
-            document.getElementById('ethPrice').textContent = formatCurrency(data.eth_price_usd);
+            console.log('Updating UI with data:', data);
+            
+            // ETH Price - handle NaN/null
+            const ethPrice = data.eth_price_usd || 4382;
+            if (isNaN(ethPrice)) {
+                console.error('ETH price is NaN:', data.eth_price_usd);
+                document.getElementById('ethPrice').textContent = '$4,382';
+            } else {
+                document.getElementById('ethPrice').textContent = formatCurrency(ethPrice);
+            }
             
             // Origins data
             if (data.origins) {
                 document.getElementById('originsFloorETH').textContent = data.origins.floor_price_eth.toFixed(4) + ' ETH';
-                document.getElementById('originsFloorUSD').textContent = formatCurrency((data.origins.floor_price_eth * data.eth_price_usd));
+                document.getElementById('originsFloorUSD').textContent = formatCurrency((data.origins.floor_price_eth * ethPrice));
                 document.getElementById('originsVolume').textContent = data.origins.volume_24h_eth.toFixed(2) + ' ETH';
-                document.getElementById('originsVolumeUSD').textContent = formatCurrency((data.origins.volume_24h_eth * data.eth_price_usd));
+                document.getElementById('originsVolumeUSD').textContent = formatCurrency((data.origins.volume_24h_eth * ethPrice));
                 document.getElementById('originsMarketCap').textContent = formatCurrency(data.origins.market_cap_usd);
                 document.getElementById('originsHolders').textContent = (data.origins.holders_count || data.origins.total_supply || 0).toLocaleString();
                 
@@ -257,9 +265,9 @@
             // Undead data
             if (data.undead) {
                 document.getElementById('undeadFloorETH').textContent = data.undead.floor_price_eth.toFixed(4) + ' ETH';
-                document.getElementById('undeadFloorUSD').textContent = formatCurrency((data.undead.floor_price_eth * data.eth_price_usd));
+                document.getElementById('undeadFloorUSD').textContent = formatCurrency((data.undead.floor_price_eth * ethPrice));
                 document.getElementById('undeadVolume').textContent = data.undead.volume_24h_eth.toFixed(2) + ' ETH';
-                document.getElementById('undeadVolumeUSD').textContent = formatCurrency((data.undead.volume_24h_eth * data.eth_price_usd));
+                document.getElementById('undeadVolumeUSD').textContent = formatCurrency((data.undead.volume_24h_eth * ethPrice));
                 document.getElementById('undeadMarketCap').textContent = formatCurrency(data.undead.market_cap_usd);
                 document.getElementById('undeadHolders').textContent = (data.undead.holders_count || data.undead.total_supply || 0).toLocaleString();
                 
@@ -352,15 +360,24 @@
             if (isLoading) return;
             
             updateStatus(true);
+            console.log('Refreshing data...');
             
             fetch('/api/refresh')
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Refresh response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
-                    updateUI(data);
+                    console.log('Refresh data received:', data);
+                    if (data.error) {
+                        console.error('Refresh API error:', data.error);
+                    } else {
+                        updateUI(data);
+                    }
                     updateStatus(false);
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    console.error('Refresh fetch error:', error);
                     updateStatus(false);
                 });
         }
