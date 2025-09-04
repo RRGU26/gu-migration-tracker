@@ -220,7 +220,8 @@ def get_chart_data():
                             'showline': True,
                             'linecolor': '#e5e7eb',
                             'tickfont': {'size': 12, 'color': '#6b7280'},
-                            'tickformat': ',.0f'
+                            'tickformat': ',.0f',
+                            'range': [4900, 5100]
                         },
                         'plot_bgcolor': 'rgba(0,0,0,0)',
                         'paper_bgcolor': 'rgba(0,0,0,0)',
@@ -273,7 +274,8 @@ def get_chart_data():
                             'showline': True,
                             'linecolor': '#e5e7eb',
                             'tickfont': {'size': 12, 'color': '#6b7280'},
-                            'tickformat': '$,.0f'
+                            'tickformat': '$,.0f',
+                            'range': [0, 4000000]
                         },
                         'plot_bgcolor': 'rgba(0,0,0,0)',
                         'paper_bgcolor': 'rgba(0,0,0,0)',
