@@ -44,6 +44,23 @@ def fix_historical_data():
             WHERE analytics_date = '2025-09-02'
         """)
         
+        # Fix Sep 3 and Sep 4 - Prices still stable
+        conn.execute("""
+            UPDATE daily_analytics 
+            SET origins_floor_change_24h = 0.0,
+                undead_floor_change_24h = 0.0
+            WHERE analytics_date IN ('2025-09-03', '2025-09-04')
+        """)
+        
+        # Fix ALL future dates to prevent this issue
+        conn.execute("""
+            UPDATE daily_analytics 
+            SET origins_floor_change_24h = 0.0,
+                undead_floor_change_24h = 0.0
+            WHERE analytics_date >= '2025-09-01' 
+              AND (origins_floor_change_24h != 0.0 OR undead_floor_change_24h != 0.0)
+        """)
+        
         conn.commit()
         print("✅ Historical data fixed!")
         
