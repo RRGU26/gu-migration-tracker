@@ -146,7 +146,7 @@ def get_chart_data():
                 migrations.append(row['total_migrations'])
                 undead_supply.append(row['undead_supply'])
             
-            # Create formatted chart objects with polished styling
+            # Create clean, professional charts
             charts_data = {
                 'supply_chart': {
                     'data': [{
@@ -154,38 +154,39 @@ def get_chart_data():
                         'y': undead_supply,
                         'type': 'scatter',
                         'mode': 'lines+markers',
-                        'name': 'Undead NFTs',
-                        'line': {'color': '#10b981', 'width': 4},
-                        'marker': {'size': 10, 'color': '#10b981'},
-                        'hovertemplate': '<b>%{y:,}</b> Undead NFTs<br>%{x}<extra></extra>'
+                        'name': 'Undead Collection',
+                        'line': {'color': '#10b981', 'width': 3},
+                        'marker': {'size': 8, 'color': '#10b981', 'line': {'color': 'white', 'width': 1}},
+                        'hovertemplate': '<b>%{y:,}</b> NFTs<br>%{x}<extra></extra>'
                     }],
                     'layout': {
                         'title': {
                             'text': 'Genuine Undead Collection Growth',
-                            'font': {'size': 16, 'color': '#1f2937'}
+                            'x': 0.5,
+                            'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#1f2937'}
                         },
                         'xaxis': {
-                            'title': {'text': 'Date', 'font': {'size': 12}},
-                            'showgrid': True,
-                            'gridcolor': '#f3f4f6'
+                            'title': '',
+                            'showgrid': False,
+                            'showline': True,
+                            'linecolor': '#e5e7eb',
+                            'tickfont': {'size': 12, 'color': '#6b7280'}
                         },
                         'yaxis': {
-                            'title': {'text': 'NFT Count', 'font': {'size': 12}},
+                            'title': 'NFT Count',
+                            'titlefont': {'size': 14, 'color': '#6b7280'},
                             'showgrid': True,
                             'gridcolor': '#f3f4f6',
+                            'showline': True,
+                            'linecolor': '#e5e7eb',
+                            'tickfont': {'size': 12, 'color': '#6b7280'},
                             'tickformat': ',.0f'
                         },
-                        'plot_bgcolor': 'white',
-                        'paper_bgcolor': 'white',
-                        'margin': {'t': 60, 'l': 70, 'r': 30, 'b': 70},
-                        'legend': {
-                            'orientation': 'h',
-                            'yanchor': 'bottom',
-                            'y': -0.2,
-                            'xanchor': 'center',
-                            'x': 0.5,
-                            'font': {'size': 11}
-                        }
+                        'plot_bgcolor': 'rgba(0,0,0,0)',
+                        'paper_bgcolor': 'rgba(0,0,0,0)',
+                        'margin': {'t': 50, 'l': 60, 'r': 20, 'b': 40},
+                        'showlegend': False,
+                        'height': 350
                     }
                 },
                 'market_cap_chart': {
@@ -195,49 +196,57 @@ def get_chart_data():
                             'y': origins_mc,
                             'type': 'scatter',
                             'mode': 'lines+markers',
-                            'name': 'Origins',
-                            'line': {'color': '#667eea', 'width': 4},
-                            'marker': {'size': 8, 'color': '#667eea'},
-                            'hovertemplate': '<b>$%{y:,.0f}</b><br>Origins MC<br>%{x}<extra></extra>'
+                            'name': 'GU Origins',
+                            'line': {'color': '#667eea', 'width': 3},
+                            'marker': {'size': 6, 'color': '#667eea'},
+                            'hovertemplate': '<b>$%{y:,.0f}</b><br>GU Origins<br>%{x}<extra></extra>'
                         },
                         {
                             'x': dates,
                             'y': undead_mc,
                             'type': 'scatter', 
                             'mode': 'lines+markers',
-                            'name': 'Undead',
-                            'line': {'color': '#764ba2', 'width': 4},
-                            'marker': {'size': 8, 'color': '#764ba2'},
-                            'hovertemplate': '<b>$%{y:,.0f}</b><br>Undead MC<br>%{x}<extra></extra>'
+                            'name': 'Genuine Undead',
+                            'line': {'color': '#10b981', 'width': 3},
+                            'marker': {'size': 6, 'color': '#10b981'},
+                            'hovertemplate': '<b>$%{y:,.0f}</b><br>Genuine Undead<br>%{x}<extra></extra>'
                         }
                     ],
                     'layout': {
                         'title': {
                             'text': 'Market Cap Comparison',
-                            'font': {'size': 16, 'color': '#1f2937'}
+                            'x': 0.5,
+                            'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#1f2937'}
                         },
                         'xaxis': {
-                            'title': {'text': 'Date', 'font': {'size': 12}},
-                            'showgrid': True,
-                            'gridcolor': '#f3f4f6'
+                            'title': '',
+                            'showgrid': False,
+                            'showline': True,
+                            'linecolor': '#e5e7eb',
+                            'tickfont': {'size': 12, 'color': '#6b7280'}
                         },
                         'yaxis': {
-                            'title': {'text': 'Market Cap (USD)', 'font': {'size': 12}},
+                            'title': 'Market Cap (USD)',
+                            'titlefont': {'size': 14, 'color': '#6b7280'},
                             'showgrid': True,
                             'gridcolor': '#f3f4f6',
+                            'showline': True,
+                            'linecolor': '#e5e7eb',
+                            'tickfont': {'size': 12, 'color': '#6b7280'},
                             'tickformat': '$,.0f'
                         },
-                        'plot_bgcolor': 'white',
-                        'paper_bgcolor': 'white',
-                        'margin': {'t': 60, 'l': 80, 'r': 30, 'b': 70},
+                        'plot_bgcolor': 'rgba(0,0,0,0)',
+                        'paper_bgcolor': 'rgba(0,0,0,0)',
+                        'margin': {'t': 50, 'l': 80, 'r': 20, 'b': 60},
                         'legend': {
-                            'orientation': 'h',
-                            'yanchor': 'bottom',
-                            'y': -0.15,
-                            'xanchor': 'center',
-                            'x': 0.5,
-                            'font': {'size': 11}
-                        }
+                            'x': 0.02,
+                            'y': 0.98,
+                            'bgcolor': 'rgba(255,255,255,0.8)',
+                            'bordercolor': '#e5e7eb',
+                            'borderwidth': 1,
+                            'font': {'size': 12, 'color': '#374151'}
+                        },
+                        'height': 350
                     }
                 }
             }
