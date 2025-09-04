@@ -112,7 +112,7 @@ def get_chart_data():
     """Get historical data for charts"""
     try:
         with db.get_connection() as conn:
-            # Get last 7 days of data
+            # Get last 30 days of data (last 3 days + next 27 for projection)
             cursor = conn.execute("""
                 SELECT 
                     analytics_date,
@@ -120,10 +120,11 @@ def get_chart_data():
                     undead_floor_eth,
                     origins_market_cap_usd,
                     undead_market_cap_usd,
-                    total_migrations
+                    total_migrations,
+                    undead_supply
                 FROM daily_analytics
                 ORDER BY analytics_date DESC
-                LIMIT 7
+                LIMIT 30
             """)
             
             rows = cursor.fetchall()
@@ -133,37 +134,58 @@ def get_chart_data():
             
             # Build chart data
             dates = []
-            origins_floor = []
-            undead_floor = []
             origins_mc = []
             undead_mc = []
             migrations = []
+            undead_supply = []
             
             for row in reversed(rows):  # Reverse to get chronological order
                 dates.append(row['analytics_date'])
-                origins_floor.append(row['origins_floor_eth'])
-                undead_floor.append(row['undead_floor_eth'])
                 origins_mc.append(row['origins_market_cap_usd'])
                 undead_mc.append(row['undead_market_cap_usd'])
                 migrations.append(row['total_migrations'])
+                undead_supply.append(row['undead_supply'])
             
-            # Create formatted chart objects
+            # Create formatted chart objects with polished styling
             charts_data = {
                 'supply_chart': {
                     'data': [{
                         'x': dates,
-                        'y': migrations,
+                        'y': undead_supply,
                         'type': 'scatter',
                         'mode': 'lines+markers',
-                        'name': 'Total Migrations',
-                        'line': {'color': '#10b981', 'width': 3},
-                        'marker': {'size': 8}
+                        'name': 'Undead NFTs',
+                        'line': {'color': '#10b981', 'width': 4},
+                        'marker': {'size': 10, 'color': '#10b981'},
+                        'hovertemplate': '<b>%{y:,}</b> Undead NFTs<br>%{x}<extra></extra>'
                     }],
                     'layout': {
-                        'title': 'Migration Growth Over Time',
-                        'xaxis': {'title': 'Date'},
-                        'yaxis': {'title': 'Total Migrations'},
-                        'margin': {'t': 50, 'l': 60, 'r': 30, 'b': 60}
+                        'title': {
+                            'text': 'Genuine Undead Collection Growth',
+                            'font': {'size': 16, 'color': '#1f2937'}
+                        },
+                        'xaxis': {
+                            'title': {'text': 'Date', 'font': {'size': 12}},
+                            'showgrid': True,
+                            'gridcolor': '#f3f4f6'
+                        },
+                        'yaxis': {
+                            'title': {'text': 'NFT Count', 'font': {'size': 12}},
+                            'showgrid': True,
+                            'gridcolor': '#f3f4f6',
+                            'tickformat': ',.0f'
+                        },
+                        'plot_bgcolor': 'white',
+                        'paper_bgcolor': 'white',
+                        'margin': {'t': 60, 'l': 70, 'r': 30, 'b': 70},
+                        'legend': {
+                            'orientation': 'h',
+                            'yanchor': 'bottom',
+                            'y': -0.2,
+                            'xanchor': 'center',
+                            'x': 0.5,
+                            'font': {'size': 11}
+                        }
                     }
                 },
                 'market_cap_chart': {
@@ -173,23 +195,49 @@ def get_chart_data():
                             'y': origins_mc,
                             'type': 'scatter',
                             'mode': 'lines+markers',
-                            'name': 'GU Origins',
-                            'line': {'color': '#667eea', 'width': 3}
+                            'name': 'Origins',
+                            'line': {'color': '#667eea', 'width': 4},
+                            'marker': {'size': 8, 'color': '#667eea'},
+                            'hovertemplate': '<b>$%{y:,.0f}</b><br>Origins MC<br>%{x}<extra></extra>'
                         },
                         {
                             'x': dates,
                             'y': undead_mc,
                             'type': 'scatter', 
                             'mode': 'lines+markers',
-                            'name': 'Genuine Undead',
-                            'line': {'color': '#764ba2', 'width': 3}
+                            'name': 'Undead',
+                            'line': {'color': '#764ba2', 'width': 4},
+                            'marker': {'size': 8, 'color': '#764ba2'},
+                            'hovertemplate': '<b>$%{y:,.0f}</b><br>Undead MC<br>%{x}<extra></extra>'
                         }
                     ],
                     'layout': {
-                        'title': 'Market Cap Comparison',
-                        'xaxis': {'title': 'Date'},
-                        'yaxis': {'title': 'Market Cap (USD)'},
-                        'margin': {'t': 50, 'l': 60, 'r': 30, 'b': 60}
+                        'title': {
+                            'text': 'Market Cap Comparison',
+                            'font': {'size': 16, 'color': '#1f2937'}
+                        },
+                        'xaxis': {
+                            'title': {'text': 'Date', 'font': {'size': 12}},
+                            'showgrid': True,
+                            'gridcolor': '#f3f4f6'
+                        },
+                        'yaxis': {
+                            'title': {'text': 'Market Cap (USD)', 'font': {'size': 12}},
+                            'showgrid': True,
+                            'gridcolor': '#f3f4f6',
+                            'tickformat': '$,.0f'
+                        },
+                        'plot_bgcolor': 'white',
+                        'paper_bgcolor': 'white',
+                        'margin': {'t': 60, 'l': 80, 'r': 30, 'b': 70},
+                        'legend': {
+                            'orientation': 'h',
+                            'yanchor': 'bottom',
+                            'y': -0.15,
+                            'xanchor': 'center',
+                            'x': 0.5,
+                            'font': {'size': 11}
+                        }
                     }
                 }
             }
