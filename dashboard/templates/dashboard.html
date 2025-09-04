@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RR GU Analytic Tracker - Live Dashboard</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -113,7 +112,7 @@
                     </div>
                     
                     <div class="metric-card bg-gray-50 p-4 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">Holders</div>
+                        <div class="text-sm text-gray-600 mb-1">Total Supply</div>
                         <div class="text-xl font-bold text-gray-800" id="originsHolders">-,---</div>
                     </div>
                 </div>
@@ -146,7 +145,7 @@
                     </div>
                     
                     <div class="metric-card bg-gray-50 p-4 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">Holders</div>
+                        <div class="text-sm text-gray-600 mb-1">Total Supply</div>
                         <div class="text-xl font-bold text-gray-800" id="undeadHolders">-,---</div>
                     </div>
                 </div>
@@ -156,48 +155,35 @@
         <!-- Migration Stats -->
         <div class="card rounded-xl shadow-lg p-6 mb-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Migration Analytics - Last 30 Days</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div class="text-center">
-                    <div class="text-3xl font-bold text-blue-600" id="totalMigrations">---</div>
+                    <div class="text-2xl font-bold text-blue-600" id="totalMigrations">---</div>
                     <div class="text-sm text-gray-600">Total Migrations</div>
-                    <div class="text-xs text-gray-500">Origins → Genuine Undead</div>
+                    <div class="text-xs text-gray-500">Origins → Undead</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-3xl font-bold text-green-600" id="migrationPercent">---%</div>
+                    <div class="text-2xl font-bold text-green-600" id="migrationPercent">---%</div>
                     <div class="text-sm text-gray-600">% Migrated</div>
-                    <div class="text-xs text-gray-500">% of 10,000 Origins supply</div>
+                    <div class="text-xs text-gray-500">% of Origins supply</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-3xl font-bold text-purple-600" id="floorPriceRatio">-.--x</div>
-                    <div class="text-sm text-gray-600">GU vs Origins Price</div>
-                    <div class="text-xs text-gray-500">Genuine Undead premium</div>
+                    <div class="text-2xl font-bold text-purple-600" id="floorPriceRatio">-.--x</div>
+                    <div class="text-sm text-gray-600">Price Ratio</div>
+                    <div class="text-xs text-gray-500">GU/Origins</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-3xl font-bold text-orange-600" id="ecosystemValue">$--M</div>
-                    <div class="text-sm text-gray-600">Combined Market Cap</div>
-                    <div class="text-xs text-gray-500">Origins + Genuine Undead</div>
+                    <div class="text-2xl font-bold text-orange-600" id="recentMigrations">+0</div>
+                    <div class="text-sm text-gray-600">New Migrations</div>
+                    <div class="text-xs text-gray-500">vs 5,063 baseline</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-indigo-600" id="marketCapChange">+0.0%</div>
+                    <div class="text-sm text-gray-600">30-Day MC Change</div>
+                    <div class="text-xs text-gray-500">vs $3.27M baseline</div>
                 </div>
             </div>
         </div>
 
-        <!-- Essential Charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div class="card rounded-xl shadow-lg p-6">
-                <h3 class="text-xl font-bold text-gray-800 mb-4">
-                    <i class="fas fa-chart-line mr-2 text-green-600"></i>
-                    Genuine Undead Collection Growth
-                </h3>
-                <div id="supplyChart" style="height: 400px;"></div>
-            </div>
-            
-            <div class="card rounded-xl shadow-lg p-6">
-                <h3 class="text-xl font-bold text-gray-800 mb-4">
-                    <i class="fas fa-chart-area mr-2 text-purple-600"></i>
-                    GU Ecosystem Market Cap
-                </h3>
-                <div id="marketCapChart" style="height: 400px;"></div>
-            </div>
-        </div>
     </div>
 
     <!-- Footer -->
@@ -299,11 +285,23 @@
                 // Visual indicator for premium/discount
                 const ratioElement = document.getElementById('floorPriceRatio');
                 if (ratio > 1) {
-                    ratioElement.className = 'text-3xl font-bold text-red-600'; // Premium (more expensive)
+                    ratioElement.className = 'text-2xl font-bold text-red-600'; // Premium (more expensive)
                 } else {
-                    ratioElement.className = 'text-3xl font-bold text-green-600'; // Discount (cheaper)
+                    ratioElement.className = 'text-2xl font-bold text-green-600'; // Discount (cheaper)
                 }
             }
+            
+            // Calculate new migrations vs baseline
+            const currentMigrations = data.migration_analytics.migration_rate.total_migrations || 5063;
+            const baseMigrations = 5063;
+            const newMigrations = currentMigrations - baseMigrations;
+            document.getElementById('recentMigrations').textContent = newMigrations >= 0 ? `+${newMigrations}` : `${newMigrations}`;
+            
+            // Calculate market cap change vs baseline  
+            const currentMarketCap = data.ecosystem_value || 0;
+            const baselineMarketCap = 3270218;
+            const marketCapChange = ((currentMarketCap - baselineMarketCap) / baselineMarketCap) * 100;
+            document.getElementById('marketCapChange').textContent = marketCapChange >= 0 ? `+${marketCapChange.toFixed(1)}%` : `${marketCapChange.toFixed(1)}%`;
             
             // Ecosystem value
             if (data.origins && data.undead) {
@@ -316,28 +314,6 @@
             document.getElementById('lastUpdate').textContent = `Updated: ${updateTime}`;
         }
 
-        function loadCharts() {
-            fetch('/api/charts')
-                .then(response => response.json())
-                .then(chartData => {
-                    const plotConfig = {responsive: true, displayModeBar: false};
-                    
-                    // Essential charts only - Collection Growth and Market Cap
-                    if (chartData.supply_chart) {
-                        Plotly.newPlot('supplyChart', chartData.supply_chart.data, chartData.supply_chart.layout, plotConfig);
-                    }
-                    
-                    if (chartData.market_cap_chart) {
-                        Plotly.newPlot('marketCapChart', chartData.market_cap_chart.data, chartData.market_cap_chart.layout, plotConfig);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading charts:', error);
-                    // Show error message in chart containers
-                    document.getElementById('supplyChart').innerHTML = '<div class="flex items-center justify-center h-64 text-gray-500"><p>Charts temporarily unavailable - API rate limited</p></div>';
-                    document.getElementById('marketCapChart').innerHTML = '<div class="flex items-center justify-center h-64 text-gray-500"><p>Charts temporarily unavailable - API rate limited</p></div>';
-                });
-        }
 
         function loadData() {
             if (isLoading) return;
@@ -366,7 +342,6 @@
                 .then(response => response.json())
                 .then(data => {
                     updateUI(data);
-                    loadCharts(); // Reload charts with fresh data
                     updateStatus(false);
                 })
                 .catch(error => {
@@ -413,7 +388,6 @@
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
-            loadCharts();
             
             // Auto-refresh every 5 minutes
             setInterval(loadData, 5 * 60 * 1000);
