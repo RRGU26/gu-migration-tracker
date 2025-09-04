@@ -72,7 +72,7 @@ def get_current_data():
                     'total_supply': row['origins_supply'],
                     'market_cap_usd': row['origins_market_cap_usd'],
                     'floor_change_24h': row['origins_floor_change_24h'],
-                    'volume_24h_eth': 0  # OpenSea API rate limited - showing $0
+                    'volume_24h_eth': 0,  # OpenSea API rate limited - showing $0
                     'holders_count': row['origins_supply']  # Will be actual holders when available
                 },
                 'undead': {
@@ -81,7 +81,7 @@ def get_current_data():
                     'total_supply': row['undead_supply'],
                     'market_cap_usd': row['undead_market_cap_usd'],
                     'floor_change_24h': row['undead_floor_change_24h'],
-                    'volume_24h_eth': 0  # OpenSea API rate limited - showing $0
+                    'volume_24h_eth': 0,  # OpenSea API rate limited - showing $0
                     'holders_count': row['undead_supply']  # Will be actual holders when available
                 },
                 'migration_analytics': {
