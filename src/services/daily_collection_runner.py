@@ -65,71 +65,73 @@ class DailyCollectionRunner:
             # STEP 1: Get latest Ethereum price (always fresh)
             eth_price = await self._get_eth_price()
             
-            # Initialize default values
-            origins_floor = 0.0575
+            # Initialize with fallback values (MUST be overridden by live OpenSea data)
+            origins_floor = 0.0575  # Fallback only if OpenSea completely fails
             origins_volume = 0
             origins_holders = self.origins_supply
-            undead_floor = 0.0383
+            undead_floor = 0.0383   # Fallback only if OpenSea completely fails
             undead_volume = 0
             undead_holders = 5037
             undead_supply = 5037
             
-            # Get yesterday's data as baseline
-            yesterday = date.today() - timedelta(days=1)
-            with self.db.get_connection() as conn:
-                cursor = conn.execute("""
-                    SELECT origins_floor_eth, undead_floor_eth, undead_supply
-                    FROM daily_analytics
-                    WHERE analytics_date = ?
-                """, (yesterday.isoformat(),))
-                yesterday_data = cursor.fetchone()
+            # MUST get fresh live data from OpenSea - no reliance on yesterday's data
+            logger.info("Fetching LIVE floor prices from OpenSea (required for accurate daily snapshot)")
             
-            # Use yesterday's data as starting point if available
-            if yesterday_data:
-                origins_floor = yesterday_data[0] or 0.0575
-                undead_floor = yesterday_data[1] or 0.0383
-                undead_supply = yesterday_data[2] or 5037
-                logger.info("Using yesterday's data as baseline")
-            
-            # Try to get fresh data from OpenSea (but don't fail if rate limited)
+            # Get fresh data directly from OpenSea API (same method as dashboard)
             try:
-                # STEPS 2-4: Get collection data from OpenSea
-                origins_data = await self._get_collection_data('gu-origins')
-                undead_data = await self._get_collection_data('genuine-undead')
+                import requests
                 
-                # Extract Origins data if available
-                if origins_data:
-                    # Extract floor price
-                    new_floor = origins_data.get('floor_price', {}).get('eth', 0)
+                headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+                
+                # Get Origins floor price and supply
+                logger.info("Fetching Origins data directly from OpenSea...")
+                origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats', 
+                                               headers=headers, timeout=10)
+                if origins_response.status_code == 200:
+                    origins_data = origins_response.json()
+                    new_floor = float(origins_data.get('total', {}).get('floor_price', 0))
+                    new_supply = int(origins_data.get('total', {}).get('supply', self.origins_supply))
+                    
                     if new_floor > 0:
                         origins_floor = new_floor
+                        logger.info(f"Got LIVE Origins floor price: {origins_floor:.4f} ETH")
+                    if new_supply > 0:
+                        origins_holders = new_supply
+                        
+                # Get Undead floor price and supply  
+                logger.info("Fetching Undead data directly from OpenSea...")
+                undead_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead/stats',
+                                              headers=headers, timeout=10)
+                if undead_response.status_code == 200:
+                    undead_data = undead_response.json()
+                    new_floor = float(undead_data.get('total', {}).get('floor_price', 0))
+                    new_supply = int(undead_data.get('total', {}).get('supply', 5037))
                     
-                    # Extract volume and holders from stats
-                    if 'stats' in origins_data:
-                        origins_volume = origins_data['stats'].get('one_day_volume', 0)
-                        origins_holders = origins_data['stats'].get('num_owners', self.origins_supply)
-                        logger.info(f"Origins - Volume: {origins_volume:.4f} ETH, Holders: {origins_holders}")
-                
-                # Extract Undead data if available
-                if undead_data:
-                    # Extract floor price
-                    new_floor = undead_data.get('floor_price', {}).get('eth', 0)
                     if new_floor > 0:
                         undead_floor = new_floor
-                    
-                    # Extract supply
-                    new_supply = undead_data.get('total_supply', 0)
+                        logger.info(f"Got LIVE Undead floor price: {undead_floor:.4f} ETH")
                     if new_supply > 0:
                         undead_supply = new_supply
-                    
-                    # Extract volume and holders from stats
-                    if 'stats' in undead_data:
-                        undead_volume = undead_data['stats'].get('one_day_volume', 0)
-                        undead_holders = undead_data['stats'].get('num_owners', undead_supply)
+                        logger.info(f"Got LIVE Undead supply: {undead_supply:,}")
+                        
+                # Get volume data from intervals if available
+                for interval in origins_data.get('intervals', []):
+                    if interval.get('interval') == 'one_day':
+                        origins_volume = float(interval.get('volume', 0))
+                        logger.info(f"Origins - Volume: {origins_volume:.4f} ETH, Holders: {origins_holders}")
+                        break
+                        
+                for interval in undead_data.get('intervals', []):
+                    if interval.get('interval') == 'one_day':
+                        undead_volume = float(interval.get('volume', 0))
+                        undead_holders = undead_supply  # Use supply as holder count
                         logger.info(f"Undead - Volume: {undead_volume:.4f} ETH, Holders: {undead_holders}")
+                        break
                 
             except Exception as e:
-                logger.warning(f"OpenSea API error (using cached values): {e}")
+                logger.error(f"FAILED to get live OpenSea data: {e}")
+                logger.error("WARNING: Using fallback values instead of live floor prices!")
+                logger.error("This means the database will NOT have accurate daily snapshot data!")
             
             # STEP 5: Log all data points
             logger.info(f"ETH Price: ${eth_price:,.2f}")
@@ -161,7 +163,7 @@ class DailyCollectionRunner:
                 total_migrations, migration_percent, price_ratio, changes
             )
             
-            print("✅ Daily collection completed successfully")
+            print("Daily collection completed successfully")
             print("Dashboard will display updated data")
             print("PDF reports can be generated with current data")
             
@@ -341,6 +343,6 @@ if __name__ == "__main__":
             conn.execute("DELETE FROM daily_analytics WHERE analytics_date = ?", (today,))
             conn.execute("DELETE FROM daily_eth_prices WHERE price_date = ?", (today,))
             conn.commit()
-        print(f"🔄 Forcing refresh - deleted existing data for {today}")
+        print(f"Forcing refresh - deleted existing data for {today}")
     
     main()
