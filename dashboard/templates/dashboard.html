@@ -181,8 +181,8 @@
                 </div>
                 <div class="text-center">
                     <div class="text-2xl font-bold text-indigo-600" id="marketCapChange">+0.0%</div>
-                    <div class="text-sm text-gray-600">Change in Total Market Cap</div>
-                    <div class="text-xs text-gray-500">vs. September 1st (~$3.25M)</div>
+                    <div class="text-sm text-gray-600">Change in GU Market Cap</div>
+                    <div class="text-xs text-gray-500">vs. September 5th (~$811K)</div>
                 </div>
             </div>
         </div>
@@ -308,10 +308,10 @@
             const newMigrations = currentMigrations - baseMigrations;
             document.getElementById('recentMigrations').textContent = newMigrations >= 0 ? `+${newMigrations}` : `${newMigrations}`;
             
-            // Calculate market cap change vs September 1st baseline  
-            const currentMarketCap = data.ecosystem_value || 0;
-            const baselineMarketCap = 3250000;  // September 1st baseline ~$3.25M
-            const marketCapChange = ((currentMarketCap - baselineMarketCap) / baselineMarketCap) * 100;
+            // Calculate GU market cap change vs September 5th baseline
+            const currentUndeadMarketCap = data.undead?.market_cap_usd || 0;
+            const baselineUndeadMarketCap = 811516;  // September 5th GU baseline ~$811K
+            const marketCapChange = ((currentUndeadMarketCap - baselineUndeadMarketCap) / baselineUndeadMarketCap) * 100;
             document.getElementById('marketCapChange').textContent = marketCapChange >= 0 ? `+${marketCapChange.toFixed(1)}%` : `${marketCapChange.toFixed(1)}%`;
             
             // Ecosystem value - not displayed in current layout

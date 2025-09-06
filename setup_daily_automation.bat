@@ -3,7 +3,7 @@ echo Setting up Daily Automation for RR GU Analytic Tracker
 echo ========================================================
 
 REM Create a scheduled task to run daily at 9:00 AM
-schtasks /create /tn "RR_GU_Daily_Collection" /tr "python C:\Users\rrose\gu-migration-tracker\src\services\daily_collection_runner.py" /sc daily /st 09:00 /f
+schtasks /create /tn "RR_GU_Daily_Collection" /tr "C:\Users\rrose\gu-migration-tracker\run_daily_collection.bat" /sc daily /st 09:00 /f
 
 echo.
 echo Daily automation task created!
