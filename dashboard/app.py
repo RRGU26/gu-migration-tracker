@@ -65,28 +65,28 @@ def get_live_floor_prices_and_supply():
         # Get Origins floor price and supply
         origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats', 
                                        headers=headers, timeout=5)
-        origins_floor = 0.0575  # Fallback
+        origins_floor = 0.0420  # Fallback to recent actual
         origins_supply = 9993  # Fallback
         if origins_response.status_code == 200:
             origins_data = origins_response.json()
-            origins_floor = float(origins_data.get('total', {}).get('floor_price', 0.0575))
+            origins_floor = float(origins_data.get('total', {}).get('floor_price', 0.0420))
             origins_supply = int(origins_data.get('total', {}).get('supply', 9993))
         
         # Get Undead floor price and supply  
         undead_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead/stats',
                                       headers=headers, timeout=5)
-        undead_floor = 0.0383  # Fallback
+        undead_floor = 0.0354  # Fallback to recent actual
         undead_supply = 5307  # Correct fallback based on contract
         if undead_response.status_code == 200:
             undead_data = undead_response.json()
-            undead_floor = float(undead_data.get('total', {}).get('floor_price', 0.0383))
+            undead_floor = float(undead_data.get('total', {}).get('floor_price', 0.0354))
             undead_supply = int(undead_data.get('total', {}).get('supply', 5307))
         
         return origins_floor, undead_floor, origins_supply, undead_supply
         
     except Exception as e:
         print(f"Floor price/supply fetch error: {e}")
-        return 0.0575, 0.0383, 9993, 5307
+        return 0.0420, 0.0354, 9993, 5307
 
 @app.route('/')
 def index():
@@ -270,12 +270,12 @@ def refresh_data():
                 print(f"Current live: Origins={origins_floor}, Undead={undead_floor}")
                 print(f"24h changes: Origins={origins_change_24h:.1f}%, Undead={undead_change_24h:.1f}%")
             else:
-                # Fallback to known yesterday values if not in database
-                yesterday_origins = 0.0575
-                yesterday_undead = 0.0383
+                # Fallback to Sept 6 actual values if not in database
+                yesterday_origins = 0.0420  # Sept 6 actual price
+                yesterday_undead = 0.0354   # Sept 6 actual price
                 origins_change_24h = ((origins_floor - yesterday_origins) / yesterday_origins) * 100
                 undead_change_24h = ((undead_floor - yesterday_undead) / yesterday_undead) * 100
-                print("Using fallback yesterday prices")
+                print("Using fallback yesterday prices (Sept 6 actuals)")
 
             # Get fresh volume data
             try:
