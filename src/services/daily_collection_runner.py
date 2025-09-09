@@ -21,14 +21,20 @@ from api.opensea_client import OpenSeaClient
 from api.price_client import get_current_eth_price
 from services.daily_analytics_service import DailyAnalyticsService
 
-# Configure logging
+# Configure logging - conditional based on command line args
+import sys
+handlers = [logging.StreamHandler()]
+if '--no-file-log' not in sys.argv:
+    try:
+        handlers.append(logging.FileHandler('daily_collection.log'))
+    except PermissionError:
+        # Skip file logging if permission denied (Task Scheduler context)
+        pass
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('daily_collection.log'),
-        logging.StreamHandler()
-    ]
+    handlers=handlers
 )
 logger = logging.getLogger(__name__)
 
@@ -333,6 +339,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--force', action='store_true', help='Force refresh even if data exists for today')
+    parser.add_argument('--no-file-log', action='store_true', help='Skip file logging (for Task Scheduler)')
     args = parser.parse_args()
     
     if args.force:

@@ -1,3 +1,4 @@
 @echo off
 cd /d "C:\Users\rrose\gu-migration-tracker"
-python "src\services\daily_collection_runner.py" > daily_collection.log 2>&1
+REM Run without logging to file to avoid permission issues with Task Scheduler
+python "src\services\daily_collection_runner.py" --no-file-log
