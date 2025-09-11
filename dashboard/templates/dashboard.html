@@ -303,7 +303,7 @@
             }
             
             // Calculate new migrations vs baseline
-            const currentMigrations = data.migration_analytics.migration_rate.total_migrations || 5333;
+            const currentMigrations = data.migration_analytics.migration_rate.total_migrations || 5345;
             const baseMigrations = 5333;
             const newMigrations = currentMigrations - baseMigrations;
             document.getElementById('recentMigrations').textContent = newMigrations >= 0 ? `+${newMigrations}` : `${newMigrations}`;

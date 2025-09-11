@@ -111,14 +111,23 @@ class DailyCollectionRunner:
                 if undead_response.status_code == 200:
                     undead_data = undead_response.json()
                     new_floor = float(undead_data.get('total', {}).get('floor_price', 0))
-                    new_supply = int(undead_data.get('total', {}).get('supply', 5037))
+                
+                # Get supply from collection endpoint (stats doesn't have supply)
+                undead_collection_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead',
+                                                        headers=headers, timeout=10)
+                if undead_collection_response.status_code == 200:
+                    undead_collection = undead_collection_response.json()
+                    new_supply = int(undead_collection.get('total_supply', 5037))
+                else:
+                    new_supply = 5037  # Fallback
                     
-                    if new_floor > 0:
-                        undead_floor = new_floor
-                        logger.info(f"Got LIVE Undead floor price: {undead_floor:.4f} ETH")
-                    if new_supply > 0:
-                        undead_supply = new_supply
-                        logger.info(f"Got LIVE Undead supply: {undead_supply:,}")
+                # Apply the fetched values
+                if new_floor > 0:
+                    undead_floor = new_floor
+                    logger.info(f"Got LIVE Undead floor price: {undead_floor:.4f} ETH")
+                if new_supply > 0:
+                    undead_supply = new_supply
+                    logger.info(f"Got LIVE Undead supply: {undead_supply:,}")
                         
                 # Get volume data from intervals if available
                 for interval in origins_data.get('intervals', []):
@@ -169,9 +178,21 @@ class DailyCollectionRunner:
                 total_migrations, migration_percent, price_ratio, changes
             )
             
-            print("Daily collection completed successfully")
-            print("Dashboard will display updated data")
-            print("PDF reports can be generated with current data")
+            # Display prominent success message
+            print("\n" + "=" * 70)
+            print("*** SUCCESS! DAILY COLLECTION COMPLETED ***")
+            print("=" * 70)
+            print(f"[+] Data collected for: {date.today()}")
+            print(f"[+] GU Origins Floor: {origins_floor:.4f} ETH (${origins_floor * eth_price:.2f})")
+            print(f"[+] Genuine Undead Floor: {undead_floor:.4f} ETH (${undead_floor * eth_price:.2f})")
+            print(f"[+] ETH Price: ${eth_price:,.2f}")
+            print(f"[+] Total Market Cap: ${combined_market_cap:,.0f}")
+            print(f"[+] Total Migrations: {total_migrations:,} ({migration_percent:.1f}%)")
+            print("=" * 70)
+            print("[+] Dashboard will display updated data")
+            print("[+] Tomorrow's 24h comparison data is ready")
+            print("[+] PDF reports can be generated with current data")
+            print("=" * 70)
             
             return True
             

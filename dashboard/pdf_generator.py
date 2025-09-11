@@ -82,7 +82,7 @@ class PDFReportGenerator:
         
         # Get migration data
         migration_data = data.get('migration_analytics', {}).get('migration_rate', {})
-        total_migrations = migration_data.get('total_migrations', 5333)
+        total_migrations = migration_data.get('total_migrations', 5345)  # Current: 5319 + 26
         migration_percent = migration_data.get('migration_percent', 50.40)
         price_ratio = migration_data.get('price_ratio', 0.67)
         

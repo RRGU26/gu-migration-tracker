@@ -72,21 +72,27 @@ def get_live_floor_prices_and_supply():
             origins_floor = float(origins_data.get('total', {}).get('floor_price', 0.0420))
             origins_supply = int(origins_data.get('total', {}).get('supply', 9993))
         
-        # Get Undead floor price and supply  
+        # Get Undead floor price from stats endpoint
         undead_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead/stats',
                                       headers=headers, timeout=5)
         undead_floor = 0.0354  # Fallback to recent actual
-        undead_supply = 5307  # Correct fallback based on contract
         if undead_response.status_code == 200:
             undead_data = undead_response.json()
             undead_floor = float(undead_data.get('total', {}).get('floor_price', 0.0354))
-            undead_supply = int(undead_data.get('total', {}).get('supply', 5307))
+        
+        # Get Undead supply from collection endpoint (stats doesn't have supply)
+        undead_supply = 5307  # Fallback 
+        undead_collection_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead',
+                                                headers=headers, timeout=5)
+        if undead_collection_response.status_code == 200:
+            undead_collection = undead_collection_response.json()
+            undead_supply = int(undead_collection.get('total_supply', 5307))
         
         return origins_floor, undead_floor, origins_supply, undead_supply
         
     except Exception as e:
         print(f"Floor price/supply fetch error: {e}")
-        return 0.0420, 0.0354, 9993, 5307
+        return 0.0420, 0.0354, 9993, 5319  # Updated fallback to current supply
 
 @app.route('/')
 def index():
