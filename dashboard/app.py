@@ -206,7 +206,7 @@ def refresh_data():
                 if row and row['eth_price_usd']:
                     live_eth_price = row['eth_price_usd']
                 else:
-                    live_eth_price = 4382  # Final fallback to known current price
+                    live_eth_price = 4418  # Updated fallback to current price
         
         # Get live floor prices and supplies
         try:
