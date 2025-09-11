@@ -88,7 +88,7 @@ class PDFReportGenerator:
         
         # Calculate new analytics
         new_migrations = total_migrations - 5333
-        baseline_undead_mc = 811516  # September 5th GU baseline ~$811K
+        baseline_undead_mc = 712364  # September 11th GU baseline ~$712K
         current_undead_mc = data.get('undead', {}).get('market_cap_usd', baseline_undead_mc)
         mc_change = ((current_undead_mc - baseline_undead_mc) / baseline_undead_mc) * 100
         
