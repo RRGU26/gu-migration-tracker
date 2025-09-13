@@ -184,7 +184,7 @@ def get_current_data():
 
 @app.route('/api/refresh')
 def refresh_data():
-    """Get live ETH price and fresh volume data immediately"""
+    """Get live ETH price and fresh volume data immediately - Updated Sept 13"""
     try:
         # Get live ETH price directly
         import asyncio
