@@ -273,9 +273,11 @@
                 
                 // 24h floor price change
                 const undeadChange = data.undead.floor_change_24h || 0;
+                console.log('Processing Undead 24h change:', undeadChange);
                 const undeadChangeElement = document.getElementById('undeadFloorChange24h');
                 undeadChangeElement.textContent = (undeadChange >= 0 ? '+' : '') + undeadChange.toFixed(1) + '%';
                 undeadChangeElement.className = 'text-xs font-medium mt-1 ' + (undeadChange >= 0 ? 'text-green-600' : 'text-red-600');
+                console.log('Updated Undead change element to:', undeadChangeElement.textContent);
             }
             
             // Migration analytics with proper calculations
@@ -369,6 +371,7 @@
                 })
                 .then(data => {
                     console.log('Refresh data received:', data);
+                    console.log('Undead 24h change:', data.undead?.floor_change_24h);
                     if (data.error) {
                         console.error('Refresh API error:', data.error);
                     } else {
