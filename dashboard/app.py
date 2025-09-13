@@ -263,8 +263,8 @@ def refresh_data():
             
             if yesterday_row:
                 # Use yesterday's database prices as baseline
-                yesterday_origins = yesterday_row['origins_floor_eth']
-                yesterday_undead = yesterday_row['undead_floor_eth']
+                yesterday_origins = yesterday_row[0]  # origins_floor_eth is first column
+                yesterday_undead = yesterday_row[1]   # undead_floor_eth is second column
                 
                 # Calculate changes: live prices vs yesterday's 9 AM
                 if yesterday_origins > 0:
