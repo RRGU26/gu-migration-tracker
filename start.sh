@@ -9,6 +9,10 @@ mkdir -p data logs
 echo "Setting up database..."
 python init_database.py || echo "Database initialization warning, continuing..."
 
+# Ensure we have recent data for 24h calculations
+echo "Ensuring recent price history..."
+python restore_database.py || echo "Database restore warning, continuing..."
+
 # Fix historical price data
 echo "Correcting historical data..."
 python fix_railway_data.py || echo "Historical data fix skipped"
