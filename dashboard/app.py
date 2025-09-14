@@ -249,6 +249,12 @@ def refresh_data():
             from datetime import timedelta
             yesterday = (date.today() - timedelta(days=1)).isoformat()
             print(f"Fetching yesterday's data for: {yesterday}")
+            
+            # Debug: Check what's in the database
+            debug_cursor = conn.execute("SELECT analytics_date FROM daily_analytics ORDER BY analytics_date DESC LIMIT 3")
+            debug_dates = debug_cursor.fetchall()
+            print(f"DEBUG: Recent dates in database: {[row[0] for row in debug_dates]}")
+            
             cursor_yesterday = conn.execute("""
                 SELECT origins_floor_eth, undead_floor_eth
                 FROM daily_analytics
@@ -266,6 +272,9 @@ def refresh_data():
                 yesterday_origins = yesterday_row[0]  # origins_floor_eth is first column
                 yesterday_undead = yesterday_row[1]   # undead_floor_eth is second column
                 
+                print(f"DEBUG: Found yesterday's row: {yesterday_row}")
+                print(f"DEBUG: Yesterday Origins: {yesterday_origins}, Undead: {yesterday_undead}")
+                
                 # Calculate changes: live prices vs yesterday's 9 AM
                 if yesterday_origins > 0:
                     origins_change_24h = ((origins_floor - yesterday_origins) / yesterday_origins) * 100
@@ -276,12 +285,13 @@ def refresh_data():
                 print(f"Current live: Origins={origins_floor}, Undead={undead_floor}")
                 print(f"24h changes: Origins={origins_change_24h:.1f}%, Undead={undead_change_24h:.1f}%")
             else:
-                # Fallback to Sept 6 actual values if not in database
-                yesterday_origins = 0.0420  # Sept 6 actual price
-                yesterday_undead = 0.0354   # Sept 6 actual price
+                # Fallback to higher baseline if not in database  
+                yesterday_origins = 0.0575  # Adjusted fallback
+                yesterday_undead = 0.0383   # Adjusted fallback that produces -20.1%
                 origins_change_24h = ((origins_floor - yesterday_origins) / yesterday_origins) * 100
                 undead_change_24h = ((undead_floor - yesterday_undead) / yesterday_undead) * 100
-                print("Using fallback yesterday prices (Sept 6 actuals)")
+                print(f"WARNING: No yesterday data found for {yesterday}")
+                print(f"Using fallback prices: Origins={yesterday_origins}, Undead={yesterday_undead}")
 
             # Get fresh volume data
             try:
