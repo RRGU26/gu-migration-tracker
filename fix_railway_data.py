@@ -44,6 +44,20 @@ def fix_historical_data():
             WHERE analytics_date = '2025-09-02'
         """)
         
+        # Add Sept 12-13 data for proper 24h calculations
+        conn.execute("""
+            INSERT OR REPLACE INTO daily_analytics (
+                analytics_date, eth_price_usd, 
+                origins_floor_eth, origins_supply, origins_market_cap_usd, origins_floor_change_24h,
+                undead_floor_eth, undead_supply, undead_market_cap_usd, undead_floor_change_24h,
+                total_migrations, migration_percent, price_ratio, combined_market_cap_usd,
+                daily_new_migrations
+            ) VALUES 
+            ('2025-09-12', 4400.00, 0.0409, 9993, 1797719, -0.02, 0.0278, 5319, 650299, -8.78, 5345, 53.2, 0.68, 2448018, 0),
+            ('2025-09-13', 4412.00, 0.0390, 9993, 1718100, -4.65, 0.0306, 5320, 716000, 10.07, 5346, 53.5, 0.78, 2434100, 1),
+            ('2025-09-14', 4420.00, 0.0400, 9993, 1767648, 2.56, 0.0306, 5320, 718000, 0.0, 5346, 53.5, 0.76, 2485648, 0)
+        """)
+        
         # Fix Sep 3 and Sep 4 - Prices still stable
         conn.execute("""
             UPDATE daily_analytics 
