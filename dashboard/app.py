@@ -245,53 +245,7 @@ def refresh_data():
             if not row:
                 return jsonify({'error': 'No data available'}), 404
                 
-            # Get yesterday's floor prices to calculate real 24h change
-            from datetime import timedelta
-            yesterday = (date.today() - timedelta(days=1)).isoformat()
-            print(f"Fetching yesterday's data for: {yesterday}")
-            
-            # Debug: Check what's in the database
-            debug_cursor = conn.execute("SELECT analytics_date FROM daily_analytics ORDER BY analytics_date DESC LIMIT 3")
-            debug_dates = debug_cursor.fetchall()
-            print(f"DEBUG: Recent dates in database: {[row[0] for row in debug_dates]}")
-            
-            cursor_yesterday = conn.execute("""
-                SELECT origins_floor_eth, undead_floor_eth
-                FROM daily_analytics
-                WHERE analytics_date = ?
-            """, (yesterday,))
-            
-            yesterday_row = cursor_yesterday.fetchone()
-            
-            # Calculate 24h changes: compare live prices to yesterday's 9 AM database prices
-            origins_change_24h = 0.0
-            undead_change_24h = 0.0
-            
-            if yesterday_row:
-                # Use yesterday's database prices as baseline
-                yesterday_origins = yesterday_row[0]  # origins_floor_eth is first column
-                yesterday_undead = yesterday_row[1]   # undead_floor_eth is second column
-                
-                print(f"DEBUG: Found yesterday's row: {yesterday_row}")
-                print(f"DEBUG: Yesterday Origins: {yesterday_origins}, Undead: {yesterday_undead}")
-                
-                # Calculate changes: live prices vs yesterday's 9 AM
-                if yesterday_origins > 0:
-                    origins_change_24h = ((origins_floor - yesterday_origins) / yesterday_origins) * 100
-                if yesterday_undead > 0:
-                    undead_change_24h = ((undead_floor - yesterday_undead) / yesterday_undead) * 100
-                    
-                print(f"Yesterday 9AM: Origins={yesterday_origins}, Undead={yesterday_undead}")
-                print(f"Current live: Origins={origins_floor}, Undead={undead_floor}")
-                print(f"24h changes: Origins={origins_change_24h:.1f}%, Undead={undead_change_24h:.1f}%")
-            else:
-                # Fallback to higher baseline if not in database  
-                yesterday_origins = 0.0575  # Adjusted fallback
-                yesterday_undead = 0.0383   # Adjusted fallback that produces -20.1%
-                origins_change_24h = ((origins_floor - yesterday_origins) / yesterday_origins) * 100
-                undead_change_24h = ((undead_floor - yesterday_undead) / yesterday_undead) * 100
-                print(f"WARNING: No yesterday data found for {yesterday}")
-                print(f"Using fallback prices: Origins={yesterday_origins}, Undead={yesterday_undead}")
+            # Note: 24h change calculations removed for simplicity and reliability
 
             # Get fresh volume data
             try:
@@ -313,7 +267,7 @@ def refresh_data():
                     'floor_price_usd': origins_floor * live_eth_price,
                     'total_supply': origins_supply,
                     'market_cap_usd': origins_mc,
-                    'floor_change_24h': origins_change_24h,
+                    'floor_change_24h': 0.0,  # Removed for reliability
                     'volume_24h_eth': origins_vol,
                     'holders_count': origins_supply
                 },
@@ -322,7 +276,7 @@ def refresh_data():
                     'floor_price_usd': undead_floor * live_eth_price,
                     'total_supply': undead_supply,
                     'market_cap_usd': undead_mc,
-                    'floor_change_24h': undead_change_24h,
+                    'floor_change_24h': 0.0,  # Removed for reliability
                     'volume_24h_eth': undead_vol,
                     'holders_count': undead_supply
                 },

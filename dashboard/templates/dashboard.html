@@ -100,7 +100,6 @@
                         <div class="text-sm text-gray-600 mb-1">Floor Price</div>
                         <div class="text-xl font-bold text-gray-800" id="originsFloorETH">-.---- ETH</div>
                         <div class="text-sm text-gray-500" id="originsFloorUSD">$---</div>
-                        <div class="text-xs font-medium mt-1" id="originsFloorChange24h">--%</div>
                     </div>
                     
                     <div class="metric-card bg-gray-50 p-4 rounded-lg">
@@ -133,7 +132,6 @@
                         <div class="text-sm text-gray-600 mb-1">Floor Price</div>
                         <div class="text-xl font-bold text-gray-800" id="undeadFloorETH">-.---- ETH</div>
                         <div class="text-sm text-gray-500" id="undeadFloorUSD">$---</div>
-                        <div class="text-xs font-medium mt-1" id="undeadFloorChange24h">--%</div>
                     </div>
                     
                     <div class="metric-card bg-gray-50 p-4 rounded-lg">
@@ -255,11 +253,6 @@
                 document.getElementById('originsMarketCap').textContent = formatCurrency(data.origins.market_cap_usd);
                 document.getElementById('originsHolders').textContent = (data.origins.holders_count || data.origins.total_supply || 0).toLocaleString();
                 
-                // 24h floor price change
-                const originsChange = data.origins.floor_change_24h || 0;
-                const originsChangeElement = document.getElementById('originsFloorChange24h');
-                originsChangeElement.textContent = (originsChange >= 0 ? '+' : '') + originsChange.toFixed(1) + '%';
-                originsChangeElement.className = 'text-xs font-medium mt-1 ' + (originsChange >= 0 ? 'text-green-600' : 'text-red-600');
             }
             
             // Undead data
@@ -271,13 +264,6 @@
                 document.getElementById('undeadMarketCap').textContent = formatCurrency(data.undead.market_cap_usd);
                 document.getElementById('undeadHolders').textContent = (data.undead.holders_count || data.undead.total_supply || 0).toLocaleString();
                 
-                // 24h floor price change
-                const undeadChange = data.undead.floor_change_24h || 0;
-                console.log('Processing Undead 24h change:', undeadChange);
-                const undeadChangeElement = document.getElementById('undeadFloorChange24h');
-                undeadChangeElement.textContent = (undeadChange >= 0 ? '+' : '') + undeadChange.toFixed(1) + '%';
-                undeadChangeElement.className = 'text-xs font-medium mt-1 ' + (undeadChange >= 0 ? 'text-green-600' : 'text-red-600');
-                console.log('Updated Undead change element to:', undeadChangeElement.textContent);
             }
             
             // Migration analytics with proper calculations
@@ -371,7 +357,6 @@
                 })
                 .then(data => {
                     console.log('Refresh data received:', data);
-                    console.log('Undead 24h change:', data.undead?.floor_change_24h);
                     if (data.error) {
                         console.error('Refresh API error:', data.error);
                     } else {
