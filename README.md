@@ -14,10 +14,13 @@
 
 **Key Metrics:**
 - 📈 Real-time floor prices and market caps
-- 📊 24h/7d trading volumes 
+- 📊 24h/7d trading volumes
 - 🔄 Migration detection and velocity
 - 👥 Holder distribution analysis
 - 📉 Price trends and market comparisons
+- 💎 Diamond hands vs seller behavior analysis
+- 📧 Automated daily seller analysis emails
+- 🎯 Interactive bubble charts for holder visualization
 
 ## 🌐 Live Dashboard
 
@@ -40,6 +43,9 @@ Visit the live dashboard: **[GU Migration Tracker](https://gu-migration-tracker.
 3. **Collection Growth** - Genuine Undead supply increase over time
 4. **Market Cap Comparison** - GU ecosystem vs NFT industry average
 5. **Migration Activity** - Daily migration tracking with cumulative totals
+6. **Holder Behavior Analysis** - Diamond hands vs seller distribution
+7. **Interactive Bubble Charts** - Holder visualization with NFT counts
+8. **Seller Analysis Reports** - Daily email reports on market activity
 
 ## 🚀 Quick Start
 
@@ -125,6 +131,28 @@ The dashboard provides these API endpoints:
 - Migration patterns emerging over time
 - Floor price arbitrage opportunities
 
+## 💎 Holder Behavior Analysis
+
+**New Features:**
+
+### 📈 Diamond Hands Analysis
+- **92% of GU holders** are diamond hands (never listed)
+- **89% of all NFTs** held by diamond hands
+- Only **2.9% are heavy sellers** (3+ listings)
+- Real-time holder categorization and tracking
+
+### 📧 Daily Email Reports
+- Automated seller analysis sent daily at 9:00 AM
+- Complete breakdown of all active sellers
+- Floor price monitoring and near-floor listings
+- Seller concentration and risk assessment
+
+### 🎯 Interactive Visualizations
+- Bubble charts showing holder distribution
+- Clean charts optimized for social media sharing
+- Real-time data validation and accuracy checking
+- Publication-ready graphics with verified statistics
+
 ## 🛠️ Advanced Usage
 
 ### Command Line Interface:
@@ -132,7 +160,7 @@ The dashboard provides these API endpoints:
 # Generate daily report
 python main.py --mode daily
 
-# Run system health check  
+# Run system health check
 python main.py --mode health
 
 # Start automated scheduler
@@ -140,6 +168,24 @@ python main.py --mode scheduler
 
 # Test with mock data
 python main.py --mode test
+```
+
+### Holder Analysis Tools:
+```bash
+# Generate bubble chart visualization
+python generate_genuine_undead_bubble.py
+
+# Send daily seller analysis email
+python complete_seller_analysis_email.py
+
+# Create holder behavior analysis
+python corrected_holder_analysis.py
+
+# Generate clean chart for social media
+python clean_chart.py
+
+# Validate data accuracy before posting
+python simple_validation.py
 ```
 
 ### Custom Reports:
