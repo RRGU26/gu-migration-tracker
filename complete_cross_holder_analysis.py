@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""
+Complete cross-holder analysis including the manually verified whale wallet
+"""
+import json
+from datetime import datetime
+
+def generate_complete_cross_analysis():
+    """Generate complete cross-holder analysis with verified whale wallet"""
+
+    print("COMPLETE CROSS-HOLDER ANALYSIS: GU + ORIGINS")
+    print("=" * 60)
+
+    # Load existing GU data
+    try:
+        with open('genuine_undead_bubble_data.json', 'r') as f:
+            gu_data = json.load(f)
+
+        gu_holders_raw = gu_data.get('holders', [])
+        gu_holders = {}
+
+        for holder in gu_holders_raw:
+            wallet = holder.get('address', '').lower()
+            nft_count = holder.get('nftCount', 0)
+            if wallet and nft_count > 0:
+                gu_holders[wallet] = nft_count
+
+        print(f"Loaded {len(gu_holders)} GU holders from existing data")
+
+    except Exception as e:
+        print(f"Error loading GU data: {e}")
+        return []
+
+    # Load comprehensive Origins data
+    try:
+        with open('comprehensive_origins_holders.json', 'r') as f:
+            origins_data = json.load(f)
+
+        origins_holders = origins_data.get('holders', {})
+        print(f"Loaded {len(origins_holders)} Origins holders from comprehensive data")
+
+    except Exception as e:
+        print(f"Error loading Origins data: {e}")
+        return []
+
+    # Manually add the verified whale wallet that we confirmed has 11 Origins
+    whale_wallet = '0xb0e9bc2d81856b46d0d0f7217435791c80df0808'
+    if whale_wallet not in origins_holders:
+        origins_holders[whale_wallet] = 11  # Manually verified
+        print(f"Added manually verified whale wallet: {whale_wallet} with 11 Origins")
+
+    # Find cross-holders
+    print("\\nAnalyzing cross-holders...")
+
+    cross_holders = []
+
+    for wallet in gu_holders:
+        if wallet in origins_holders:
+            cross_holders.append({
+                'wallet': wallet,
+                'gu_count': gu_holders[wallet],
+                'origins_count': origins_holders[wallet],
+                'total_nfts': gu_holders[wallet] + origins_holders[wallet]
+            })
+
+    # Sort by Origins count (descending)
+    cross_holders.sort(key=lambda x: x['origins_count'], reverse=True)
+
+    print(f"Found {len(cross_holders)} wallets holding both collections!")
+
+    if not cross_holders:
+        print("No cross-holders found!")
+        return []
+
+    # Generate report
+    report_date = datetime.now().strftime('%Y-%m-%d')
+
+    report = f"""
+COMPLETE CROSS-HOLDER ANALYSIS: GENUINE UNDEAD + GU ORIGINS
+Ranked by GU Origins Count
+Date: {report_date}
+
+===============================================================
+
+CROSS-COLLECTION OVERVIEW:
+
+Total GU Holders: {len(gu_holders):,}
+Total Origins Holders: {len(origins_holders):,}
+Cross-Holders: {len(cross_holders):,}
+Cross-Holder Rate: {(len(cross_holders)/len(gu_holders)*100):.1f}%
+
+===============================================================
+
+TOP 20 CROSS-HOLDERS (Ranked by Origins Count):
+
+"""
+
+    # Show top 20 instead of just 10
+    for i, holder in enumerate(cross_holders[:20]):
+        rank = i + 1
+        wallet = holder['wallet']
+        gu_count = holder['gu_count']
+        origins_count = holder['origins_count']
+        total = holder['total_nfts']
+
+        # Mark the whale wallet
+        whale_marker = " [WHALE]" if wallet == whale_wallet else ""
+
+        report += f"""
+{rank:2d}. {wallet}{whale_marker}
+    • GU Origins: {origins_count:,} NFTs
+    • Genuine Undead: {gu_count:,} NFTs
+    • Total Portfolio: {total:,} NFTs
+    • Origins/GU Ratio: {(origins_count/gu_count):.2f}
+"""
+
+    # Add insights
+    if cross_holders:
+        top_holder = cross_holders[0]
+        avg_origins = sum(h['origins_count'] for h in cross_holders[:10]) / min(10, len(cross_holders))
+        avg_gu = sum(h['gu_count'] for h in cross_holders[:10]) / min(10, len(cross_holders))
+
+        report += f"""
+
+===============================================================
+
+INSIGHTS:
+
+TOP PERFORMER:
+• {top_holder['wallet']} leads with {top_holder['origins_count']:,} Origins + {top_holder['gu_count']:,} GU
+• Total portfolio value: {top_holder['total_nfts']:,} NFTs across both collections
+
+AVERAGE HOLDINGS (Top 10):
+• Origins: {avg_origins:.1f} NFTs per holder
+• Genuine Undead: {avg_gu:.1f} NFTs per holder
+
+COLLECTION LOYALTY:
+• {len(cross_holders)} holders support both collections ({(len(cross_holders)/len(gu_holders)*100):.1f}% of GU holders)
+• Shows strong ecosystem commitment and cross-collection collecting behavior
+• Migration potential: Origins holders expanding to GU ecosystem
+
+WHALE ANALYSIS:
+• Largest cross-holder has {top_holder['total_nfts']:,} total NFTs
+• {len([h for h in cross_holders if h['total_nfts'] >= 10])} holders have 10+ total NFTs
+• {len([h for h in cross_holders if h['origins_count'] >= 5])} holders have 5+ Origins
+
+===============================================================
+
+Generated by GU Migration Tracker - Complete Cross-Holder Analysis
+Data includes manually verified whale wallet with 11 Origins
+"""
+
+    print(report)
+
+    # Save files
+    with open('complete_cross_holder_report.txt', 'w') as f:
+        f.write(report)
+
+    with open('complete_cross_holder_data.json', 'w') as f:
+        json.dump({
+            'generated_at': datetime.now().isoformat(),
+            'total_gu_holders': len(gu_holders),
+            'total_origins_holders': len(origins_holders),
+            'cross_holders_count': len(cross_holders),
+            'whale_wallet_added': whale_wallet,
+            'top_20': cross_holders[:20],
+            'all_cross_holders': cross_holders
+        }, f, indent=2)
+
+    print(f"\\nReport saved to 'complete_cross_holder_report.txt'")
+    print(f"Data saved to 'complete_cross_holder_data.json'")
+
+    return cross_holders
+
+if __name__ == "__main__":
+    complete_cross_holders = generate_complete_cross_analysis()
