@@ -128,11 +128,7 @@ async def send_complete_seller_analysis():
         # Use the accurate unique count, not the price count which includes duplicates
         display_count = actual_unique_count
         print(f"Note: Using unique count {actual_unique_count} vs raw price count {len(prices)}")
-
-        # Override to match website observation if very close
-        if abs(actual_unique_count - 183) <= 5:
-            display_count = 183
-            print(f"Adjusting to website-observed count: {display_count}")
+        print(f"Reporting actual deduplicated count: {display_count}")
 
         # Calculate metrics using unique listings
         if prices:
