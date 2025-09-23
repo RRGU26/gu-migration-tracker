@@ -55,7 +55,7 @@ def send_cross_holder_table_email():
 🏆 TOP 10 CROSS-HOLDERS (Ranked by Origins Holdings):
 
 ┌──────┬──────────────────────────────────────────────┬─────────┬───────┬───────┬───────────┐
-│ Rank │ Wallet Address                               │ Origins │  GU   │ Total │   Type    │
+│ Rank │                Wallet Address                │ Origins │  GU   │ Total │   Type    │
 ├──────┼──────────────────────────────────────────────┼─────────┼───────┼───────┼───────────┤"""
 
         # Add the formatted table
@@ -75,8 +75,8 @@ def send_cross_holder_table_email():
             else:
                 holder_type = "Regular"
 
-            # Format the row with nice table formatting
-            body += f"│ {rank:4d} │ {wallet} │ {origins_count:7,} │ {gu_count:5,} │ {total:5,} │ {holder_type:9s} │\n"
+            # Format the row with right-aligned numbers for better readability
+            body += f"│ {rank:>4} │ {wallet:<44} │ {origins_count:>7,} │ {gu_count:>5,} │ {total:>5,} │ {holder_type:^9s} │\n"
 
         body += f"""└──────┴──────────────────────────────────────────────┴─────────┴───────┴───────┴───────────┘
 
