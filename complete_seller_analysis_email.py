@@ -45,26 +45,30 @@ async def send_complete_seller_analysis():
         # Need to paginate to get ALL listings
         all_listings = []
         next_cursor = None
-        
-        for page in range(5):  # Get up to 5 pages (250 listings)
+
+        for page in range(20):  # Get up to 20 pages (1000 listings max)
             params = {'limit': 50}
             if next_cursor:
                 params['next'] = next_cursor
-                
+
             response = requests.get(listings_url, headers=headers, params=params, timeout=15)
-            
+
             if response.status_code == 200:
                 data = response.json()
                 listings = data.get('listings', [])
                 all_listings.extend(listings)
-                
+
+                print(f"Page {page + 1}: Retrieved {len(listings)} listings (total so far: {len(all_listings)})")
+
                 next_cursor = data.get('next')
                 if not next_cursor or not listings:
+                    print(f"Pagination complete - no more listings available")
                     break
             else:
+                print(f"API error on page {page + 1}: {response.status_code}")
                 break
-        
-        print(f"Retrieved {len(all_listings)} total listings")
+
+        print(f"Retrieved {len(all_listings)} total listings from API")
 
         # Process all listings and deduplicate by NFT ID
         prices = []
@@ -81,15 +85,13 @@ async def send_complete_seller_analysis():
                     price_eth = price_wei / 1e18
                 else:
                     continue  # Skip non-ETH listings
-                
+
                 if price_eth > 0:
-                    prices.append(price_eth)
-                    
                     # Get seller info from protocol_data
                     protocol_data = listing.get('protocol_data', {})
                     parameters = protocol_data.get('parameters', {})
                     seller_address = parameters.get('offerer', '').lower()
-                    
+
                     # Get NFT ID
                     offer = parameters.get('offer', [{}])[0]
                     nft_id = offer.get('identifierOrCriteria', 'Unknown')
@@ -98,14 +100,16 @@ async def send_complete_seller_analysis():
                     if nft_id in unique_listings:
                         continue
 
+                    # Only add to tracking after deduplication check passes
                     unique_listings[nft_id] = True
+                    prices.append(price_eth)
 
                     listing_details.append({
                         'seller': seller_address,
                         'price': price_eth,
                         'nft_id': nft_id
                     })
-                    
+
                     if seller_address:
                         if seller_address not in seller_data:
                             seller_data[seller_address] = {
@@ -117,7 +121,7 @@ async def send_complete_seller_analysis():
                         seller_data[seller_address]['prices'].append(price_eth)
                         seller_data[seller_address]['nft_ids'].append(nft_id)
                         seller_data[seller_address]['count'] += 1
-                    
+
             except Exception as e:
                 print(f"Error processing listing: {e}")
                 continue
@@ -135,8 +139,10 @@ async def send_complete_seller_analysis():
             prices.sort()
             floor_price = prices[0]
             floor_plus_20 = floor_price * 1.2
-            within_20_percent = sum(1 for price in prices if price <= floor_plus_20)
-            avg_price = sum(prices) / len(prices)
+            # Count only unique deduplicated listings within 20% of floor
+            within_20_percent = sum(1 for listing in listing_details if listing['price'] <= floor_plus_20)
+            # Calculate average from unique listings only
+            avg_price = sum(listing['price'] for listing in listing_details) / len(listing_details) if listing_details else 0
 
             # Update listing percentage calculation to use display_count
             listing_percentage = (display_count / total_supply * 100) if total_supply > 0 else 0
