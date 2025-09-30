@@ -103,10 +103,19 @@ def index():
 def get_current_data():
     """Get current data directly from database - no caching, always fresh"""
     try:
+        # Get fresh ETH price from API
+        import asyncio
+        try:
+            eth_price = asyncio.run(get_current_eth_price())
+            if not eth_price or eth_price <= 0:
+                eth_price = 2600.0  # Fallback
+        except:
+            eth_price = 2600.0  # Fallback
+
         with db.get_connection() as conn:
             # Get the latest analytics data
             cursor = conn.execute("""
-                SELECT 
+                SELECT
                     analytics_date,
                     eth_price_usd,
                     origins_floor_eth,
@@ -125,41 +134,41 @@ def get_current_data():
                 ORDER BY analytics_date DESC
                 LIMIT 1
             """)
-            
+
             row = cursor.fetchone()
-            
+
             if not row:
                 # Return default values if no data
                 return jsonify({
                     'error': 'No data available',
                     'timestamp': datetime.now().isoformat()
                 })
-            
+
             # Get real volume data
             try:
                 origins_vol, undead_vol = get_quick_volume_data()
             except:
                 origins_vol, undead_vol = 0.0127, 0.033
             
-            # Build response directly from database
+            # Build response using fresh ETH price
             data = {
                 'timestamp': datetime.now().isoformat(),
                 'analytics_date': row['analytics_date'],
-                'eth_price_usd': row['eth_price_usd'],
+                'eth_price_usd': eth_price,
                 'origins': {
                     'floor_price_eth': row['origins_floor_eth'],
-                    'floor_price_usd': row['origins_floor_eth'] * row['eth_price_usd'],
+                    'floor_price_usd': row['origins_floor_eth'] * eth_price,
                     'total_supply': row['origins_supply'],
-                    'market_cap_usd': row['origins_market_cap_usd'],
+                    'market_cap_usd': row['origins_floor_eth'] * eth_price * row['origins_supply'],
                     'floor_change_24h': 0.0,  # Removed for reliability
                     'volume_24h_eth': origins_vol,
                     'holders_count': row['origins_supply']  # Will be actual holders when available
                 },
                 'undead': {
                     'floor_price_eth': row['undead_floor_eth'],
-                    'floor_price_usd': row['undead_floor_eth'] * row['eth_price_usd'],
+                    'floor_price_usd': row['undead_floor_eth'] * eth_price,
                     'total_supply': row['undead_supply'],
-                    'market_cap_usd': row['undead_market_cap_usd'],
+                    'market_cap_usd': row['undead_floor_eth'] * eth_price * row['undead_supply'],
                     'floor_change_24h': 0.0,  # Removed for reliability
                     'volume_24h_eth': undead_vol,
                     'holders_count': row['undead_supply']  # Will be actual holders when available
