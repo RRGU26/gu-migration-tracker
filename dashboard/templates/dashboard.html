@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RR GU Analytic Tracker - Live Dashboard</title>
+    <title>Genuine Undead Analytics - Live Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.plot.ly/plotly-2.18.0.min.js"></script>
     <style>
         .gradient-bg {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -48,8 +49,8 @@
                 <div class="flex items-center space-x-4">
                     <div class="text-3xl">🧟‍♂️</div>
                     <div>
-                        <h1 class="text-3xl font-bold text-white">RR GU Analytic Tracker</h1>
-                        <p class="text-blue-100">Real-time NFT migration analytics</p>
+                        <h1 class="text-3xl font-bold text-white">Genuine Undead Analytics</h1>
+                        <p class="text-blue-100">Real-time collection metrics & trends</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
@@ -87,101 +88,75 @@
         </div>
 
         <!-- Collection Metrics -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <!-- GU Origins -->
-            <div class="card rounded-xl shadow-lg p-6">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">GU Origins</h2>
-                    <div class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">Source</div>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="metric-card bg-gray-50 p-4 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">Floor Price</div>
-                        <div class="text-xl font-bold text-gray-800" id="originsFloorETH">-.---- ETH</div>
-                        <div class="text-sm text-gray-500" id="originsFloorUSD">$---</div>
-                    </div>
-                    
-                    <div class="metric-card bg-gray-50 p-4 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">24h Volume <span class="text-xs text-amber-600" title="OpenSea API rate limited">⚠️</span></div>
-                        <div class="text-xl font-bold text-gray-800" id="originsVolume">-.-- ETH</div>
-                        <div class="text-sm text-gray-500" id="originsVolumeUSD">$---</div>
-                    </div>
-                    
-                    <div class="metric-card bg-gray-50 p-4 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">Market Cap</div>
-                        <div class="text-xl font-bold text-gray-800" id="originsMarketCap">$--M</div>
-                    </div>
-                    
-                    <div class="metric-card bg-gray-50 p-4 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">Total Supply</div>
-                        <div class="text-xl font-bold text-gray-800" id="originsHolders">-,---</div>
-                    </div>
-                </div>
+        <div class="card rounded-xl shadow-lg p-6 mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Genuine Undead Collection</h2>
+                <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">Live Metrics</div>
             </div>
 
-            <!-- Genuine Undead -->
-            <div class="card rounded-xl shadow-lg p-6">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">Genuine Undead</h2>
-                    <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">Destination</div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="metric-card bg-gray-50 p-4 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">Floor Price</div>
+                    <div class="text-xl font-bold text-gray-800" id="undeadFloorETH">-.---- ETH</div>
+                    <div class="text-sm text-gray-500" id="undeadFloorUSD">$---</div>
                 </div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="metric-card bg-gray-50 p-4 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">Floor Price</div>
-                        <div class="text-xl font-bold text-gray-800" id="undeadFloorETH">-.---- ETH</div>
-                        <div class="text-sm text-gray-500" id="undeadFloorUSD">$---</div>
-                    </div>
-                    
-                    <div class="metric-card bg-gray-50 p-4 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">24h Volume <span class="text-xs text-amber-600" title="OpenSea API rate limited">⚠️</span></div>
-                        <div class="text-xl font-bold text-gray-800" id="undeadVolume">-.-- ETH</div>
-                        <div class="text-sm text-gray-500" id="undeadVolumeUSD">$---</div>
-                    </div>
-                    
-                    <div class="metric-card bg-gray-50 p-4 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">Market Cap</div>
-                        <div class="text-xl font-bold text-gray-800" id="undeadMarketCap">$--M</div>
-                    </div>
-                    
-                    <div class="metric-card bg-gray-50 p-4 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">Total Supply</div>
-                        <div class="text-xl font-bold text-gray-800" id="undeadHolders">-,---</div>
-                    </div>
+
+                <div class="metric-card bg-gray-50 p-4 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">24h Volume</div>
+                    <div class="text-xl font-bold text-gray-800" id="undeadVolume">-.-- ETH</div>
+                    <div class="text-sm text-gray-500" id="undeadVolumeUSD">$---</div>
+                </div>
+
+                <div class="metric-card bg-gray-50 p-4 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">Market Cap</div>
+                    <div class="text-xl font-bold text-gray-800" id="undeadMarketCap">$--M</div>
+                    <div class="text-sm text-gray-500" id="undeadMarketCapChange">---%</div>
+                </div>
+
+                <div class="metric-card bg-gray-50 p-4 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">Total Supply</div>
+                    <div class="text-xl font-bold text-gray-800" id="undeadHolders">-,---</div>
+                    <div class="text-sm text-gray-500" id="undeadSupplyChange">+0 NFTs</div>
                 </div>
             </div>
         </div>
 
-        <!-- Migration Stats -->
+        <!-- Trend Analytics -->
         <div class="card rounded-xl shadow-lg p-6 mb-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Migration Analytics - Last 30 Days</h2>
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-blue-600" id="totalMigrations">---</div>
-                    <div class="text-sm text-gray-600">Total Migrations</div>
-                    <div class="text-xs text-gray-500">Origins → Undead</div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Collection Trends (30 Days)</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center bg-blue-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-blue-600" id="floorPriceChange30d">---%</div>
+                    <div class="text-sm text-gray-600">Floor Price Change</div>
+                    <div class="text-xs text-gray-500">30-day trend</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-green-600" id="migrationPercent">---%</div>
-                    <div class="text-sm text-gray-600">% Migrated</div>
-                    <div class="text-xs text-gray-500">% of Origins supply</div>
+                <div class="text-center bg-green-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-green-600" id="supplyGrowth30d">+0</div>
+                    <div class="text-sm text-gray-600">Supply Growth</div>
+                    <div class="text-xs text-gray-500">New NFTs minted</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-purple-600" id="floorPriceRatio">-.--x</div>
-                    <div class="text-sm text-gray-600">Price Ratio</div>
-                    <div class="text-xs text-gray-500">GU/Origins</div>
+                <div class="text-center bg-purple-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-purple-600" id="volumeTrend30d">-.-- ETH</div>
+                    <div class="text-sm text-gray-600">Avg Daily Volume</div>
+                    <div class="text-xs text-gray-500">30-day average</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-orange-600" id="recentMigrations">+0</div>
-                    <div class="text-sm text-gray-600">Total # of New Migrations</div>
-                    <div class="text-xs text-gray-500">since 9/3</div>
+                <div class="text-center bg-orange-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-orange-600" id="holderCount">-,---</div>
+                    <div class="text-sm text-gray-600">Unique Holders</div>
+                    <div class="text-xs text-gray-500">Estimated count</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-indigo-600" id="marketCapChange">+0.0%</div>
-                    <div class="text-sm text-gray-600">Change in GU Market Cap</div>
-                    <div class="text-xs text-gray-500">vs. September 11th (~$712K)</div>
-                </div>
+            </div>
+        </div>
+
+        <!-- Historical Charts -->
+        <div class="card rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Historical Trends</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div id="floorPriceChart" class="bg-white rounded-lg"></div>
+                <div id="marketCapChart" class="bg-white rounded-lg"></div>
+            </div>
+            <div class="grid grid-cols-1 gap-6">
+                <div id="supplyChart" class="bg-white rounded-lg"></div>
             </div>
         </div>
 
@@ -190,10 +165,10 @@
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-8 mt-16">
         <div class="container mx-auto px-4 text-center">
-            <p>&copy; 2025 RR GU Analytic Tracker. Built with ❤️ for the GU community.</p>
+            <p>&copy; 2025 Genuine Undead Analytics. Built with ❤️ for the GU community.</p>
             <div class="mt-4 space-x-4">
-                <a href="https://opensea.io/collection/gu-origins" target="_blank" class="text-blue-400 hover:text-blue-300">GU Origins ↗</a>
-                <a href="https://opensea.io/collection/genuine-undead" target="_blank" class="text-blue-400 hover:text-blue-300">Genuine Undead ↗</a>
+                <a href="https://opensea.io/collection/genuine-undead" target="_blank" class="text-blue-400 hover:text-blue-300">View on OpenSea ↗</a>
+                <a href="https://etherscan.io/address/0x39509d8e1dd96cc8bad301ea65c75c7deb52374c" target="_blank" class="text-blue-400 hover:text-blue-300">Contract ↗</a>
             </div>
         </div>
     </footer>
@@ -234,7 +209,7 @@
 
         function updateUI(data) {
             console.log('Updating UI with data:', data);
-            
+
             // ETH Price - handle NaN/null
             const ethPrice = data.eth_price_usd || 4382;
             if (isNaN(ethPrice)) {
@@ -243,73 +218,50 @@
             } else {
                 document.getElementById('ethPrice').textContent = formatCurrency(ethPrice);
             }
-            
-            // Origins data
-            if (data.origins) {
-                document.getElementById('originsFloorETH').textContent = data.origins.floor_price_eth.toFixed(4) + ' ETH';
-                document.getElementById('originsFloorUSD').textContent = formatCurrency((data.origins.floor_price_eth * ethPrice));
-                document.getElementById('originsVolume').textContent = data.origins.volume_24h_eth.toFixed(2) + ' ETH';
-                document.getElementById('originsVolumeUSD').textContent = formatCurrency((data.origins.volume_24h_eth * ethPrice));
-                document.getElementById('originsMarketCap').textContent = formatCurrency(data.origins.market_cap_usd);
-                document.getElementById('originsHolders').textContent = (data.origins.holders_count || data.origins.total_supply || 0).toLocaleString();
-                
-            }
-            
-            // Undead data
+
+            // Genuine Undead collection metrics
             if (data.undead) {
                 document.getElementById('undeadFloorETH').textContent = data.undead.floor_price_eth.toFixed(4) + ' ETH';
                 document.getElementById('undeadFloorUSD').textContent = formatCurrency((data.undead.floor_price_eth * ethPrice));
                 document.getElementById('undeadVolume').textContent = data.undead.volume_24h_eth.toFixed(2) + ' ETH';
                 document.getElementById('undeadVolumeUSD').textContent = formatCurrency((data.undead.volume_24h_eth * ethPrice));
                 document.getElementById('undeadMarketCap').textContent = formatCurrency(data.undead.market_cap_usd);
-                document.getElementById('undeadHolders').textContent = (data.undead.holders_count || data.undead.total_supply || 0).toLocaleString();
-                
+                document.getElementById('undeadHolders').textContent = (data.undead.total_supply || 0).toLocaleString();
             }
-            
-            // Migration analytics with proper calculations
-            const migration = data.migration_analytics?.migration_rate || {};
-            const totalMigrations = migration.total_migrations || 0;
-            const migrationPercent = migration.migration_percent || 0;
-            
-            document.getElementById('totalMigrations').textContent = totalMigrations.toLocaleString();
-            
-            // Use calculated migration percentage (migrations / 10,000 Origins)
-            document.getElementById('migrationPercent').textContent = migrationPercent.toFixed(2) + '%';
-            
-            // Price ratio (GU vs Origins) - show premium/discount
-            if (data.origins && data.undead && data.origins.floor_price_eth > 0) {
-                const ratio = data.undead.floor_price_eth / data.origins.floor_price_eth;
-                document.getElementById('floorPriceRatio').textContent = ratio.toFixed(2) + 'x';
-                
-                // Visual indicator for premium/discount
-                const ratioElement = document.getElementById('floorPriceRatio');
-                if (ratio > 1) {
-                    ratioElement.className = 'text-2xl font-bold text-red-600'; // Premium (more expensive)
-                } else {
-                    ratioElement.className = 'text-2xl font-bold text-green-600'; // Discount (cheaper)
-                }
+
+            // Trend Analytics - Market Cap Change
+            if (data.trends) {
+                const marketCapChange = data.trends.market_cap_change_30d || 0;
+                const mcChangeElement = document.getElementById('undeadMarketCapChange');
+                mcChangeElement.textContent = marketCapChange >= 0 ? `+${marketCapChange.toFixed(1)}%` : `${marketCapChange.toFixed(1)}%`;
+                mcChangeElement.className = marketCapChange >= 0 ? 'text-sm text-green-600' : 'text-sm text-red-600';
+
+                // Supply Growth
+                const supplyChange = data.trends.supply_growth_30d || 0;
+                document.getElementById('undeadSupplyChange').textContent = supplyChange >= 0 ? `+${supplyChange} NFTs` : `${supplyChange} NFTs`;
+
+                // Floor Price Change (30d)
+                const floorChange30d = data.trends.floor_price_change_30d || 0;
+                const floorElement = document.getElementById('floorPriceChange30d');
+                floorElement.textContent = floorChange30d >= 0 ? `+${floorChange30d.toFixed(1)}%` : `${floorChange30d.toFixed(1)}%`;
+                floorElement.className = floorChange30d >= 0 ? 'text-2xl font-bold text-green-600' : 'text-2xl font-bold text-red-600';
+
+                // Supply Growth (30d)
+                document.getElementById('supplyGrowth30d').textContent = supplyChange >= 0 ? `+${supplyChange}` : `${supplyChange}`;
+
+                // Average Daily Volume (30d)
+                const avgVolume = data.trends.avg_daily_volume_30d || 0;
+                document.getElementById('volumeTrend30d').textContent = avgVolume.toFixed(2) + ' ETH';
+
+                // Holder Count
+                document.getElementById('holderCount').textContent = (data.trends.holder_count || data.undead?.total_supply || 0).toLocaleString();
             }
-            
-            // Calculate new migrations vs baseline
-            const currentMigrations = data.migration_analytics.migration_rate.total_migrations || 5345;
-            const baseMigrations = 5333;
-            const newMigrations = currentMigrations - baseMigrations;
-            document.getElementById('recentMigrations').textContent = newMigrations >= 0 ? `+${newMigrations}` : `${newMigrations}`;
-            
-            // Calculate GU market cap change vs September 11th baseline
-            const currentUndeadMarketCap = data.undead?.market_cap_usd || 0;
-            const baselineUndeadMarketCap = 712364;  // September 11th GU baseline ~$712K
-            const marketCapChange = ((currentUndeadMarketCap - baselineUndeadMarketCap) / baselineUndeadMarketCap) * 100;
-            document.getElementById('marketCapChange').textContent = marketCapChange >= 0 ? `+${marketCapChange.toFixed(1)}%` : `${marketCapChange.toFixed(1)}%`;
-            
-            // Ecosystem value - not displayed in current layout
-            // Total value calculated but not shown on dashboard
-            
+
             // Date and time update
             const now = new Date(data.timestamp);
-            const dateOptions = { 
-                year: 'numeric', 
-                month: 'long', 
+            const dateOptions = {
+                year: 'numeric',
+                month: 'long',
                 day: 'numeric',
                 timeZone: 'America/New_York'
             };
@@ -320,7 +272,7 @@
                 hour12: true,
                 timeZone: 'America/New_York'
             };
-            
+
             document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', dateOptions);
             document.getElementById('lastUpdate').textContent = `Updated: ${now.toLocaleTimeString('en-US', timeOptions)} EST`;
         }
@@ -328,9 +280,9 @@
 
         function loadData() {
             if (isLoading) return;
-            
+
             updateStatus(true);
-            
+
             fetch('/api/current')
                 .then(response => response.json())
                 .then(data => {
@@ -341,6 +293,30 @@
                     console.error('Error:', error);
                     updateStatus(false);
                     document.getElementById('lastUpdate').textContent = 'Error loading data';
+                });
+        }
+
+        function loadCharts() {
+            fetch('/api/charts')
+                .then(response => response.json())
+                .then(chartsData => {
+                    // Render Floor Price Chart
+                    if (chartsData.floor_price_chart) {
+                        Plotly.newPlot('floorPriceChart', chartsData.floor_price_chart.data, chartsData.floor_price_chart.layout, {responsive: true});
+                    }
+
+                    // Render Market Cap Chart
+                    if (chartsData.market_cap_chart) {
+                        Plotly.newPlot('marketCapChart', chartsData.market_cap_chart.data, chartsData.market_cap_chart.layout, {responsive: true});
+                    }
+
+                    // Render Supply Chart
+                    if (chartsData.supply_chart) {
+                        Plotly.newPlot('supplyChart', chartsData.supply_chart.data, chartsData.supply_chart.layout, {responsive: true});
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading charts:', error);
                 });
         }
 
@@ -375,16 +351,16 @@
             fetch('/api/current')
                 .then(response => response.json())
                 .then(data => {
-                    const originsFloor = formatNumber(data.origins?.floor_price_eth || 0, 4);
-                    const undeadFloor = formatNumber(data.undead?.floor_price_eth || 0, 4);
-                    const originsSupply = formatNumber(data.origins?.total_supply || 0);
-                    const undeadSupply = formatNumber(data.undead?.total_supply || 0);
-                    
-                    const tweetText = `🔥 GU Migration Tracker Update
-📊 GU Origins: ${originsFloor} ETH floor (${originsSupply} supply)
-💀 Genuine Undead: ${undeadFloor} ETH floor (${undeadSupply} supply)
-🔄 Migration analytics & trends live at:`;
-                    
+                    const floor = formatNumber(data.undead?.floor_price_eth || 0, 4);
+                    const supply = formatNumber(data.undead?.total_supply || 0);
+                    const marketCap = formatNumber(data.undead?.market_cap_usd || 0);
+
+                    const tweetText = `💀 Genuine Undead Collection Update
+📊 Floor: ${floor} ETH
+🔢 Supply: ${supply} NFTs
+💎 Market Cap: $${marketCap}
+📈 Live analytics at:`;
+
                     const url = window.location.href;
                     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(url)}`;
                     window.open(twitterUrl, '_blank');
@@ -392,7 +368,7 @@
                 .catch(error => {
                     console.error('Error getting data for tweet:', error);
                     // Fallback tweet
-                    const tweetText = `📊 Check out the live GU Migration Tracker - real-time analytics for GU Origins → Genuine Undead migrations!`;
+                    const tweetText = `💀 Check out live Genuine Undead analytics - real-time collection metrics, trends, and insights!`;
                     const url = window.location.href;
                     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(url)}`;
                     window.open(twitterUrl, '_blank');
@@ -408,7 +384,8 @@
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
-            
+            loadCharts();
+
             // Auto-refresh every 5 minutes
             setInterval(loadData, 5 * 60 * 1000);
         });

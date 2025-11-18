@@ -150,20 +150,53 @@ def get_current_data():
             except:
                 origins_vol, undead_vol = 0.0127, 0.033
             
-            # Build response using fresh ETH price
+            # Get 30-day historical data for trends
+            cursor_30d = conn.execute("""
+                SELECT
+                    undead_floor_eth,
+                    undead_supply,
+                    undead_market_cap_usd,
+                    analytics_date
+                FROM daily_analytics
+                ORDER BY analytics_date DESC
+                LIMIT 30
+            """)
+
+            historical_data = cursor_30d.fetchall()
+
+            # Calculate 30-day trends
+            trends = {
+                'floor_price_change_30d': 0.0,
+                'supply_growth_30d': 0,
+                'market_cap_change_30d': 0.0,
+                'avg_daily_volume_30d': undead_vol,  # Simplified for now
+                'holder_count': row['undead_supply']  # Using supply as proxy
+            }
+
+            if len(historical_data) >= 2:
+                # Floor price change (current vs 30 days ago)
+                oldest = historical_data[-1]
+                current_floor = row['undead_floor_eth']
+                old_floor = oldest['undead_floor_eth']
+                if old_floor > 0:
+                    trends['floor_price_change_30d'] = ((current_floor - old_floor) / old_floor) * 100
+
+                # Supply growth (current vs 30 days ago)
+                current_supply = row['undead_supply']
+                old_supply = oldest['undead_supply']
+                trends['supply_growth_30d'] = current_supply - old_supply
+
+                # Market cap change (current vs 30 days ago)
+                current_mc = row['undead_floor_eth'] * eth_price * row['undead_supply']
+                old_mc = oldest['undead_market_cap_usd']
+                if old_mc > 0:
+                    trends['market_cap_change_30d'] = ((current_mc - old_mc) / old_mc) * 100
+
+            # Build response using fresh ETH price - focused on Genuine Undead
             data = {
                 'timestamp': datetime.now().isoformat(),
                 'analytics_date': row['analytics_date'],
                 'eth_price_usd': eth_price,
-                'origins': {
-                    'floor_price_eth': row['origins_floor_eth'],
-                    'floor_price_usd': row['origins_floor_eth'] * eth_price,
-                    'total_supply': row['origins_supply'],
-                    'market_cap_usd': row['origins_floor_eth'] * eth_price * row['origins_supply'],
-                    'floor_change_24h': 0.0,  # Removed for reliability
-                    'volume_24h_eth': origins_vol,
-                    'holders_count': row['origins_supply']  # Will be actual holders when available
-                },
                 'undead': {
                     'floor_price_eth': row['undead_floor_eth'],
                     'floor_price_usd': row['undead_floor_eth'] * eth_price,
@@ -173,16 +206,9 @@ def get_current_data():
                     'volume_24h_eth': undead_vol,
                     'holders_count': row['undead_supply']  # Will be actual holders when available
                 },
-                'migration_analytics': {
-                    'migration_rate': {
-                        'total_migrations': row['total_migrations'],
-                        'migration_percent': row['migration_percent'],
-                        'price_ratio': row['price_ratio']
-                    }
-                },
-                'ecosystem_value': row['combined_market_cap_usd']
+                'trends': trends
             }
-            
+
             return jsonify(data)
             
     except Exception as e:
@@ -262,24 +288,50 @@ def refresh_data():
             except:
                 origins_vol, undead_vol = 0.09, 0.49
 
-            # Recalculate market caps with live floor prices, ETH price, and supplies
-            origins_mc = origins_floor * live_eth_price * origins_supply
+            # Recalculate market cap with live floor price, ETH price, and supply
             undead_mc = undead_floor * live_eth_price * undead_supply
-            
-            # Build response with live data
+
+            # Get 30-day historical data for trends
+            cursor_30d = conn.execute("""
+                SELECT
+                    undead_floor_eth,
+                    undead_supply,
+                    undead_market_cap_usd,
+                    analytics_date
+                FROM daily_analytics
+                ORDER BY analytics_date DESC
+                LIMIT 30
+            """)
+
+            historical_data = cursor_30d.fetchall()
+
+            # Calculate 30-day trends
+            trends = {
+                'floor_price_change_30d': 0.0,
+                'supply_growth_30d': 0,
+                'market_cap_change_30d': 0.0,
+                'avg_daily_volume_30d': undead_vol,  # Simplified for now
+                'holder_count': undead_supply  # Using supply as proxy
+            }
+
+            if len(historical_data) >= 2:
+                # Floor price change (current vs 30 days ago)
+                oldest = historical_data[-1]
+                if oldest['undead_floor_eth'] > 0:
+                    trends['floor_price_change_30d'] = ((undead_floor - oldest['undead_floor_eth']) / oldest['undead_floor_eth']) * 100
+
+                # Supply growth (current vs 30 days ago)
+                trends['supply_growth_30d'] = undead_supply - oldest['undead_supply']
+
+                # Market cap change (current vs 30 days ago)
+                if oldest['undead_market_cap_usd'] > 0:
+                    trends['market_cap_change_30d'] = ((undead_mc - oldest['undead_market_cap_usd']) / oldest['undead_market_cap_usd']) * 100
+
+            # Build response with live data - focused on Genuine Undead
             data = {
                 'timestamp': datetime.now().isoformat(),
                 'analytics_date': row['analytics_date'],
                 'eth_price_usd': live_eth_price,
-                'origins': {
-                    'floor_price_eth': origins_floor,
-                    'floor_price_usd': origins_floor * live_eth_price,
-                    'total_supply': origins_supply,
-                    'market_cap_usd': origins_mc,
-                    'floor_change_24h': 0.0,  # Removed for reliability
-                    'volume_24h_eth': origins_vol,
-                    'holders_count': origins_supply
-                },
                 'undead': {
                     'floor_price_eth': undead_floor,
                     'floor_price_usd': undead_floor * live_eth_price,
@@ -289,14 +341,7 @@ def refresh_data():
                     'volume_24h_eth': undead_vol,
                     'holders_count': undead_supply
                 },
-                'migration_analytics': {
-                    'migration_rate': {
-                        'total_migrations': undead_supply + 26,  # Current undead supply + 26 burned
-                        'migration_percent': ((undead_supply + 26) / origins_supply) * 100,  
-                        'price_ratio': undead_floor / origins_floor if origins_floor > 0 else row['price_ratio']
-                    }
-                },
-                'ecosystem_value': origins_mc + undead_mc
+                'trends': trends
             }
 
             return jsonify(data)
@@ -329,36 +374,36 @@ def get_chart_data():
             if not rows:
                 return jsonify({'charts': []})
             
-            # Build chart data
+            # Build chart data - focus on Genuine Undead trends
             dates = []
-            origins_mc = []
+            floor_prices = []
             undead_mc = []
-            migrations = []
             undead_supply = []
-            
+
             for row in reversed(rows):  # Reverse to get chronological order
                 dates.append(row['analytics_date'])
-                origins_mc.append(row['origins_market_cap_usd'])
+                floor_prices.append(row['undead_floor_eth'])
                 undead_mc.append(row['undead_market_cap_usd'])
-                migrations.append(row['total_migrations'])
                 undead_supply.append(row['undead_supply'])
-            
-            # Create clean, professional charts
+
+            # Create clean, professional charts focused on GU trends
             charts_data = {
-                'supply_chart': {
+                'floor_price_chart': {
                     'data': [{
                         'x': dates,
-                        'y': undead_supply,
+                        'y': floor_prices,
                         'type': 'scatter',
                         'mode': 'lines+markers',
-                        'name': 'Undead Collection',
-                        'line': {'color': '#10b981', 'width': 3},
-                        'marker': {'size': 8, 'color': '#10b981', 'line': {'color': 'white', 'width': 1}},
-                        'hovertemplate': '<b>%{y:,}</b> NFTs<br>%{x}<extra></extra>'
+                        'name': 'Floor Price',
+                        'line': {'color': '#8b5cf6', 'width': 3},
+                        'marker': {'size': 8, 'color': '#8b5cf6', 'line': {'color': 'white', 'width': 1}},
+                        'hovertemplate': '<b>%{y:.4f}</b> ETH<br>%{x}<extra></extra>',
+                        'fill': 'tozeroy',
+                        'fillcolor': 'rgba(139, 92, 246, 0.1)'
                     }],
                     'layout': {
                         'title': {
-                            'text': 'Genuine Undead Collection Growth',
+                            'text': 'Floor Price Trend (30 Days)',
                             'x': 0.5,
                             'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#1f2937'}
                         },
@@ -370,15 +415,14 @@ def get_chart_data():
                             'tickfont': {'size': 12, 'color': '#6b7280'}
                         },
                         'yaxis': {
-                            'title': 'NFT Count',
+                            'title': 'Floor Price (ETH)',
                             'titlefont': {'size': 14, 'color': '#6b7280'},
                             'showgrid': True,
                             'gridcolor': '#f3f4f6',
                             'showline': True,
                             'linecolor': '#e5e7eb',
                             'tickfont': {'size': 12, 'color': '#6b7280'},
-                            'tickformat': ',.0f',
-                            'range': [4900, 5100]
+                            'tickformat': '.4f'
                         },
                         'plot_bgcolor': 'rgba(0,0,0,0)',
                         'paper_bgcolor': 'rgba(0,0,0,0)',
@@ -388,31 +432,21 @@ def get_chart_data():
                     }
                 },
                 'market_cap_chart': {
-                    'data': [
-                        {
-                            'x': dates,
-                            'y': origins_mc,
-                            'type': 'scatter',
-                            'mode': 'lines+markers',
-                            'name': 'Origins',
-                            'line': {'color': '#667eea', 'width': 3},
-                            'marker': {'size': 6, 'color': '#667eea'},
-                            'hovertemplate': '<b>$%{y:,.0f}</b><br>GU Origins<br>%{x}<extra></extra>'
-                        },
-                        {
-                            'x': dates,
-                            'y': undead_mc,
-                            'type': 'scatter', 
-                            'mode': 'lines+markers',
-                            'name': 'Undead',
-                            'line': {'color': '#10b981', 'width': 3},
-                            'marker': {'size': 6, 'color': '#10b981'},
-                            'hovertemplate': '<b>$%{y:,.0f}</b><br>Genuine Undead<br>%{x}<extra></extra>'
-                        }
-                    ],
+                    'data': [{
+                        'x': dates,
+                        'y': undead_mc,
+                        'type': 'scatter',
+                        'mode': 'lines+markers',
+                        'name': 'Market Cap',
+                        'line': {'color': '#10b981', 'width': 3},
+                        'marker': {'size': 8, 'color': '#10b981', 'line': {'color': 'white', 'width': 1}},
+                        'hovertemplate': '<b>$%{y:,.0f}</b><br>%{x}<extra></extra>',
+                        'fill': 'tozeroy',
+                        'fillcolor': 'rgba(16, 185, 129, 0.1)'
+                    }],
                     'layout': {
                         'title': {
-                            'text': 'Market Cap Comparison',
+                            'text': 'Market Cap Trend (30 Days)',
                             'x': 0.5,
                             'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#1f2937'}
                         },
@@ -431,23 +465,55 @@ def get_chart_data():
                             'showline': True,
                             'linecolor': '#e5e7eb',
                             'tickfont': {'size': 12, 'color': '#6b7280'},
-                            'tickformat': '$,.0f',
-                            'range': [0, 4000000]
+                            'tickformat': '$,.0f'
                         },
                         'plot_bgcolor': 'rgba(0,0,0,0)',
                         'paper_bgcolor': 'rgba(0,0,0,0)',
                         'margin': {'t': 50, 'l': 80, 'r': 20, 'b': 60},
-                        'legend': {
-                            'x': 1,
-                            'y': 1,
-                            'xanchor': 'right',
-                            'yanchor': 'top',
-                            'bgcolor': 'rgba(255,255,255,0.95)',
-                            'bordercolor': '#d1d5db',
-                            'borderwidth': 1,
-                            'font': {'size': 13, 'family': 'Arial, sans-serif', 'color': '#111827'},
-                            'orientation': 'v'
+                        'showlegend': False,
+                        'height': 350
+                    }
+                },
+                'supply_chart': {
+                    'data': [{
+                        'x': dates,
+                        'y': undead_supply,
+                        'type': 'scatter',
+                        'mode': 'lines+markers',
+                        'name': 'Supply',
+                        'line': {'color': '#3b82f6', 'width': 3},
+                        'marker': {'size': 8, 'color': '#3b82f6', 'line': {'color': 'white', 'width': 1}},
+                        'hovertemplate': '<b>%{y:,}</b> NFTs<br>%{x}<extra></extra>',
+                        'fill': 'tozeroy',
+                        'fillcolor': 'rgba(59, 130, 246, 0.1)'
+                    }],
+                    'layout': {
+                        'title': {
+                            'text': 'Supply Growth (30 Days)',
+                            'x': 0.5,
+                            'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#1f2937'}
                         },
+                        'xaxis': {
+                            'title': '',
+                            'showgrid': False,
+                            'showline': True,
+                            'linecolor': '#e5e7eb',
+                            'tickfont': {'size': 12, 'color': '#6b7280'}
+                        },
+                        'yaxis': {
+                            'title': 'NFT Count',
+                            'titlefont': {'size': 14, 'color': '#6b7280'},
+                            'showgrid': True,
+                            'gridcolor': '#f3f4f6',
+                            'showline': True,
+                            'linecolor': '#e5e7eb',
+                            'tickfont': {'size': 12, 'color': '#6b7280'},
+                            'tickformat': ',.0f'
+                        },
+                        'plot_bgcolor': 'rgba(0,0,0,0)',
+                        'paper_bgcolor': 'rgba(0,0,0,0)',
+                        'margin': {'t': 50, 'l': 60, 'r': 20, 'b': 40},
+                        'showlegend': False,
                         'height': 350
                     }
                 }
