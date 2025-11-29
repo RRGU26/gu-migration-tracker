@@ -94,7 +94,7 @@
                 <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">Live Metrics</div>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div class="metric-card bg-gray-50 p-4 rounded-lg">
                     <div class="text-sm text-gray-600 mb-1">Floor Price</div>
                     <div class="text-xl font-bold text-gray-800" id="undeadFloorETH">-.---- ETH</div>
@@ -124,7 +124,7 @@
         <!-- Trend Analytics -->
         <div class="card rounded-xl shadow-lg p-6 mb-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Collection Trends (30 Days)</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div class="text-center bg-blue-50 p-4 rounded-lg">
                     <div class="text-2xl font-bold text-blue-600" id="floorPriceChange30d">---%</div>
                     <div class="text-sm text-gray-600">Floor Price Change</div>
@@ -144,6 +144,11 @@
                     <div class="text-2xl font-bold text-orange-600" id="holderCount">-,---</div>
                     <div class="text-sm text-gray-600">Unique Holders</div>
                     <div class="text-xs text-gray-500">Estimated count</div>
+                </div>
+                <div class="text-center bg-yellow-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-yellow-600" id="diamondHands">--%</div>
+                    <div class="text-sm text-gray-600">Diamond Hands</div>
+                    <div class="text-xs text-gray-500">No sales in 30d</div>
                 </div>
             </div>
         </div>
@@ -255,6 +260,11 @@
 
                 // Holder Count
                 document.getElementById('holderCount').textContent = (data.trends.holder_count || data.undead?.total_supply || 0).toLocaleString();
+            }
+
+            // Diamond Hands
+            if (data.undead?.diamond_hands_pct !== undefined) {
+                document.getElementById('diamondHands').textContent = data.undead.diamond_hands_pct.toFixed(1) + '%';
             }
 
             // Date and time update

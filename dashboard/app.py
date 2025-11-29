@@ -120,6 +120,54 @@ def get_listings_count():
     except:
         return 0
 
+
+def get_diamond_hands_percent(total_holders):
+    """Calculate % of holders who haven't sold in last 30 days"""
+    try:
+        import time
+        headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        thirty_days_ago = int(time.time()) - (30 * 24 * 60 * 60)
+        sellers = set()
+        next_cursor = None
+        total_sales_30d = 0
+
+        for _ in range(5):
+            url = 'https://api.opensea.io/api/v2/events/collection/genuine-undead'
+            params = {'event_type': 'sale', 'limit': 50}
+            if next_cursor:
+                params['next'] = next_cursor
+
+            response = requests.get(url, headers=headers, params=params, timeout=15)
+            if response.status_code != 200:
+                break
+
+            data = response.json()
+            events = data.get('asset_events', [])
+            if not events:
+                break
+
+            for event in events:
+                timestamp = event.get('event_timestamp', 0)
+                if timestamp >= thirty_days_ago:
+                    total_sales_30d += 1
+                    if event.get('seller'):
+                        sellers.add(event['seller'].lower())
+
+            next_cursor = data.get('next')
+            if not next_cursor:
+                break
+
+        if total_holders > 0:
+            diamond_hands = total_holders - len(sellers)
+            diamond_pct = round((diamond_hands / total_holders) * 100, 1)
+            return diamond_pct, len(sellers), total_sales_30d
+        return 0.0, 0, 0
+
+    except Exception as e:
+        print(f'Diamond hands calc error: {e}')
+        return 0.0, 0, 0
+
+
 @app.route('/')
 def index():
     """Serve the dashboard"""
@@ -280,7 +328,13 @@ def refresh_data():
             num_listed = get_listings_count()
         except:
             num_listed = 0
-            
+
+        # Calculate diamond hands % (recalculates on every refresh)
+        try:
+            diamond_hands_pct, num_sellers_30d, total_sales_30d = get_diamond_hands_percent(undead_holders)
+        except:
+            diamond_hands_pct, num_sellers_30d, total_sales_30d = 0.0, 0, 0
+
         with db.get_connection() as conn:
             # Update ETH price and floor prices in database
             today = date.today().isoformat()
@@ -396,7 +450,10 @@ def refresh_data():
                     'volume_24h_eth': undead_vol,
                     'holders_count': undead_holders,
                     'num_listed': num_listed,
-                    'listing_percent': (num_listed / undead_supply * 100) if undead_supply > 0 else 0
+                    'listing_percent': (num_listed / undead_supply * 100) if undead_supply > 0 else 0,
+                    'diamond_hands_pct': diamond_hands_pct,
+                    'num_sellers_30d': num_sellers_30d,
+                    'total_sales_30d': total_sales_30d
                 },
                 'trends': trends
             }
