@@ -58,41 +58,67 @@ def get_quick_volume_data():
         return 0.0127, 0.033  # fallback values
 
 def get_live_floor_prices_and_supply():
-    """Get live floor prices and supplies directly from OpenSea API"""
+    """Get live floor prices, supplies, and holder count from OpenSea API"""
     try:
         headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
-        
-        # Get Origins floor price and supply
-        origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats', 
+
+        # Get Origins floor price
+        origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats',
                                        headers=headers, timeout=5)
-        origins_floor = 0.0420  # Fallback to recent actual
-        origins_supply = 9993  # Fallback
+        origins_floor = 0.0330
+        origins_supply = 9993
         if origins_response.status_code == 200:
             origins_data = origins_response.json()
-            origins_floor = float(origins_data.get('total', {}).get('floor_price', 0.0420))
-            origins_supply = int(origins_data.get('total', {}).get('supply', 9993))
-        
-        # Get Undead floor price from stats endpoint
+            origins_floor = float(origins_data.get('total', {}).get('floor_price', 0.0330))
+
+        # Get Undead stats (floor, num_owners)
         undead_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead/stats',
                                       headers=headers, timeout=5)
-        undead_floor = 0.0354  # Fallback to recent actual
+        undead_floor = 0.0460
+        undead_holders = 718
         if undead_response.status_code == 200:
             undead_data = undead_response.json()
-            undead_floor = float(undead_data.get('total', {}).get('floor_price', 0.0354))
-        
-        # Get Undead supply from collection endpoint (stats doesn't have supply)
-        undead_supply = 5307  # Fallback 
+            undead_floor = float(undead_data.get('total', {}).get('floor_price', 0.0460))
+            undead_holders = int(undead_data.get('total', {}).get('num_owners', 718))
+
+        # Get Undead supply
+        undead_supply = 5566
         undead_collection_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead',
                                                 headers=headers, timeout=5)
         if undead_collection_response.status_code == 200:
             undead_collection = undead_collection_response.json()
-            undead_supply = int(undead_collection.get('total_supply', 5307))
-        
-        return origins_floor, undead_floor, origins_supply, undead_supply
-        
+            undead_supply = int(undead_collection.get('total_supply', 5566))
+
+        return origins_floor, undead_floor, origins_supply, undead_supply, undead_holders
+
     except Exception as e:
         print(f"Floor price/supply fetch error: {e}")
-        return 0.0420, 0.0354, 9993, 5319  # Updated fallback to current supply
+        return 0.0330, 0.0460, 9993, 5566, 718
+
+
+def get_listings_count():
+    """Get total number of active listings"""
+    try:
+        headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        total = 0
+        next_cursor = None
+        for _ in range(3):
+            params = {'limit': 200}
+            if next_cursor:
+                params['next'] = next_cursor
+            response = requests.get('https://api.opensea.io/api/v2/listings/collection/genuine-undead/all',
+                                   headers=headers, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                total += len(data.get('listings', []))
+                next_cursor = data.get('next')
+                if not next_cursor:
+                    break
+            else:
+                break
+        return total
+    except:
+        return 0
 
 @app.route('/')
 def index():
@@ -243,11 +269,17 @@ def refresh_data():
                 else:
                     live_eth_price = 4418  # Updated fallback to current price
         
-        # Get live floor prices and supplies
+        # Get live floor prices, supplies, holders, and listings
         try:
-            origins_floor, undead_floor, origins_supply, undead_supply = get_live_floor_prices_and_supply()
+            origins_floor, undead_floor, origins_supply, undead_supply, undead_holders = get_live_floor_prices_and_supply()
         except:
-            origins_floor, undead_floor, origins_supply, undead_supply = 0.0575, 0.0383, 9993, 5307  # Fallback
+            origins_floor, undead_floor, origins_supply, undead_supply, undead_holders = 0.0330, 0.0460, 9993, 5566, 718
+        
+        # Get listings count
+        try:
+            num_listed = get_listings_count()
+        except:
+            num_listed = 0
             
         with db.get_connection() as conn:
             # Update ETH price and floor prices in database
@@ -317,41 +349,54 @@ def refresh_data():
 
             historical_data = cursor_30d.fetchall()
 
-            # Calculate 30-day trends
+            # Calculate trends from historical data
             trends = {
                 'floor_price_change_30d': 0.0,
+                'floor_price_change_7d': 0.0,
+                'floor_price_change_1d': 0.0,
                 'supply_growth_30d': 0,
                 'market_cap_change_30d': 0.0,
-                'avg_daily_volume_30d': undead_vol,  # Simplified for now
-                'holder_count': undead_supply  # Using supply as proxy
+                'avg_daily_volume_30d': undead_vol,
+                'holder_count': undead_holders,
+                'num_listed': num_listed
             }
 
             if len(historical_data) >= 2:
-                # Floor price change (current vs 30 days ago)
+                # 30-day changes
                 oldest = historical_data[-1]
                 if oldest['undead_floor_eth'] > 0:
                     trends['floor_price_change_30d'] = ((undead_floor - oldest['undead_floor_eth']) / oldest['undead_floor_eth']) * 100
-
-                # Supply growth (current vs 30 days ago)
                 trends['supply_growth_30d'] = undead_supply - oldest['undead_supply']
-
-                # Market cap change (current vs 30 days ago)
                 if oldest['undead_market_cap_usd'] > 0:
                     trends['market_cap_change_30d'] = ((undead_mc - oldest['undead_market_cap_usd']) / oldest['undead_market_cap_usd']) * 100
+                
+                # 7-day change (if we have at least 7 days of data)
+                if len(historical_data) >= 7:
+                    day7 = historical_data[6]
+                    if day7['undead_floor_eth'] > 0:
+                        trends['floor_price_change_7d'] = ((undead_floor - day7['undead_floor_eth']) / day7['undead_floor_eth']) * 100
+                
+                # 1-day change (yesterday vs today)
+                if len(historical_data) >= 1:
+                    yesterday = historical_data[0]  # Most recent is index 0 after today is inserted
+                    if yesterday['undead_floor_eth'] > 0 and yesterday['analytics_date'] != today:
+                        trends['floor_price_change_1d'] = ((undead_floor - yesterday['undead_floor_eth']) / yesterday['undead_floor_eth']) * 100
 
-            # Build response with live data - focused on Genuine Undead
+            # Build response with live data
             data = {
                 'timestamp': datetime.now().isoformat(),
-                'analytics_date': row['analytics_date'],
+                'analytics_date': today,
                 'eth_price_usd': live_eth_price,
                 'undead': {
                     'floor_price_eth': undead_floor,
                     'floor_price_usd': undead_floor * live_eth_price,
                     'total_supply': undead_supply,
                     'market_cap_usd': undead_mc,
-                    'floor_change_24h': 0.0,  # Removed for reliability
+                    'floor_change_24h': trends['floor_price_change_1d'],
                     'volume_24h_eth': undead_vol,
-                    'holders_count': undead_supply
+                    'holders_count': undead_holders,
+                    'num_listed': num_listed,
+                    'listing_percent': (num_listed / undead_supply * 100) if undead_supply > 0 else 0
                 },
                 'trends': trends
             }
