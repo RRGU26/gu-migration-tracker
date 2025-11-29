@@ -252,11 +252,23 @@ def refresh_data():
         with db.get_connection() as conn:
             # Update ETH price and floor prices in database
             today = date.today().isoformat()
+            # Calculate metrics for INSERT
+            origins_mc = origins_floor * origins_supply * live_eth_price
+            undead_mc_calc = undead_floor * undead_supply * live_eth_price
+            total_mig = undead_supply + 26
+            mig_pct = (undead_supply / 9993) * 100
+            p_ratio = undead_floor / origins_floor if origins_floor > 0 else 0
+
+            # INSERT OR REPLACE - creates today data if missing
             conn.execute("""
-                UPDATE daily_analytics 
-                SET eth_price_usd = ?, origins_floor_eth = ?, undead_floor_eth = ?
-                WHERE analytics_date = ?
-            """, (live_eth_price, origins_floor, undead_floor, today))
+                INSERT OR REPLACE INTO daily_analytics (
+                    analytics_date, eth_price_usd,
+                    origins_floor_eth, origins_supply, origins_market_cap_usd, origins_floor_change_24h,
+                    undead_floor_eth, undead_supply, undead_market_cap_usd, undead_floor_change_24h,
+                    total_migrations, migration_percent, price_ratio, combined_market_cap_usd
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (today, live_eth_price, origins_floor, origins_supply, origins_mc, 0.0,
+                  undead_floor, undead_supply, undead_mc_calc, 0.0, total_mig, mig_pct, p_ratio, origins_mc + undead_mc_calc))
             
             conn.execute("""
                 INSERT OR REPLACE INTO daily_eth_prices (price_date, eth_price_usd)
