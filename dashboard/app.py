@@ -80,15 +80,29 @@ def get_strategy_nft_holdings():
 
 
 def get_gustr_burn_amount():
-    """Get GUSTR tokens burned (sent to dead address)"""
+    """Get GUSTR tokens burned from TokenStrategy API"""
     try:
-        # Check balance at common burn addresses
-        # This is a placeholder - actual implementation would query etherscan
-        # For now, return 0 and can be updated when burn tracking is implemented
-        return 0
+        response = requests.get(
+            'https://www.tokenstrategy.com/api/strategies/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00',
+            timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            # Burned amount is in raw token units (18 decimals)
+            burned_raw = int(data.get('burned', 0))
+            # Convert to human readable (divide by 10^18)
+            burned_tokens = burned_raw / (10 ** 18)
+            # Total supply is 1 billion
+            total_supply = 1_000_000_000
+            burn_percent = (burned_tokens / total_supply) * 100
+            return {
+                'burned_tokens': burned_tokens,
+                'burn_percent': burn_percent
+            }
+        return {'burned_tokens': 0, 'burn_percent': 0}
     except Exception as e:
         print(f"Error fetching GUSTR burn amount: {e}")
-        return 0
+        return {'burned_tokens': 0, 'burn_percent': 0}
 
 
 def get_quick_volume_data():
@@ -718,8 +732,8 @@ def get_gustr_data():
         # Get NFT holdings count
         nft_holdings = get_strategy_nft_holdings()
 
-        # Get burn amount (placeholder for now)
-        burn_amount = get_gustr_burn_amount()
+        # Get burn data from TokenStrategy
+        burn_data = get_gustr_burn_amount()
 
         if token_data:
             response_data = {
@@ -741,7 +755,8 @@ def get_gustr_data():
                 },
                 'strategy': {
                     'nft_holdings': nft_holdings,
-                    'burn_amount': burn_amount
+                    'burned_tokens': burn_data['burned_tokens'],
+                    'burn_percent': burn_data['burn_percent']
                 }
             }
             return jsonify(response_data)

@@ -208,16 +208,10 @@
 
                 <div class="metric-card bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200">
                     <div class="text-xs text-slate-600 font-medium mb-1">GUSTR Burned</div>
-                    <div class="text-lg font-bold text-gray-800" id="gustrBurned">---</div>
-                    <div class="text-xs text-gray-500">tokens</div>
+                    <div class="text-lg font-bold text-gray-800" id="gustrBurned">---%</div>
+                    <div class="text-xs text-gray-500" id="gustrBurnedAmount">--- tokens</div>
                 </div>
             </div>
-        </div>
-
-        <!-- GUSTR Price Chart -->
-        <div class="card rounded-xl shadow-lg p-6 mb-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-6">GUSTR Market Cap</h2>
-            <div id="gustrChart" class="rounded-lg bg-white shadow" style="height: 350px;"></div>
         </div>
 
     </div>
@@ -380,9 +374,6 @@
 
                 // Update GUSTR data
                 updateGUSTRUI(gustrData);
-                if (gustrData.token && gustrData.token.market_cap) {
-                    renderGUSTRChart(gustrData.token.market_cap);
-                }
 
                 updateStatus(false);
             })
@@ -456,72 +447,11 @@ Live dashboard:`;
             // NFT Holdings
             document.getElementById('gustrNftHoldings').textContent = strategy.nft_holdings || 0;
 
-            // Burned tokens
-            const burnAmount = strategy.burn_amount || 0;
-            document.getElementById('gustrBurned').textContent = burnAmount > 0 ? formatNumber(burnAmount) : 'TBD';
-        }
-
-        function renderGUSTRChart(marketCap) {
-            // Since we don't have historical GUSTR data yet, show current value
-            // In the future, this could be enhanced with historical tracking
-            const now = new Date();
-            const dates = [now.toISOString().split('T')[0]];
-            const values = [marketCap];
-
-            const chartData = [{
-                x: dates,
-                y: values,
-                type: 'scatter',
-                mode: 'lines+markers',
-                name: 'Market Cap',
-                line: { color: '#f59e0b', width: 3 },
-                marker: { size: 12, color: '#f59e0b', line: { color: 'white', width: 2 } },
-                hovertemplate: '<b>$%{y:,.0f}</b><br>%{x}<extra></extra>',
-                fill: 'tozeroy',
-                fillcolor: 'rgba(245, 158, 11, 0.1)'
-            }];
-
-            const layout = {
-                title: {
-                    text: 'GUSTR Market Cap',
-                    x: 0.5,
-                    font: { size: 18, family: 'Arial, sans-serif', color: '#1f2937' }
-                },
-                xaxis: {
-                    title: '',
-                    showgrid: false,
-                    showline: true,
-                    linecolor: '#e5e7eb',
-                    tickfont: { size: 12, color: '#6b7280' }
-                },
-                yaxis: {
-                    title: 'Market Cap (USD)',
-                    titlefont: { size: 14, color: '#6b7280' },
-                    showgrid: true,
-                    gridcolor: '#f3f4f6',
-                    showline: true,
-                    linecolor: '#e5e7eb',
-                    tickfont: { size: 12, color: '#6b7280' },
-                    tickformat: '$,.0f'
-                },
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                margin: { t: 50, l: 80, r: 20, b: 40 },
-                showlegend: false,
-                height: 350,
-                annotations: [{
-                    x: dates[0],
-                    y: marketCap,
-                    text: formatCurrency(marketCap),
-                    showarrow: true,
-                    arrowhead: 2,
-                    ax: 40,
-                    ay: -40,
-                    font: { size: 14, color: '#f59e0b' }
-                }]
-            };
-
-            Plotly.newPlot('gustrChart', chartData, layout, { responsive: true, displayModeBar: false });
+            // Burned tokens - show percentage
+            const burnPercent = strategy.burn_percent || 0;
+            const burnedTokens = strategy.burned_tokens || 0;
+            document.getElementById('gustrBurned').textContent = burnPercent.toFixed(2) + '%';
+            document.getElementById('gustrBurnedAmount').textContent = formatNumber(burnedTokens, 0) + ' tokens';
         }
 
         function loadGUSTRData() {
@@ -529,9 +459,6 @@ Live dashboard:`;
                 .then(response => response.json())
                 .then(data => {
                     updateGUSTRUI(data);
-                    if (data.token && data.token.market_cap) {
-                        renderGUSTRChart(data.token.market_cap);
-                    }
                 })
                 .catch(error => {
                     console.error('Error loading GUSTR data:', error);
