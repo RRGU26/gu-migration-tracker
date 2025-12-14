@@ -6,6 +6,7 @@
     <title>Genuine Undead Analytics - Live Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         .gradient-bg {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -159,6 +160,66 @@
             </div>
         </div>
 
+        <!-- GUSTR Token Metrics -->
+        <div class="card rounded-xl shadow-lg p-6 mb-6">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center space-x-3">
+                    <div class="text-2xl">🪙</div>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">GUSTR Token Metrics</h2>
+                        <p class="text-xs text-gray-500">GenuineUndeadStrategy Token</p>
+                    </div>
+                </div>
+                <a href="https://www.tokenstrategy.com/strategies/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00" target="_blank" class="text-blue-500 hover:text-blue-700 text-sm flex items-center">
+                    <i class="fas fa-external-link-alt mr-1"></i>TokenStrategy
+                </a>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div class="metric-card bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl border border-amber-200">
+                    <div class="text-xs text-amber-600 font-medium mb-1">Market Cap</div>
+                    <div class="text-lg font-bold text-gray-800" id="gustrMarketCap">$---</div>
+                    <div class="text-xs" id="gustrPriceChange24h">---%</div>
+                </div>
+
+                <div class="metric-card bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-xl border border-emerald-200">
+                    <div class="text-xs text-emerald-600 font-medium mb-1">Token Price</div>
+                    <div class="text-lg font-bold text-gray-800" id="gustrPrice">$---</div>
+                    <div class="text-xs text-gray-500" id="gustrPriceEth">--- ETH</div>
+                </div>
+
+                <div class="metric-card bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 rounded-xl border border-cyan-200">
+                    <div class="text-xs text-cyan-600 font-medium mb-1">24h Volume</div>
+                    <div class="text-lg font-bold text-gray-800" id="gustrVolume">$---</div>
+                    <div class="text-xs text-gray-500" id="gustrTrades">--- trades</div>
+                </div>
+
+                <div class="metric-card bg-gradient-to-br from-violet-50 to-violet-100 p-4 rounded-xl border border-violet-200">
+                    <div class="text-xs text-violet-600 font-medium mb-1">Liquidity</div>
+                    <div class="text-lg font-bold text-gray-800" id="gustrLiquidity">$---</div>
+                    <div class="text-xs text-gray-500">Pool depth</div>
+                </div>
+
+                <div class="metric-card bg-gradient-to-br from-rose-50 to-rose-100 p-4 rounded-xl border border-rose-200">
+                    <div class="text-xs text-rose-600 font-medium mb-1">NFTs Held</div>
+                    <div class="text-lg font-bold text-gray-800" id="gustrNftHoldings">---</div>
+                    <div class="text-xs text-gray-500">by strategy</div>
+                </div>
+
+                <div class="metric-card bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200">
+                    <div class="text-xs text-slate-600 font-medium mb-1">GUSTR Burned</div>
+                    <div class="text-lg font-bold text-gray-800" id="gustrBurned">---</div>
+                    <div class="text-xs text-gray-500">tokens</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GUSTR Price Chart -->
+        <div class="card rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-6">GUSTR Market Cap</h2>
+            <div id="gustrChart" class="rounded-lg bg-white shadow" style="height: 350px;"></div>
+        </div>
+
     </div>
 
     <!-- Footer -->
@@ -304,21 +365,31 @@
             updateStatus(true);
             console.log('Refreshing data...');
 
-            fetch('/api/refresh')
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Refresh data received:', data);
-                    if (data.error) {
-                        console.error('Refresh API error:', data.error);
-                    } else {
-                        updateUI(data);
-                    }
-                    updateStatus(false);
-                })
-                .catch(error => {
-                    console.error('Refresh fetch error:', error);
-                    updateStatus(false);
-                });
+            // Refresh both main data and GUSTR data in parallel
+            Promise.all([
+                fetch('/api/refresh').then(r => r.json()),
+                fetch('/api/gustr').then(r => r.json())
+            ])
+            .then(([mainData, gustrData]) => {
+                console.log('Refresh data received:', mainData);
+                if (mainData.error) {
+                    console.error('Refresh API error:', mainData.error);
+                } else {
+                    updateUI(mainData);
+                }
+
+                // Update GUSTR data
+                updateGUSTRUI(gustrData);
+                if (gustrData.token && gustrData.token.market_cap) {
+                    renderGUSTRChart(gustrData.token.market_cap);
+                }
+
+                updateStatus(false);
+            })
+            .catch(error => {
+                console.error('Refresh fetch error:', error);
+                updateStatus(false);
+            });
         }
 
         function shareToTwitter() {
@@ -346,11 +417,134 @@ Live dashboard:`;
                 });
         }
 
+        // GUSTR Data Functions
+        function formatSmallNumber(num) {
+            if (num < 0.00001) return num.toExponential(4);
+            if (num < 0.001) return num.toFixed(8);
+            if (num < 1) return num.toFixed(6);
+            return num.toFixed(4);
+        }
+
+        function updateGUSTRUI(data) {
+            if (!data || data.error) {
+                console.error('GUSTR data error:', data?.error);
+                return;
+            }
+
+            const token = data.token;
+            const strategy = data.strategy;
+
+            // Market Cap
+            document.getElementById('gustrMarketCap').textContent = formatCurrency(token.market_cap);
+            const priceChangeEl = document.getElementById('gustrPriceChange24h');
+            const priceChange = token.price_change_24h || 0;
+            priceChangeEl.textContent = (priceChange >= 0 ? '+' : '') + priceChange.toFixed(1) + '%';
+            priceChangeEl.className = priceChange >= 0 ? 'text-xs text-green-600' : 'text-xs text-red-600';
+
+            // Token Price
+            document.getElementById('gustrPrice').textContent = '$' + formatSmallNumber(token.price_usd);
+            document.getElementById('gustrPriceEth').textContent = formatSmallNumber(token.price_eth) + ' ETH';
+
+            // Volume
+            document.getElementById('gustrVolume').textContent = formatCurrency(token.volume_24h);
+            const totalTrades = (token.buys_24h || 0) + (token.sells_24h || 0);
+            document.getElementById('gustrTrades').textContent = totalTrades + ' trades';
+
+            // Liquidity
+            document.getElementById('gustrLiquidity').textContent = formatCurrency(token.liquidity_usd);
+
+            // NFT Holdings
+            document.getElementById('gustrNftHoldings').textContent = strategy.nft_holdings || 0;
+
+            // Burned tokens
+            const burnAmount = strategy.burn_amount || 0;
+            document.getElementById('gustrBurned').textContent = burnAmount > 0 ? formatNumber(burnAmount) : 'TBD';
+        }
+
+        function renderGUSTRChart(marketCap) {
+            // Since we don't have historical GUSTR data yet, show current value
+            // In the future, this could be enhanced with historical tracking
+            const now = new Date();
+            const dates = [now.toISOString().split('T')[0]];
+            const values = [marketCap];
+
+            const chartData = [{
+                x: dates,
+                y: values,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Market Cap',
+                line: { color: '#f59e0b', width: 3 },
+                marker: { size: 12, color: '#f59e0b', line: { color: 'white', width: 2 } },
+                hovertemplate: '<b>$%{y:,.0f}</b><br>%{x}<extra></extra>',
+                fill: 'tozeroy',
+                fillcolor: 'rgba(245, 158, 11, 0.1)'
+            }];
+
+            const layout = {
+                title: {
+                    text: 'GUSTR Market Cap',
+                    x: 0.5,
+                    font: { size: 18, family: 'Arial, sans-serif', color: '#1f2937' }
+                },
+                xaxis: {
+                    title: '',
+                    showgrid: false,
+                    showline: true,
+                    linecolor: '#e5e7eb',
+                    tickfont: { size: 12, color: '#6b7280' }
+                },
+                yaxis: {
+                    title: 'Market Cap (USD)',
+                    titlefont: { size: 14, color: '#6b7280' },
+                    showgrid: true,
+                    gridcolor: '#f3f4f6',
+                    showline: true,
+                    linecolor: '#e5e7eb',
+                    tickfont: { size: 12, color: '#6b7280' },
+                    tickformat: '$,.0f'
+                },
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                margin: { t: 50, l: 80, r: 20, b: 40 },
+                showlegend: false,
+                height: 350,
+                annotations: [{
+                    x: dates[0],
+                    y: marketCap,
+                    text: formatCurrency(marketCap),
+                    showarrow: true,
+                    arrowhead: 2,
+                    ax: 40,
+                    ay: -40,
+                    font: { size: 14, color: '#f59e0b' }
+                }]
+            };
+
+            Plotly.newPlot('gustrChart', chartData, layout, { responsive: true, displayModeBar: false });
+        }
+
+        function loadGUSTRData() {
+            fetch('/api/gustr')
+                .then(response => response.json())
+                .then(data => {
+                    updateGUSTRUI(data);
+                    if (data.token && data.token.market_cap) {
+                        renderGUSTRChart(data.token.market_cap);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading GUSTR data:', error);
+                });
+        }
+
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
+            loadGUSTRData();
             // Auto-refresh every 5 minutes
             setInterval(loadData, 5 * 60 * 1000);
+            setInterval(loadGUSTRData, 5 * 60 * 1000);
         });
     </script>
 </body>

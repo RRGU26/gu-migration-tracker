@@ -24,6 +24,73 @@ app = Flask(__name__)
 db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'gu_migration.db')
 db = DatabaseManager(db_path)
 
+def get_gustr_token_data():
+    """Get GUSTR token data from DexScreener API"""
+    try:
+        response = requests.get(
+            'https://api.dexscreener.com/latest/dex/tokens/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00',
+            timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('pairs') and len(data['pairs']) > 0:
+                pair = data['pairs'][0]
+                return {
+                    'price_usd': float(pair.get('priceUsd', 0)),
+                    'price_eth': float(pair.get('priceNative', 0)),
+                    'market_cap': float(pair.get('marketCap', 0) or pair.get('fdv', 0)),
+                    'liquidity_usd': float(pair.get('liquidity', {}).get('usd', 0)),
+                    'volume_24h': float(pair.get('volume', {}).get('h24', 0)),
+                    'price_change_24h': float(pair.get('priceChange', {}).get('h24', 0)),
+                    'price_change_6h': float(pair.get('priceChange', {}).get('h6', 0)),
+                    'price_change_1h': float(pair.get('priceChange', {}).get('h1', 0)),
+                    'buys_24h': int(pair.get('txns', {}).get('h24', {}).get('buys', 0)),
+                    'sells_24h': int(pair.get('txns', {}).get('h24', {}).get('sells', 0))
+                }
+        return None
+    except Exception as e:
+        print(f"Error fetching GUSTR data: {e}")
+        return None
+
+
+def get_strategy_nft_holdings():
+    """Get NFT holdings count for the GUSTR strategy contract"""
+    try:
+        # Strategy contract address
+        strategy_address = '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00'
+        headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+
+        # Query OpenSea for NFTs owned by the strategy
+        response = requests.get(
+            f'https://api.opensea.io/api/v2/chain/ethereum/account/{strategy_address}/nfts',
+            headers=headers,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            nfts = data.get('nfts', [])
+            # Count NFTs from Genuine Undead collection
+            gu_nfts = [nft for nft in nfts if 'genuine' in nft.get('collection', '').lower() or 'undead' in nft.get('collection', '').lower()]
+            return len(gu_nfts) if gu_nfts else len(nfts)
+        return 0
+    except Exception as e:
+        print(f"Error fetching strategy NFT holdings: {e}")
+        return 0
+
+
+def get_gustr_burn_amount():
+    """Get GUSTR tokens burned (sent to dead address)"""
+    try:
+        # Check balance at common burn addresses
+        # This is a placeholder - actual implementation would query etherscan
+        # For now, return 0 and can be updated when burn tracking is implemented
+        return 0
+    except Exception as e:
+        print(f"Error fetching GUSTR burn amount: {e}")
+        return 0
+
+
 def get_quick_volume_data():
     """Get volume data directly from OpenSea API"""
     try:
@@ -640,6 +707,56 @@ def get_chart_data():
             'error': str(e),
             'charts': []
         }), 500
+
+@app.route('/api/gustr')
+def get_gustr_data():
+    """Get GUSTR token metrics"""
+    try:
+        # Get token data from DexScreener
+        token_data = get_gustr_token_data()
+
+        # Get NFT holdings count
+        nft_holdings = get_strategy_nft_holdings()
+
+        # Get burn amount (placeholder for now)
+        burn_amount = get_gustr_burn_amount()
+
+        if token_data:
+            response_data = {
+                'timestamp': datetime.now().isoformat(),
+                'token': {
+                    'name': 'GenuineUndeadStrategy',
+                    'symbol': 'GUSTR',
+                    'address': '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00',
+                    'price_usd': token_data['price_usd'],
+                    'price_eth': token_data['price_eth'],
+                    'market_cap': token_data['market_cap'],
+                    'liquidity_usd': token_data['liquidity_usd'],
+                    'volume_24h': token_data['volume_24h'],
+                    'price_change_24h': token_data['price_change_24h'],
+                    'price_change_6h': token_data['price_change_6h'],
+                    'price_change_1h': token_data['price_change_1h'],
+                    'buys_24h': token_data['buys_24h'],
+                    'sells_24h': token_data['sells_24h']
+                },
+                'strategy': {
+                    'nft_holdings': nft_holdings,
+                    'burn_amount': burn_amount
+                }
+            }
+            return jsonify(response_data)
+        else:
+            return jsonify({
+                'error': 'Unable to fetch GUSTR data',
+                'timestamp': datetime.now().isoformat()
+            }), 500
+
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 
 @app.route('/health')
 def health():
