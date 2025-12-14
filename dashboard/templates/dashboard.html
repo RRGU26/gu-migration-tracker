@@ -175,7 +175,7 @@
                 </a>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div class="metric-card bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl border border-amber-200">
                     <div class="text-xs text-amber-600 font-medium mb-1">Market Cap</div>
                     <div class="text-lg font-bold text-gray-800" id="gustrMarketCap">$---</div>
@@ -192,12 +192,6 @@
                     <div class="text-xs text-cyan-600 font-medium mb-1">24h Volume</div>
                     <div class="text-lg font-bold text-gray-800" id="gustrVolume">$---</div>
                     <div class="text-xs text-gray-500" id="gustrTrades">--- trades</div>
-                </div>
-
-                <div class="metric-card bg-gradient-to-br from-violet-50 to-violet-100 p-4 rounded-xl border border-violet-200">
-                    <div class="text-xs text-violet-600 font-medium mb-1">Liquidity</div>
-                    <div class="text-lg font-bold text-gray-800" id="gustrLiquidity">$---</div>
-                    <div class="text-xs text-gray-500">Pool depth</div>
                 </div>
 
                 <div class="metric-card bg-gradient-to-br from-rose-50 to-rose-100 p-4 rounded-xl border border-rose-200">
@@ -440,9 +434,6 @@ Live dashboard:`;
             document.getElementById('gustrVolume').textContent = formatCurrency(token.volume_24h);
             const totalTrades = (token.buys_24h || 0) + (token.sells_24h || 0);
             document.getElementById('gustrTrades').textContent = totalTrades + ' trades';
-
-            // Liquidity
-            document.getElementById('gustrLiquidity').textContent = formatCurrency(token.liquidity_usd);
 
             // NFT Holdings
             document.getElementById('gustrNftHoldings').textContent = strategy.nft_holdings || 0;

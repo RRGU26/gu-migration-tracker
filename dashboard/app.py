@@ -88,8 +88,8 @@ def get_gustr_burn_amount():
         )
         if response.status_code == 200:
             data = response.json()
-            # Burned amount is in raw token units (18 decimals)
-            burned_raw = int(data.get('burned', 0))
+            # Burned amount is in raw token units (18 decimals) - field is "burnedAmount"
+            burned_raw = int(data.get('burnedAmount', 0))
             # Convert to human readable (divide by 10^18)
             burned_tokens = burned_raw / (10 ** 18)
             # Total supply is 1 billion
