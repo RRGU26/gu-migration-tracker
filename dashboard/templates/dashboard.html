@@ -135,26 +135,26 @@
 
         <!-- 30-Day Trends -->
         <div class="card rounded-xl shadow-lg p-4 mb-4">
-            <h2 class="text-xl font-bold text-gray-800 mb-6">Genuine Undead - 30-Day Trends</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Genuine Undead - 30-Day Trends</h2>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div class="text-center bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-xl border border-blue-200">
-                    <div class="text-3xl font-bold text-blue-600" id="floorPriceChange30d">---%</div>
-                    <div class="text-sm text-gray-700 font-medium mt-1">Floor Price</div>
+                <div class="metric-card bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
+                    <div class="text-xs text-blue-600 font-medium mb-1">Floor Price</div>
+                    <div class="text-lg font-bold text-gray-800" id="floorPriceChange30d">---%</div>
                     <div class="text-xs text-gray-500">30-day change</div>
                 </div>
-                <div class="text-center bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-xl border border-green-200">
-                    <div class="text-3xl font-bold text-green-600" id="migrations30d">+0</div>
-                    <div class="text-sm text-gray-700 font-medium mt-1">Migrations</div>
+                <div class="metric-card bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
+                    <div class="text-xs text-green-600 font-medium mb-1">Migrations</div>
+                    <div class="text-lg font-bold text-gray-800" id="migrations30d">+0</div>
                     <div class="text-xs text-gray-500">Last 30 days</div>
                 </div>
-                <div class="text-center bg-gradient-to-br from-purple-50 to-purple-100 p-5 rounded-xl border border-purple-200">
-                    <div class="text-3xl font-bold text-purple-600" id="volumeTrend30d">-.-- ETH</div>
-                    <div class="text-sm text-gray-700 font-medium mt-1">Avg Volume</div>
+                <div class="metric-card bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
+                    <div class="text-xs text-purple-600 font-medium mb-1">Avg Volume</div>
+                    <div class="text-lg font-bold text-gray-800" id="volumeTrend30d">-.-- ETH</div>
                     <div class="text-xs text-gray-500">Daily average</div>
                 </div>
-                <div class="text-center bg-gradient-to-br from-yellow-50 to-yellow-100 p-5 rounded-xl border border-yellow-200">
-                    <div class="text-3xl font-bold text-yellow-600" id="diamondHands">--%</div>
-                    <div class="text-sm text-gray-700 font-medium mt-1">Diamond Hands</div>
+                <div class="metric-card bg-gradient-to-br from-yellow-50 to-yellow-100 p-3 rounded-lg border border-yellow-200">
+                    <div class="text-xs text-yellow-600 font-medium mb-1">Diamond Hands</div>
+                    <div class="text-lg font-bold text-gray-800" id="diamondHands">--%</div>
                     <div class="text-xs text-gray-500">No sales in 30d</div>
                 </div>
             </div>
@@ -395,7 +395,7 @@
                 const floorChange30d = data.trends.floor_price_change_30d || 0;
                 const floorElement = document.getElementById('floorPriceChange30d');
                 floorElement.textContent = (floorChange30d >= 0 ? '+' : '') + floorChange30d.toFixed(1) + '%';
-                floorElement.className = floorChange30d >= 0 ? 'text-3xl font-bold text-green-600' : 'text-3xl font-bold text-red-600';
+                floorElement.className = floorChange30d >= 0 ? 'text-lg font-bold text-gray-800' : 'text-3xl font-bold text-red-600';
 
                 // Migrations (30d)
                 const migrations = data.trends.supply_growth_30d || 0;
