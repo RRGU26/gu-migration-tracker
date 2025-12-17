@@ -140,3 +140,15 @@ CREATE INDEX IF NOT EXISTS idx_daily_analytics_date ON daily_analytics(analytics
 INSERT OR IGNORE INTO collections (slug, name, contract_address, opensea_url) VALUES 
 ('gu-origins', 'GU Origins', '0x209e639a0EC166Ac7a1A4bA41968fa967dB30221', 'https://opensea.io/collection/gu-origins'),
 ('genuine-undead', 'Genuine Undead', '0x39509d8e1dd96cc8bad301ea65c75c7deb52374c', 'https://opensea.io/collection/genuine-undead');
+-- GUSTR token daily snapshots (for tracking holder count and other metrics)
+CREATE TABLE IF NOT EXISTS gustr_daily_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_date DATE UNIQUE NOT NULL,
+    holder_count INTEGER,
+    market_cap_usd DECIMAL(15,2),
+    price_usd DECIMAL(18,10),
+    volume_24h_usd DECIMAL(15,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_gustr_snapshots_date ON gustr_daily_snapshots(snapshot_date);

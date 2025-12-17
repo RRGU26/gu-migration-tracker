@@ -107,6 +107,62 @@ def get_gustr_burn_amount():
         return {'burned_tokens': 0, 'burn_percent': 0}
 
 
+def get_gustr_holder_count():
+    """Get GUSTR token holder count from Etherscan API"""
+    try:
+        # GUSTR token contract address
+        gustr_address = '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00'
+
+        # Try Etherscan API - use free tier (works without API key, just rate limited)
+        etherscan_url = f'https://api.etherscan.io/api?module=token&action=tokenholderlist&contractaddress={gustr_address}&page=1&offset=10000'
+
+        response = requests.get(etherscan_url, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == '1' and data.get('result'):
+                holder_count = len(data['result'])
+                return {'holder_count': holder_count, 'source': 'etherscan'}
+
+        # Fallback: Return None if API fails
+        return {'holder_count': None, 'source': None}
+    except Exception as e:
+        print(f"Error fetching GUSTR holder count: {e}")
+        return {'holder_count': None, 'source': None}
+
+
+def get_gustr_holder_change():
+    """Get GUSTR holder count change from database"""
+    try:
+        with db.get_connection() as conn:
+            # Get yesterday's holder count
+            cursor = conn.execute("""
+                SELECT holder_count FROM gustr_daily_snapshots
+                WHERE snapshot_date = date('now', '-1 day')
+                LIMIT 1
+            """)
+            row = cursor.fetchone()
+            if row and row['holder_count']:
+                return row['holder_count']
+        return None
+    except Exception as e:
+        print(f"Error getting GUSTR holder change: {e}")
+        return None
+
+
+def save_gustr_snapshot(holder_count, market_cap, price_usd, volume_24h):
+    """Save daily GUSTR snapshot to database"""
+    try:
+        with db.get_connection() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO gustr_daily_snapshots
+                (snapshot_date, holder_count, market_cap_usd, price_usd, volume_24h_usd)
+                VALUES (date('now'), ?, ?, ?, ?)
+            """, (holder_count, market_cap, price_usd, volume_24h))
+            conn.commit()
+    except Exception as e:
+        print(f"Error saving GUSTR snapshot: {e}")
+
+
 def get_quick_volume_data():
     """Get volume data directly from OpenSea API"""
     try:
@@ -737,6 +793,25 @@ def get_gustr_data():
         # Get burn data from TokenStrategy
         burn_data = get_gustr_burn_amount()
 
+        # Get holder count from Etherscan
+        holder_data = get_gustr_holder_count()
+        holder_count = holder_data.get('holder_count')
+
+        # Get yesterday's holder count for % change
+        yesterday_holders = get_gustr_holder_change()
+        holder_change_pct = None
+        if holder_count and yesterday_holders and yesterday_holders > 0:
+            holder_change_pct = ((holder_count - yesterday_holders) / yesterday_holders) * 100
+
+        # Save today's snapshot if we have holder data
+        if token_data and holder_count:
+            save_gustr_snapshot(
+                holder_count,
+                token_data.get('market_cap', 0),
+                token_data.get('price_usd', 0),
+                token_data.get('volume_24h', 0)
+            )
+
         if token_data:
             response_data = {
                 'timestamp': datetime.now().isoformat(),
@@ -753,7 +828,9 @@ def get_gustr_data():
                     'price_change_6h': token_data['price_change_6h'],
                     'price_change_1h': token_data['price_change_1h'],
                     'buys_24h': token_data['buys_24h'],
-                    'sells_24h': token_data['sells_24h']
+                    'sells_24h': token_data['sells_24h'],
+                    'holder_count': holder_count,
+                    'holder_change_24h': holder_change_pct
                 },
                 'strategy': {
                     'nft_holdings': nft_holdings,

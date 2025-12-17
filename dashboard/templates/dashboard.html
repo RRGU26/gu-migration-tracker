@@ -175,7 +175,7 @@
                 </a>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div class="metric-card bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl border border-amber-200">
                     <div class="text-xs text-amber-600 font-medium mb-1">Market Cap</div>
                     <div class="text-lg font-bold text-gray-800" id="gustrMarketCap">$---</div>
@@ -186,6 +186,12 @@
                     <div class="text-xs text-emerald-600 font-medium mb-1">Token Price</div>
                     <div class="text-lg font-bold text-gray-800" id="gustrPrice">$---</div>
                     <div class="text-xs text-gray-500" id="gustrPriceEth">--- ETH</div>
+                </div>
+
+                <div class="metric-card bg-gradient-to-br from-violet-50 to-violet-100 p-4 rounded-xl border border-violet-200">
+                    <div class="text-xs text-violet-600 font-medium mb-1">Holders</div>
+                    <div class="text-lg font-bold text-gray-800" id="gustrHolders">---</div>
+                    <div class="text-xs" id="gustrHolderChange">---%</div>
                 </div>
 
                 <div class="metric-card bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 rounded-xl border border-cyan-200">
@@ -429,6 +435,19 @@ Live dashboard:`;
             // Token Price
             document.getElementById('gustrPrice').textContent = '$' + formatSmallNumber(token.price_usd);
             document.getElementById('gustrPriceEth').textContent = formatSmallNumber(token.price_eth) + ' ETH';
+
+            // Holder Count
+            const holderCount = token.holder_count;
+            document.getElementById('gustrHolders').textContent = holderCount ? holderCount.toLocaleString() : '---';
+            const holderChangeEl = document.getElementById('gustrHolderChange');
+            const holderChange = token.holder_change_24h;
+            if (holderChange !== null && holderChange !== undefined) {
+                holderChangeEl.textContent = (holderChange >= 0 ? '+' : '') + holderChange.toFixed(1) + '% 24h';
+                holderChangeEl.className = holderChange >= 0 ? 'text-xs text-green-600' : 'text-xs text-red-600';
+            } else {
+                holderChangeEl.textContent = 'tracking...';
+                holderChangeEl.className = 'text-xs text-gray-500';
+            }
 
             // Volume
             document.getElementById('gustrVolume').textContent = formatCurrency(token.volume_24h);
