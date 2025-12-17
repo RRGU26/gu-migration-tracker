@@ -35,17 +35,31 @@ def get_gustr_token_data():
             data = response.json()
             if data.get('pairs') and len(data['pairs']) > 0:
                 pair = data['pairs'][0]
+                txns = pair.get('txns', {})
+                volume = pair.get('volume', {})
+                price_change = pair.get('priceChange', {})
+
                 return {
                     'price_usd': float(pair.get('priceUsd', 0)),
                     'price_eth': float(pair.get('priceNative', 0)),
                     'market_cap': float(pair.get('marketCap', 0) or pair.get('fdv', 0)),
                     'liquidity_usd': float(pair.get('liquidity', {}).get('usd', 0)),
-                    'volume_24h': float(pair.get('volume', {}).get('h24', 0)),
-                    'price_change_24h': float(pair.get('priceChange', {}).get('h24', 0)),
-                    'price_change_6h': float(pair.get('priceChange', {}).get('h6', 0)),
-                    'price_change_1h': float(pair.get('priceChange', {}).get('h1', 0)),
-                    'buys_24h': int(pair.get('txns', {}).get('h24', {}).get('buys', 0)),
-                    'sells_24h': int(pair.get('txns', {}).get('h24', {}).get('sells', 0))
+                    'volume_24h': float(volume.get('h24', 0)),
+                    'volume_6h': float(volume.get('h6', 0)),
+                    'volume_1h': float(volume.get('h1', 0)),
+                    'volume_5m': float(volume.get('m5', 0)),
+                    'price_change_24h': float(price_change.get('h24', 0) or 0),
+                    'price_change_6h': float(price_change.get('h6', 0) or 0),
+                    'price_change_1h': float(price_change.get('h1', 0) or 0),
+                    'price_change_5m': float(price_change.get('m5', 0) or 0),
+                    'buys_24h': int(txns.get('h24', {}).get('buys', 0)),
+                    'sells_24h': int(txns.get('h24', {}).get('sells', 0)),
+                    'buys_6h': int(txns.get('h6', {}).get('buys', 0)),
+                    'sells_6h': int(txns.get('h6', {}).get('sells', 0)),
+                    'buys_1h': int(txns.get('h1', {}).get('buys', 0)),
+                    'sells_1h': int(txns.get('h1', {}).get('sells', 0)),
+                    'buys_5m': int(txns.get('m5', {}).get('buys', 0)),
+                    'sells_5m': int(txns.get('m5', {}).get('sells', 0))
                 }
         return None
     except Exception as e:
@@ -829,11 +843,21 @@ def get_gustr_data():
                     'market_cap': token_data['market_cap'],
                     'liquidity_usd': token_data['liquidity_usd'],
                     'volume_24h': token_data['volume_24h'],
+                    'volume_6h': token_data.get('volume_6h', 0),
+                    'volume_1h': token_data.get('volume_1h', 0),
+                    'volume_5m': token_data.get('volume_5m', 0),
                     'price_change_24h': token_data['price_change_24h'],
                     'price_change_6h': token_data['price_change_6h'],
                     'price_change_1h': token_data['price_change_1h'],
+                    'price_change_5m': token_data.get('price_change_5m', 0),
                     'buys_24h': token_data['buys_24h'],
                     'sells_24h': token_data['sells_24h'],
+                    'buys_6h': token_data.get('buys_6h', 0),
+                    'sells_6h': token_data.get('sells_6h', 0),
+                    'buys_1h': token_data.get('buys_1h', 0),
+                    'sells_1h': token_data.get('sells_1h', 0),
+                    'buys_5m': token_data.get('buys_5m', 0),
+                    'sells_5m': token_data.get('sells_5m', 0),
                     'holder_count': holder_count,
                     'holder_change_24h': holder_change_pct
                 },

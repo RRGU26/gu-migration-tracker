@@ -85,8 +85,8 @@
         </div>
 
         <!-- Live Metrics -->
-        <div class="card rounded-xl shadow-lg p-6 mb-6">
-            <div class="flex items-center justify-between mb-6">
+        <div class="card rounded-xl shadow-lg p-4 mb-4">
+            <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-bold text-gray-800">Genuine Undead - Live Metrics</h2>
                 <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium flex items-center">
                     <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
@@ -94,38 +94,38 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                <div class="metric-card bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div class="metric-card bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
                     <div class="text-xs text-purple-600 font-medium mb-1">Floor Price</div>
                     <div class="text-lg font-bold text-gray-800" id="undeadFloorETH">-.---- ETH</div>
                     <div class="text-xs text-gray-500" id="undeadFloorUSD">$---</div>
                 </div>
 
-                <div class="metric-card bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                <div class="metric-card bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
                     <div class="text-xs text-blue-600 font-medium mb-1">24h Volume</div>
                     <div class="text-lg font-bold text-gray-800" id="undeadVolume">-.-- ETH</div>
                     <div class="text-xs text-gray-500" id="undeadVolumeUSD">$---</div>
                 </div>
 
-                <div class="metric-card bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+                <div class="metric-card bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
                     <div class="text-xs text-green-600 font-medium mb-1">Market Cap</div>
                     <div class="text-lg font-bold text-gray-800" id="undeadMarketCap">$--M</div>
                     <div class="text-xs" id="undeadMarketCapChange">---%</div>
                 </div>
 
-                <div class="metric-card bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 rounded-xl border border-indigo-200">
+                <div class="metric-card bg-gradient-to-br from-indigo-50 to-indigo-100 p-3 rounded-lg border border-indigo-200">
                     <div class="text-xs text-indigo-600 font-medium mb-1">Total Supply</div>
                     <div class="text-lg font-bold text-gray-800" id="undeadSupply">-,---</div>
                     <div class="text-xs text-gray-500">NFTs</div>
                 </div>
 
-                <div class="metric-card bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
+                <div class="metric-card bg-gradient-to-br from-orange-50 to-orange-100 p-3 rounded-lg border border-orange-200">
                     <div class="text-xs text-orange-600 font-medium mb-1">Unique Holders</div>
                     <div class="text-lg font-bold text-gray-800" id="holderCount">---</div>
                     <div class="text-xs text-gray-500">wallets</div>
                 </div>
 
-                <div class="metric-card bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-xl border border-pink-200">
+                <div class="metric-card bg-gradient-to-br from-pink-50 to-pink-100 p-3 rounded-lg border border-pink-200">
                     <div class="text-xs text-pink-600 font-medium mb-1">Listed</div>
                     <div class="text-lg font-bold text-gray-800" id="numListed">---</div>
                     <div class="text-xs text-gray-500" id="listingPercent">--% of supply</div>
@@ -134,9 +134,9 @@
         </div>
 
         <!-- 30-Day Trends -->
-        <div class="card rounded-xl shadow-lg p-6 mb-6">
+        <div class="card rounded-xl shadow-lg p-4 mb-4">
             <h2 class="text-xl font-bold text-gray-800 mb-6">Genuine Undead - 30-Day Trends</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div class="text-center bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-xl border border-blue-200">
                     <div class="text-3xl font-bold text-blue-600" id="floorPriceChange30d">---%</div>
                     <div class="text-sm text-gray-700 font-medium mt-1">Floor Price</div>
@@ -161,7 +161,7 @@
         </div>
 
         <!-- GUSTR Token Metrics -->
-        <div class="card rounded-xl shadow-lg p-6 mb-6">
+        <div class="card rounded-xl shadow-lg p-4 mb-4">
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center space-x-3">
                     <div class="text-2xl">🪙</div>
@@ -175,40 +175,132 @@
                 </a>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                <div class="metric-card bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl border border-amber-200">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="metric-card bg-gradient-to-br from-amber-50 to-amber-100 p-3 rounded-lg border border-amber-200">
                     <div class="text-xs text-amber-600 font-medium mb-1">Market Cap</div>
                     <div class="text-lg font-bold text-gray-800" id="gustrMarketCap">$---</div>
                     <div class="text-xs" id="gustrPriceChange24h">---%</div>
                 </div>
 
-                <div class="metric-card bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-xl border border-emerald-200">
+                <div class="metric-card bg-gradient-to-br from-emerald-50 to-emerald-100 p-3 rounded-lg border border-emerald-200">
                     <div class="text-xs text-emerald-600 font-medium mb-1">Token Price</div>
                     <div class="text-lg font-bold text-gray-800" id="gustrPrice">$---</div>
                     <div class="text-xs text-gray-500" id="gustrPriceEth">--- ETH</div>
                 </div>
 
-                <div class="metric-card bg-gradient-to-br from-violet-50 to-violet-100 p-4 rounded-xl border border-violet-200">
+                <div class="metric-card bg-gradient-to-br from-violet-50 to-violet-100 p-3 rounded-lg border border-violet-200">
+                    <div class="text-xs text-violet-600 font-medium mb-1">Holders</div>
                     <div class="text-lg font-bold text-gray-800" id="gustrHolders">---</div>
-                    <div class="text-xs" id="gustrHolderChange">---%</div>
+                    <div class="text-xs text-gray-500" id="gustrHolderChange">tracking...</div>
                 </div>
 
-                <div class="metric-card bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 rounded-xl border border-cyan-200">
+                <div class="metric-card bg-gradient-to-br from-cyan-50 to-cyan-100 p-3 rounded-lg border border-cyan-200">
                     <div class="text-xs text-cyan-600 font-medium mb-1">24h Volume</div>
                     <div class="text-lg font-bold text-gray-800" id="gustrVolume">$---</div>
                     <div class="text-xs text-gray-500" id="gustrTrades">--- trades</div>
                 </div>
 
-                <div class="metric-card bg-gradient-to-br from-rose-50 to-rose-100 p-4 rounded-xl border border-rose-200">
+                <div class="metric-card bg-gradient-to-br from-rose-50 to-rose-100 p-3 rounded-lg border border-rose-200">
                     <div class="text-xs text-rose-600 font-medium mb-1">NFTs Held</div>
                     <div class="text-lg font-bold text-gray-800" id="gustrNftHoldings">---</div>
                     <div class="text-xs text-gray-500">by strategy</div>
                 </div>
 
-                <div class="metric-card bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200">
+                <div class="metric-card bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-lg border border-slate-200">
                     <div class="text-xs text-slate-600 font-medium mb-1">GUSTR Burned</div>
                     <div class="text-lg font-bold text-gray-800" id="gustrBurned">---%</div>
                     <div class="text-xs text-gray-500" id="gustrBurnedAmount">--- tokens</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GUSTR Trading Activity -->
+        <div class="card rounded-lg shadow-lg p-4 mb-4">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-gray-800">GUSTR Trading Activity</h2>
+                <a href="https://dexscreener.com/ethereum/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00" target="_blank" class="text-blue-500 hover:text-blue-700 text-sm">DexScreener</a>
+            </div>
+
+            <!-- Price Change Row -->
+            <div class="grid grid-cols-4 gap-2 mb-3">
+                <div class="text-center bg-gray-800 p-2 rounded-lg">
+                    <div class="text-xs text-gray-400">5M</div>
+                    <div class="text-sm font-bold text-gray-400" id="priceChange5m">N/A</div>
+                </div>
+                <div class="text-center bg-gray-800 p-2 rounded-lg">
+                    <div class="text-xs text-gray-400">1H</div>
+                    <div class="text-sm font-bold text-gray-400" id="priceChange1h">N/A</div>
+                </div>
+                <div class="text-center bg-gray-800 p-2 rounded-lg">
+                    <div class="text-xs text-gray-400">6H</div>
+                    <div class="text-sm font-bold" id="priceChange6h">---%</div>
+                </div>
+                <div class="text-center bg-gray-700 p-2 rounded-lg">
+                    <div class="text-xs text-gray-400">24H</div>
+                    <div class="text-sm font-bold" id="priceChange24h">---%</div>
+                </div>
+            </div>
+
+            <!-- Trading Stats Grid -->
+            <div class="grid grid-cols-3 gap-3">
+                <!-- Transactions -->
+                <div class="bg-gray-50 p-3 rounded-lg border">
+                    <div class="text-xs text-gray-500 mb-1">TXNS (24h)</div>
+                    <div class="text-xl font-bold text-gray-800" id="txns24h">---</div>
+                    <div class="flex justify-between mt-2 text-xs">
+                        <div>
+                            <span class="text-gray-500">Buys</span>
+                            <span class="text-green-600 font-semibold ml-1" id="buys24h">--</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Sells</span>
+                            <span class="text-red-500 font-semibold ml-1" id="sells24h">--</span>
+                        </div>
+                    </div>
+                    <div class="flex mt-1 h-1.5 rounded overflow-hidden">
+                        <div class="bg-green-500" id="buysBar" style="width: 50%"></div>
+                        <div class="bg-red-500" id="sellsBar" style="width: 50%"></div>
+                    </div>
+                </div>
+
+                <!-- Volume -->
+                <div class="bg-gray-50 p-3 rounded-lg border">
+                    <div class="text-xs text-gray-500 mb-1">VOLUME (24h)</div>
+                    <div class="text-xl font-bold text-gray-800" id="volume24hTotal">$---</div>
+                    <div class="flex justify-between mt-2 text-xs">
+                        <div>
+                            <span class="text-gray-500">Buy</span>
+                            <span class="text-green-600 font-semibold ml-1" id="buyVol">$--</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Sell</span>
+                            <span class="text-red-500 font-semibold ml-1" id="sellVol">$--</span>
+                        </div>
+                    </div>
+                    <div class="flex mt-1 h-1.5 rounded overflow-hidden">
+                        <div class="bg-green-500" id="buyVolBar" style="width: 50%"></div>
+                        <div class="bg-red-500" id="sellVolBar" style="width: 50%"></div>
+                    </div>
+                </div>
+
+                <!-- Makers -->
+                <div class="bg-gray-50 p-3 rounded-lg border">
+                    <div class="text-xs text-gray-500 mb-1">MAKERS (24h)</div>
+                    <div class="text-xl font-bold text-gray-800" id="makers24h">---</div>
+                    <div class="flex justify-between mt-2 text-xs">
+                        <div>
+                            <span class="text-gray-500">Buyers</span>
+                            <span class="text-green-600 font-semibold ml-1" id="buyers24h">--</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Sellers</span>
+                            <span class="text-red-500 font-semibold ml-1" id="sellers24h">--</span>
+                        </div>
+                    </div>
+                    <div class="flex mt-1 h-1.5 rounded overflow-hidden">
+                        <div class="bg-green-500" id="buyersBar" style="width: 50%"></div>
+                        <div class="bg-red-500" id="sellersBar" style="width: 50%"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -461,6 +553,113 @@ Live dashboard:`;
             const burnedTokens = strategy.burned_tokens || 0;
             document.getElementById('gustrBurned').textContent = burnPercent.toFixed(2) + '%';
             document.getElementById('gustrBurnedAmount').textContent = formatNumber(burnedTokens, 0) + ' tokens';
+
+            // Trading Activity Section
+            updateTradingActivity(token);
+        }
+
+        function updateTradingActivity(token) {
+            // Price changes
+            const pc5m = token.price_change_5m;
+            const pc1h = token.price_change_1h;
+            const pc6h = token.price_change_6h;
+            const pc24h = token.price_change_24h;
+
+            const el5m = document.getElementById('priceChange5m');
+            const el1h = document.getElementById('priceChange1h');
+            const el6h = document.getElementById('priceChange6h');
+            const el24h = document.getElementById('priceChange24h');
+
+            if (el5m) {
+                if (pc5m && pc5m !== 0) {
+                    el5m.textContent = (pc5m >= 0 ? '+' : '') + pc5m.toFixed(2) + '%';
+                    el5m.className = pc5m >= 0 ? 'text-sm font-bold text-green-400' : 'text-sm font-bold text-red-400';
+                } else {
+                    el5m.textContent = 'N/A';
+                    el5m.className = 'text-sm font-bold text-gray-400';
+                }
+            }
+
+            if (el1h) {
+                if (pc1h && pc1h !== 0) {
+                    el1h.textContent = (pc1h >= 0 ? '+' : '') + pc1h.toFixed(2) + '%';
+                    el1h.className = pc1h >= 0 ? 'text-sm font-bold text-green-400' : 'text-sm font-bold text-red-400';
+                } else {
+                    el1h.textContent = 'N/A';
+                    el1h.className = 'text-sm font-bold text-gray-400';
+                }
+            }
+
+            if (el6h) {
+                el6h.textContent = (pc6h >= 0 ? '+' : '') + pc6h.toFixed(2) + '%';
+                el6h.className = pc6h >= 0 ? 'text-sm font-bold text-green-400' : 'text-sm font-bold text-red-400';
+            }
+
+            if (el24h) {
+                el24h.textContent = (pc24h >= 0 ? '+' : '') + pc24h.toFixed(2) + '%';
+                el24h.className = pc24h >= 0 ? 'text-sm font-bold text-green-400' : 'text-sm font-bold text-red-400';
+            }
+
+            // Transactions
+            const buys24h = token.buys_24h || 0;
+            const sells24h = token.sells_24h || 0;
+            const txns24h = buys24h + sells24h;
+
+            const elTxns = document.getElementById('txns24h');
+            const elBuys = document.getElementById('buys24h');
+            const elSells = document.getElementById('sells24h');
+
+            if (elTxns) elTxns.textContent = txns24h;
+            if (elBuys) elBuys.textContent = buys24h;
+            if (elSells) elSells.textContent = sells24h;
+
+            // Transaction bars
+            const buysBar = document.getElementById('buysBar');
+            const sellsBar = document.getElementById('sellsBar');
+            if (buysBar && sellsBar && txns24h > 0) {
+                const buysPct = (buys24h / txns24h) * 100;
+                buysBar.style.width = buysPct + '%';
+                sellsBar.style.width = (100 - buysPct) + '%';
+            }
+
+            // Volume
+            const vol24h = token.volume_24h || 0;
+            const elVol = document.getElementById('volume24hTotal');
+            if (elVol) elVol.textContent = formatCurrency(vol24h);
+
+            // Estimate buy/sell volume based on transaction ratio
+            const buyVolPct = txns24h > 0 ? buys24h / txns24h : 0.5;
+            const buyVol = vol24h * buyVolPct;
+            const sellVol = vol24h * (1 - buyVolPct);
+
+            const elBuyVol = document.getElementById('buyVol');
+            const elSellVol = document.getElementById('sellVol');
+            if (elBuyVol) elBuyVol.textContent = formatCurrency(buyVol);
+            if (elSellVol) elSellVol.textContent = formatCurrency(sellVol);
+
+            const buyVolBar = document.getElementById('buyVolBar');
+            const sellVolBar = document.getElementById('sellVolBar');
+            if (buyVolBar && sellVolBar) {
+                buyVolBar.style.width = (buyVolPct * 100) + '%';
+                sellVolBar.style.width = ((1 - buyVolPct) * 100) + '%';
+            }
+
+            // Makers (unique buyers/sellers) - estimate as same as txns for now
+            const elMakers = document.getElementById('makers24h');
+            const elBuyers = document.getElementById('buyers24h');
+            const elSellers = document.getElementById('sellers24h');
+
+            // Use txns as proxy for makers since API doesn't provide unique count
+            if (elMakers) elMakers.textContent = txns24h;
+            if (elBuyers) elBuyers.textContent = buys24h;
+            if (elSellers) elSellers.textContent = sells24h;
+
+            const buyersBar = document.getElementById('buyersBar');
+            const sellersBar = document.getElementById('sellersBar');
+            if (buyersBar && sellersBar && txns24h > 0) {
+                buyersBar.style.width = (buyVolPct * 100) + '%';
+                sellersBar.style.width = ((1 - buyVolPct) * 100) + '%';
+            }
         }
 
         function loadGUSTRData() {
