@@ -108,22 +108,27 @@ def get_gustr_burn_amount():
 
 
 def get_gustr_holder_count():
-    """Get GUSTR token holder count from Etherscan API"""
+    """Get GUSTR token holder count by scraping Etherscan token page"""
     try:
+        import re
         # GUSTR token contract address
         gustr_address = '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00'
 
-        # Try Etherscan API - use free tier (works without API key, just rate limited)
-        etherscan_url = f'https://api.etherscan.io/api?module=token&action=tokenholderlist&contractaddress={gustr_address}&page=1&offset=10000'
+        # Scrape Etherscan token page
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        url = f'https://etherscan.io/token/{gustr_address}'
+        response = requests.get(url, headers=headers, timeout=15)
 
-        response = requests.get(etherscan_url, timeout=15)
         if response.status_code == 200:
-            data = response.json()
-            if data.get('status') == '1' and data.get('result'):
-                holder_count = len(data['result'])
-                return {'holder_count': holder_count, 'source': 'etherscan'}
+            html = response.text
+            # Look for holder count in meta description: "Holders: 80 |"
+            match = re.search(r'Holders:\s*([\d,]+)', html)
+            if match:
+                holder_count = int(match.group(1).replace(',', ''))
+                return {'holder_count': holder_count, 'source': 'etherscan_web'}
 
-        # Fallback: Return None if API fails
         return {'holder_count': None, 'source': None}
     except Exception as e:
         print(f"Error fetching GUSTR holder count: {e}")
