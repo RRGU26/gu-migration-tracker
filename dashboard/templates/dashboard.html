@@ -269,37 +269,25 @@
                     <div class="text-xl font-bold text-gray-800" id="volume24hTotal">$---</div>
                     <div class="flex justify-between mt-2 text-xs">
                         <div>
-                            <span class="text-gray-500">Buy</span>
-                            <span class="text-green-600 font-semibold ml-1" id="buyVol">$--</span>
+                            <span class="text-gray-500">6h</span>
+                            <span class="text-gray-700 font-semibold ml-1" id="volume6h">$--</span>
                         </div>
                         <div>
-                            <span class="text-gray-500">Sell</span>
-                            <span class="text-red-500 font-semibold ml-1" id="sellVol">$--</span>
+                            <span class="text-gray-500">1h</span>
+                            <span class="text-gray-700 font-semibold ml-1" id="volume1h">$--</span>
                         </div>
-                    </div>
-                    <div class="flex mt-1 h-1.5 rounded overflow-hidden">
-                        <div class="bg-green-500" id="buyVolBar" style="width: 50%"></div>
-                        <div class="bg-red-500" id="sellVolBar" style="width: 50%"></div>
                     </div>
                 </div>
 
-                <!-- Makers -->
+                <!-- Liquidity -->
                 <div class="bg-gray-50 p-3 rounded-lg border">
-                    <div class="text-xs text-gray-500 mb-1">MAKERS (24h)</div>
-                    <div class="text-xl font-bold text-gray-800" id="makers24h">---</div>
+                    <div class="text-xs text-gray-500 mb-1">LIQUIDITY</div>
+                    <div class="text-xl font-bold text-gray-800" id="liquidity">$---</div>
                     <div class="flex justify-between mt-2 text-xs">
                         <div>
-                            <span class="text-gray-500">Buyers</span>
-                            <span class="text-green-600 font-semibold ml-1" id="buyers24h">--</span>
+                            <span class="text-gray-500">FDV</span>
+                            <span class="text-gray-700 font-semibold ml-1" id="fdv">$--</span>
                         </div>
-                        <div>
-                            <span class="text-gray-500">Sellers</span>
-                            <span class="text-red-500 font-semibold ml-1" id="sellers24h">--</span>
-                        </div>
-                    </div>
-                    <div class="flex mt-1 h-1.5 rounded overflow-hidden">
-                        <div class="bg-green-500" id="buyersBar" style="width: 50%"></div>
-                        <div class="bg-red-500" id="sellersBar" style="width: 50%"></div>
                     </div>
                 </div>
             </div>
@@ -622,44 +610,28 @@ Live dashboard:`;
                 sellsBar.style.width = (100 - buysPct) + '%';
             }
 
-            // Volume
+            // Volume (24h, 6h, 1h)
             const vol24h = token.volume_24h || 0;
+            const vol6h = token.volume_6h || 0;
+            const vol1h = token.volume_1h || 0;
+
             const elVol = document.getElementById('volume24hTotal');
+            const elVol6h = document.getElementById('volume6h');
+            const elVol1h = document.getElementById('volume1h');
+
             if (elVol) elVol.textContent = formatCurrency(vol24h);
+            if (elVol6h) elVol6h.textContent = formatCurrency(vol6h);
+            if (elVol1h) elVol1h.textContent = formatCurrency(vol1h);
 
-            // Estimate buy/sell volume based on transaction ratio
-            const buyVolPct = txns24h > 0 ? buys24h / txns24h : 0.5;
-            const buyVol = vol24h * buyVolPct;
-            const sellVol = vol24h * (1 - buyVolPct);
+            // Liquidity and FDV
+            const liquidity = token.liquidity_usd || 0;
+            const fdv = token.market_cap || 0;
 
-            const elBuyVol = document.getElementById('buyVol');
-            const elSellVol = document.getElementById('sellVol');
-            if (elBuyVol) elBuyVol.textContent = formatCurrency(buyVol);
-            if (elSellVol) elSellVol.textContent = formatCurrency(sellVol);
+            const elLiquidity = document.getElementById('liquidity');
+            const elFdv = document.getElementById('fdv');
 
-            const buyVolBar = document.getElementById('buyVolBar');
-            const sellVolBar = document.getElementById('sellVolBar');
-            if (buyVolBar && sellVolBar) {
-                buyVolBar.style.width = (buyVolPct * 100) + '%';
-                sellVolBar.style.width = ((1 - buyVolPct) * 100) + '%';
-            }
-
-            // Makers (unique buyers/sellers) - estimate as same as txns for now
-            const elMakers = document.getElementById('makers24h');
-            const elBuyers = document.getElementById('buyers24h');
-            const elSellers = document.getElementById('sellers24h');
-
-            // Use txns as proxy for makers since API doesn't provide unique count
-            if (elMakers) elMakers.textContent = txns24h;
-            if (elBuyers) elBuyers.textContent = buys24h;
-            if (elSellers) elSellers.textContent = sells24h;
-
-            const buyersBar = document.getElementById('buyersBar');
-            const sellersBar = document.getElementById('sellersBar');
-            if (buyersBar && sellersBar && txns24h > 0) {
-                buyersBar.style.width = (buyVolPct * 100) + '%';
-                sellersBar.style.width = ((1 - buyVolPct) * 100) + '%';
-            }
+            if (elLiquidity) elLiquidity.textContent = formatCurrency(liquidity);
+            if (elFdv) elFdv.textContent = formatCurrency(fdv);
         }
 
         function loadGUSTRData() {
