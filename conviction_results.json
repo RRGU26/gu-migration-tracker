@@ -1,0 +1,24 @@
+{
+  "generated_at": "2026-01-03T15:45:00+00:00",
+  "genuine_undead_metrics": {
+    "7d_hold_pct": 55.4,
+    "30d_hold_pct": 43.4,
+    "raw_decay": 12.0,
+    "diamond_hands_pct": 82.1,
+    "weighted_conviction_score": 62.0
+  },
+  "rankings": [
+    {"name": "Genuine Undead", "7d": 55.4, "30d": 43.4, "decay": 12.0, "diamond_hands": 82.1, "score": 62.0},
+    {"name": "Bored Ape Yacht Club", "7d": 61.9, "30d": 52.5, "decay": 9.4, "diamond_hands": 81.1, "score": 66.3},
+    {"name": "Moonbirds", "7d": 57.4, "30d": 26.3, "decay": 31.1, "diamond_hands": 81.6, "score": 56.2},
+    {"name": "Good Vibes Club", "7d": 88.8, "30d": 61.0, "decay": 27.8, "diamond_hands": 53.2, "score": 64.8},
+    {"name": "Azuki", "7d": 50.0, "30d": 40.9, "decay": 9.1, "diamond_hands": 21.2, "score": 35.3},
+    {"name": "Pudgy Penguins", "7d": 48.4, "30d": 38.0, "decay": 10.4, "diamond_hands": null, "score": null},
+    {"name": "Doodles", "7d": 46.7, "30d": 34.4, "decay": 12.3, "diamond_hands": null, "score": null},
+    {"name": "Chimpers", "7d": 38.9, "30d": 27.3, "decay": 11.6, "diamond_hands": null, "score": null}
+  ],
+  "formula": "Score = (7d * 0.25) + (30d * 0.35) + (Diamond Hands * 0.40)",
+  "quadrant_thresholds": {"x": 50, "y": 40},
+  "diamond_hands_threshold": 80,
+  "notes": "Diamond hands = % of current holders who have NEVER sold. Collections with null diamond_hands had API errors."
+}
