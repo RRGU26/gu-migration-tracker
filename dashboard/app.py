@@ -25,43 +25,122 @@ db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'gu_migration.db
 db = DatabaseManager(db_path)
 
 def get_gustr_token_data():
-    """Get GUSTR token data from DexScreener API"""
+    """Get GUSTR token data from TokenStrategy (primary), GeckoTerminal (backup), DexScreener (trading activity)"""
     try:
-        response = requests.get(
-            'https://api.dexscreener.com/latest/dex/tokens/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00',
-            timeout=10
-        )
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('pairs') and len(data['pairs']) > 0:
-                pair = data['pairs'][0]
-                txns = pair.get('txns', {})
-                volume = pair.get('volume', {})
-                price_change = pair.get('priceChange', {})
+        price_usd = 0
+        price_eth = 0
+        market_cap = 0
+        liquidity = 0
+        volume_24h = 0
 
-                return {
-                    'price_usd': float(pair.get('priceUsd', 0)),
-                    'price_eth': float(pair.get('priceNative', 0)),
-                    'market_cap': float(pair.get('marketCap', 0) or pair.get('fdv', 0)),
-                    'liquidity_usd': float(pair.get('liquidity', {}).get('usd', 0)),
-                    'volume_24h': float(volume.get('h24', 0)),
-                    'volume_6h': float(volume.get('h6', 0)),
-                    'volume_1h': float(volume.get('h1', 0)),
-                    'volume_5m': float(volume.get('m5', 0)),
-                    'price_change_24h': float(price_change.get('h24', 0) or 0),
-                    'price_change_6h': float(price_change.get('h6', 0) or 0),
-                    'price_change_1h': float(price_change.get('h1', 0) or 0),
-                    'price_change_5m': float(price_change.get('m5', 0) or 0),
-                    'buys_24h': int(txns.get('h24', {}).get('buys', 0)),
-                    'sells_24h': int(txns.get('h24', {}).get('sells', 0)),
-                    'buys_6h': int(txns.get('h6', {}).get('buys', 0)),
-                    'sells_6h': int(txns.get('h6', {}).get('sells', 0)),
-                    'buys_1h': int(txns.get('h1', {}).get('buys', 0)),
-                    'sells_1h': int(txns.get('h1', {}).get('sells', 0)),
-                    'buys_5m': int(txns.get('m5', {}).get('buys', 0)),
-                    'sells_5m': int(txns.get('m5', {}).get('sells', 0))
-                }
-        return None
+        # Get ETH price for conversion
+        eth_price = 3500  # fallback
+        try:
+            import asyncio
+            from src.api.price_client import get_current_eth_price
+            eth_price = asyncio.run(get_current_eth_price()) or 3500
+        except:
+            pass
+
+        # Primary source: TokenStrategy API
+        try:
+            ts_response = requests.get(
+                'https://www.tokenstrategy.com/api/strategies/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00',
+                timeout=10
+            )
+            if ts_response.status_code == 200:
+                ts_json = ts_response.json()
+                ts_data = ts_json.get('data', {})
+                price_usd = float(ts_data.get('priceUsd', 0) or 0)
+                market_cap = float(ts_data.get('marketCap', 0) or 0)
+                liquidity = float(ts_data.get('liquidity', 0) or 0)
+                volume_24h = float(ts_data.get('volume24h', 0) or 0)
+                price_eth = price_usd / eth_price if eth_price > 0 else 0
+        except Exception as ts_err:
+            print(f"TokenStrategy API error: {ts_err}")
+
+        # Backup source: GeckoTerminal API (Uniswap V4 pool)
+        if price_usd == 0:
+            try:
+                gecko_response = requests.get(
+                    'https://api.geckoterminal.com/api/v2/networks/eth/pools/0xe8d6ad309e597da6e05c225008e9518d4124806cf8fa52200469e3d8eb16d573',
+                    timeout=10
+                )
+                if gecko_response.status_code == 200:
+                    gecko_json = gecko_response.json()
+                    pool_data = gecko_json.get('data', {}).get('attributes', {})
+                    price_usd = float(pool_data.get('base_token_price_usd', 0) or 0)
+                    price_eth = float(pool_data.get('base_token_price_native_currency', 0) or 0)
+                    market_cap = float(pool_data.get('fdv_usd', 0) or 0)
+                    liquidity = float(pool_data.get('reserve_in_usd', 0) or 0)
+                    volume_24h = float(pool_data.get('volume_usd', {}).get('h24', 0) or 0)
+            except Exception as gecko_err:
+                print(f"GeckoTerminal API error: {gecko_err}")
+
+        if price_usd == 0:
+            return None
+
+        # Initialize trading activity (no active DEX trading)
+        result = {
+            'price_usd': price_usd,
+            'price_eth': price_eth,
+            'market_cap': market_cap,
+            'liquidity_usd': liquidity,
+            'volume_24h': volume_24h,
+            'volume_6h': 0,
+            'volume_1h': 0,
+            'volume_5m': 0,
+            'price_change_24h': 0,
+            'price_change_6h': 0,
+            'price_change_1h': 0,
+            'price_change_5m': 0,
+            'buys_24h': 0,
+            'sells_24h': 0,
+            'buys_6h': 0,
+            'sells_6h': 0,
+            'buys_1h': 0,
+            'sells_1h': 0,
+            'buys_5m': 0,
+            'sells_5m': 0
+        }
+
+        # Try DexScreener for trading activity data (if available)
+        try:
+            dex_response = requests.get(
+                'https://api.dexscreener.com/latest/dex/tokens/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00',
+                timeout=5
+            )
+            if dex_response.status_code == 200:
+                dex_data = dex_response.json()
+                if dex_data.get('pairs') and len(dex_data['pairs']) > 0:
+                    pair = dex_data['pairs'][0]
+                    txns = pair.get('txns', {})
+                    volume = pair.get('volume', {})
+                    price_change = pair.get('priceChange', {})
+
+                    # Update with DexScreener trading data
+                    result.update({
+                        'volume_6h': float(volume.get('h6', 0)),
+                        'volume_1h': float(volume.get('h1', 0)),
+                        'volume_5m': float(volume.get('m5', 0)),
+                        'price_change_24h': float(price_change.get('h24', 0) or 0),
+                        'price_change_6h': float(price_change.get('h6', 0) or 0),
+                        'price_change_1h': float(price_change.get('h1', 0) or 0),
+                        'price_change_5m': float(price_change.get('m5', 0) or 0),
+                        'buys_24h': int(txns.get('h24', {}).get('buys', 0)),
+                        'sells_24h': int(txns.get('h24', {}).get('sells', 0)),
+                        'buys_6h': int(txns.get('h6', {}).get('buys', 0)),
+                        'sells_6h': int(txns.get('h6', {}).get('sells', 0)),
+                        'buys_1h': int(txns.get('h1', {}).get('buys', 0)),
+                        'sells_1h': int(txns.get('h1', {}).get('sells', 0)),
+                        'buys_5m': int(txns.get('m5', {}).get('buys', 0)),
+                        'sells_5m': int(txns.get('m5', {}).get('sells', 0))
+                    })
+        except Exception as dex_err:
+            print(f"DexScreener unavailable (using TokenStrategy only): {dex_err}")
+
+        return result
+
     except Exception as e:
         print(f"Error fetching GUSTR data: {e}")
         return None
