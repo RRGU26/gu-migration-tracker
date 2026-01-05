@@ -2,9 +2,15 @@
 
 **Real-time NFT migration analytics dashboard tracking the movement from GU Origins to Genuine Undead collections.**
 
-[![Live Dashboard](https://img.shields.io/badge/Live-Dashboard-blue?style=for-the-badge)](https://gu-migration-tracker.herokuapp.com)
+[![Live Dashboard](https://img.shields.io/badge/Live-Dashboard-blue?style=for-the-badge)](https://web-production-2ae4a.up.railway.app/)
 [![OpenSea](https://img.shields.io/badge/OpenSea-API-orange?style=for-the-badge)](https://opensea.io)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+
+## 🌐 Live Dashboard
+
+**Production URL:** https://web-production-2ae4a.up.railway.app/
+
+**Hosted on:** Railway (auto-deploys from GitHub)
 
 ## 🎯 What This Tracks
 
@@ -21,10 +27,33 @@
 - 💎 Diamond hands vs seller behavior analysis
 - 📧 Automated daily seller analysis emails
 - 🎯 Interactive bubble charts for holder visualization
+- 🪙 GUSTR token metrics (price, market cap, burn %)
 
-## 🌐 Live Dashboard
+## 🪙 GUSTR Token Tracking
 
-Visit the live dashboard: **[GU Migration Tracker](https://gu-migration-tracker.herokuapp.com)**
+**Token:** GenuineUndeadStrategy (GUSTR)
+**Contract:** `0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00`
+**Pool:** Uniswap V4 - `0xe8d6ad309e597da6e05c225008e9518d4124806cf8fa52200469e3d8eb16d573`
+
+**Metrics Displayed:**
+- Token price (USD/ETH)
+- Market cap & liquidity
+- Holder count (from Etherscan)
+- NFT holdings by strategy
+- Burn percentage & burned tokens
+- Trading activity (buys/sells when active)
+
+## 📡 Data Sources
+
+| Data | Primary Source | Backup Source |
+|------|---------------|---------------|
+| **GUSTR Price/Market Cap** | [TokenStrategy API](https://www.tokenstrategy.com/strategies/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00) | [GeckoTerminal API](https://api.geckoterminal.com/api/v2/networks/eth/pools/0xe8d6ad309e597da6e05c225008e9518d4124806cf8fa52200469e3d8eb16d573) |
+| **GUSTR Trading Activity** | [DexScreener API](https://api.dexscreener.com/latest/dex/tokens/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00) | - |
+| **GUSTR Holder Count** | Etherscan (web scrape) | - |
+| **GUSTR Burn Data** | TokenStrategy API | - |
+| **NFT Floor/Volume** | OpenSea API v2 | - |
+| **ETH Price** | CoinGecko / CryptoCompare | Binance |
+| **NFT Holders** | OpenSea API v2 | - |
 
 ### Dashboard Features:
 - **Real-time Market Data**: Live floor prices, volumes, market caps
@@ -50,7 +79,7 @@ Visit the live dashboard: **[GU Migration Tracker](https://gu-migration-tracker.
 ## 🚀 Quick Start
 
 ### For Users:
-Simply visit the [live dashboard](https://gu-migration-tracker.herokuapp.com) - no setup required!
+Simply visit the [live dashboard](https://web-production-2ae4a.up.railway.app/) - no setup required!
 
 ### For Developers:
 
@@ -116,12 +145,34 @@ if token_id in previous_origins and token_id not in current_origins:
 
 ## 🎨 API Endpoints
 
-The dashboard provides these API endpoints:
+Base URL: `https://web-production-2ae4a.up.railway.app`
 
-- `GET /api/current` - Current market data
-- `GET /api/refresh` - Force data refresh  
-- `GET /api/charts` - Chart data for visualizations
-- `GET /health` - System health check
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/current` | Current NFT market data (floor, volume, supply) |
+| `GET /api/refresh` | Force data refresh from all sources |
+| `GET /api/gustr` | GUSTR token metrics (price, market cap, burn, holders) |
+| `GET /api/charts` | Chart data for visualizations |
+| `GET /health` | System health check |
+
+### Example: GUSTR Response
+```json
+{
+  "token": {
+    "name": "GenuineUndeadStrategy",
+    "symbol": "GUSTR",
+    "price_usd": 0.000147,
+    "market_cap": 147617.45,
+    "liquidity_usd": 138300.58,
+    "holder_count": 127
+  },
+  "strategy": {
+    "nft_holdings": 22,
+    "burn_percent": 4.04,
+    "burned_tokens": 40429603.25
+  }
+}
+```
 
 ## 📊 Market Insights
 
@@ -244,5 +295,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ for the GU community** 🧟‍♂️
 
-*Real-time NFT analytics • Migration tracking • Market intelligence*# Trigger rebuild Tue, Sep  2, 2025 12:43:05 PM
-# Force data refresh 1756906949
+*Real-time NFT analytics • Migration tracking • Market intelligence*
