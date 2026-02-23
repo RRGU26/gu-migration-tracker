@@ -16,7 +16,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from src.database.database import DatabaseManager
-from src.api.price_client import get_current_eth_price
 import requests
 import subprocess
 import threading
@@ -26,6 +25,56 @@ app = Flask(__name__)
 # Single database connection
 db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'gu_migration.db')
 db = DatabaseManager(db_path)
+
+def get_eth_price_sync():
+    """Get current ETH price synchronously with multiple fallbacks"""
+    # Try CoinGecko
+    try:
+        response = requests.get(
+            'https://api.coingecko.com/api/v3/simple/price',
+            params={'ids': 'ethereum', 'vs_currencies': 'usd'},
+            timeout=5
+        )
+        if response.status_code == 200:
+            data = response.json()
+            price = data.get('ethereum', {}).get('usd')
+            if price:
+                return float(price)
+    except Exception as e:
+        print(f"CoinGecko failed: {e}")
+
+    # Try CryptoCompare
+    try:
+        response = requests.get(
+            'https://min-api.cryptocompare.com/data/price',
+            params={'fsym': 'ETH', 'tsyms': 'USD'},
+            timeout=5
+        )
+        if response.status_code == 200:
+            data = response.json()
+            price = data.get('USD')
+            if price:
+                return float(price)
+    except Exception as e:
+        print(f"CryptoCompare failed: {e}")
+
+    # Try Binance
+    try:
+        response = requests.get(
+            'https://api.binance.com/api/v3/ticker/price',
+            params={'symbol': 'ETHUSDT'},
+            timeout=5
+        )
+        if response.status_code == 200:
+            data = response.json()
+            price = data.get('price')
+            if price:
+                return float(price)
+    except Exception as e:
+        print(f"Binance failed: {e}")
+
+    print("All ETH price APIs failed, using fallback")
+    return 3200.0
 
 def get_gustr_token_data():
     """Get GUSTR token data from TokenStrategy (primary), GeckoTerminal (backup), DexScreener (trading activity)"""
@@ -39,9 +88,7 @@ def get_gustr_token_data():
         # Get ETH price for conversion
         eth_price = 3500  # fallback
         try:
-            import asyncio
-            from src.api.price_client import get_current_eth_price
-            eth_price = asyncio.run(get_current_eth_price()) or 3500
+            eth_price = get_eth_price_sync() or 3500
         except:
             pass
 
@@ -370,9 +417,11 @@ def get_diamond_hands_percent(total_holders):
         sellers = set()
         next_cursor = None
         total_sales_30d = 0
-        max_pages = 20  # Fetch up to 20 pages (1000 events) to ensure we get all 30-day sales
+        max_pages = 20
         pages_fetched = 0
-        found_older_event = False
+
+        print(f'[Diamond Hands] Starting calculation. 30 days ago timestamp: {thirty_days_ago}')
+        print(f'[Diamond Hands] Total holders: {total_holders}')
 
         # Keep fetching until we find events older than 30 days or hit max pages
         while pages_fetched < max_pages:
@@ -383,43 +432,53 @@ def get_diamond_hands_percent(total_holders):
 
             response = requests.get(url, headers=headers, params=params, timeout=15)
             if response.status_code != 200:
-                print(f'OpenSea API error: {response.status_code}')
+                print(f'[Diamond Hands] OpenSea API error: {response.status_code}')
                 break
 
             data = response.json()
             events = data.get('asset_events', [])
+            print(f'[Diamond Hands] Page {pages_fetched + 1}: Got {len(events)} events')
+
             if not events:
                 break
 
+            found_older_event = False
             for event in events:
                 timestamp = event.get('event_timestamp', 0)
                 if timestamp >= thirty_days_ago:
                     total_sales_30d += 1
-                    if event.get('seller'):
-                        sellers.add(event['seller'].lower())
+                    seller = event.get('seller')
+                    if seller:
+                        sellers.add(seller.lower())
                 else:
-                    # Found an event older than 30 days, we can stop
                     found_older_event = True
 
             # If we found events older than 30 days, we've captured all relevant sales
             if found_older_event:
+                print(f'[Diamond Hands] Found older events, stopping at page {pages_fetched + 1}')
                 break
 
             next_cursor = data.get('next')
             if not next_cursor:
+                print(f'[Diamond Hands] No more pages')
                 break
 
             pages_fetched += 1
 
+        unique_sellers = len(sellers)
         if total_holders > 0:
-            diamond_hands = total_holders - len(sellers)
+            diamond_hands = total_holders - unique_sellers
             diamond_pct = round((diamond_hands / total_holders) * 100, 1)
-            print(f'Diamond hands: {len(sellers)} sellers out of {total_holders} holders = {diamond_pct}% diamond hands ({total_sales_30d} sales)')
-            return diamond_pct, len(sellers), total_sales_30d
+            print(f'[Diamond Hands] RESULT: {unique_sellers} unique sellers, {total_sales_30d} sales, {diamond_pct}% diamond hands')
+            return diamond_pct, unique_sellers, total_sales_30d
+
+        print(f'[Diamond Hands] No holders data, returning 0')
         return 0.0, 0, 0
 
     except Exception as e:
-        print(f'Diamond hands calc error: {e}')
+        print(f'[Diamond Hands] ERROR: {e}')
+        import traceback
+        traceback.print_exc()
         return 0.0, 0, 0
 
 
@@ -433,9 +492,8 @@ def get_current_data():
     """Get current data directly from database - no caching, always fresh"""
     try:
         # Get fresh ETH price from API
-        import asyncio
         try:
-            eth_price = asyncio.run(get_current_eth_price())
+            eth_price = get_eth_price_sync()
             if not eth_price or eth_price <= 0:
                 eth_price = 2600.0  # Fallback
         except:
@@ -551,10 +609,9 @@ def refresh_data():
     """Get live ETH price and fresh volume data immediately - Updated Sept 13"""
     try:
         # Get live ETH price directly
-        import asyncio
         live_eth_price = None
         try:
-            live_eth_price = asyncio.run(get_current_eth_price())
+            live_eth_price = get_eth_price_sync()
             if not live_eth_price or live_eth_price <= 0:
                 raise ValueError("Invalid ETH price")
         except Exception as e:
