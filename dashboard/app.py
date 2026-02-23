@@ -30,6 +30,7 @@ def get_eth_price_sync():
     """Get current ETH price synchronously with multiple fallbacks"""
     # Try CoinGecko
     try:
+        print("[ETH Price] Trying CoinGecko...")
         response = requests.get(
             'https://api.coingecko.com/api/v3/simple/price',
             params={'ids': 'ethereum', 'vs_currencies': 'usd'},
@@ -39,12 +40,15 @@ def get_eth_price_sync():
             data = response.json()
             price = data.get('ethereum', {}).get('usd')
             if price:
+                print(f"[ETH Price] CoinGecko success: ${price}")
                 return float(price)
+        print(f"[ETH Price] CoinGecko status: {response.status_code}")
     except Exception as e:
-        print(f"CoinGecko failed: {e}")
+        print(f"[ETH Price] CoinGecko failed: {e}")
 
     # Try CryptoCompare
     try:
+        print("[ETH Price] Trying CryptoCompare...")
         response = requests.get(
             'https://min-api.cryptocompare.com/data/price',
             params={'fsym': 'ETH', 'tsyms': 'USD'},
@@ -54,12 +58,15 @@ def get_eth_price_sync():
             data = response.json()
             price = data.get('USD')
             if price:
+                print(f"[ETH Price] CryptoCompare success: ${price}")
                 return float(price)
+        print(f"[ETH Price] CryptoCompare status: {response.status_code}")
     except Exception as e:
-        print(f"CryptoCompare failed: {e}")
+        print(f"[ETH Price] CryptoCompare failed: {e}")
 
     # Try Binance
     try:
+        print("[ETH Price] Trying Binance...")
         response = requests.get(
             'https://api.binance.com/api/v3/ticker/price',
             params={'symbol': 'ETHUSDT'},
@@ -69,11 +76,13 @@ def get_eth_price_sync():
             data = response.json()
             price = data.get('price')
             if price:
+                print(f"[ETH Price] Binance success: ${price}")
                 return float(price)
+        print(f"[ETH Price] Binance status: {response.status_code}")
     except Exception as e:
-        print(f"Binance failed: {e}")
+        print(f"[ETH Price] Binance failed: {e}")
 
-    print("All ETH price APIs failed, using fallback")
+    print("[ETH Price] All APIs failed, using fallback $3200")
     return 3200.0
 
 def get_gustr_token_data():
@@ -349,26 +358,40 @@ def get_quick_volume_data():
 def get_live_floor_prices_and_supply():
     """Get live floor prices, supplies, and holder count from OpenSea API"""
     try:
-        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY')}
+        api_key = os.environ.get('OPENSEA_API_KEY')
+        if not api_key:
+            print("[OpenSea] ERROR: OPENSEA_API_KEY not set!")
+            return 0.0330, 0.0460, 9993, 5566, 718
+
+        headers = {'X-API-KEY': api_key}
+        print(f"[OpenSea] API key present: {api_key[:10]}...")
 
         # Get Origins floor price
+        print("[OpenSea] Fetching Origins stats...")
         origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats',
                                        headers=headers, timeout=5)
+        print(f"[OpenSea] Origins response: {origins_response.status_code}")
         origins_floor = 0.0330
         origins_supply = 9993
         if origins_response.status_code == 200:
             origins_data = origins_response.json()
             origins_floor = float(origins_data.get('total', {}).get('floor_price', 0.0330))
+            print(f"[OpenSea] Origins floor: {origins_floor}")
 
         # Get Undead stats (floor, num_owners)
+        print("[OpenSea] Fetching Undead stats...")
         undead_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead/stats',
                                       headers=headers, timeout=5)
+        print(f"[OpenSea] Undead response: {undead_response.status_code}")
         undead_floor = 0.0460
         undead_holders = 718
         if undead_response.status_code == 200:
             undead_data = undead_response.json()
             undead_floor = float(undead_data.get('total', {}).get('floor_price', 0.0460))
             undead_holders = int(undead_data.get('total', {}).get('num_owners', 718))
+            print(f"[OpenSea] Undead floor: {undead_floor}, holders: {undead_holders}")
+        else:
+            print(f"[OpenSea] Undead API error: {undead_response.text[:200]}")
 
         # Get Undead supply
         undead_supply = 5566
@@ -377,11 +400,14 @@ def get_live_floor_prices_and_supply():
         if undead_collection_response.status_code == 200:
             undead_collection = undead_collection_response.json()
             undead_supply = int(undead_collection.get('total_supply', 5566))
+            print(f"[OpenSea] Undead supply: {undead_supply}")
 
         return origins_floor, undead_floor, origins_supply, undead_supply, undead_holders
 
     except Exception as e:
-        print(f"Floor price/supply fetch error: {e}")
+        print(f"[OpenSea] Exception: {e}")
+        import traceback
+        traceback.print_exc()
         return 0.0330, 0.0460, 9993, 5566, 718
 
 
@@ -634,7 +660,11 @@ def refresh_data():
         # Get live floor prices, supplies, holders, and listings
         try:
             origins_floor, undead_floor, origins_supply, undead_supply, undead_holders = get_live_floor_prices_and_supply()
-        except:
+            print(f'[Refresh] Live floor prices: Origins={origins_floor}, Undead={undead_floor}')
+        except Exception as e:
+            print(f'[Refresh] ERROR fetching live floor prices: {e}')
+            import traceback
+            traceback.print_exc()
             origins_floor, undead_floor, origins_supply, undead_supply, undead_holders = 0.0330, 0.0460, 9993, 5566, 718
         
         # Get listings count
