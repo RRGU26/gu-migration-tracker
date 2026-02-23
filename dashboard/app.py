@@ -7,6 +7,9 @@ import os
 import sys
 from datetime import datetime, date
 from flask import Flask, render_template, jsonify, send_file
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Add parent directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -151,7 +154,7 @@ def get_strategy_nft_holdings():
     try:
         # Strategy contract address
         strategy_address = '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00'
-        headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY')}
 
         # Query OpenSea for NFTs owned by the strategy
         response = requests.get(
@@ -264,7 +267,7 @@ def save_gustr_snapshot(holder_count, market_cap, price_usd, volume_24h):
 def get_quick_volume_data():
     """Get volume data directly from OpenSea API"""
     try:
-        headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY')}
         
         # Get Origins volume
         origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats', 
@@ -297,7 +300,7 @@ def get_quick_volume_data():
 def get_live_floor_prices_and_supply():
     """Get live floor prices, supplies, and holder count from OpenSea API"""
     try:
-        headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY')}
 
         # Get Origins floor price
         origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats',
@@ -336,7 +339,7 @@ def get_live_floor_prices_and_supply():
 def get_listings_count():
     """Get total number of active listings"""
     try:
-        headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY')}
         total = 0
         next_cursor = None
         for _ in range(3):
@@ -362,13 +365,17 @@ def get_diamond_hands_percent(total_holders):
     """Calculate % of holders who haven't sold in last 30 days"""
     try:
         import time
-        headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY')}
         thirty_days_ago = int(time.time()) - (30 * 24 * 60 * 60)
         sellers = set()
         next_cursor = None
         total_sales_30d = 0
+        max_pages = 20  # Fetch up to 20 pages (1000 events) to ensure we get all 30-day sales
+        pages_fetched = 0
+        found_older_event = False
 
-        for _ in range(5):
+        # Keep fetching until we find events older than 30 days or hit max pages
+        while pages_fetched < max_pages:
             url = 'https://api.opensea.io/api/v2/events/collection/genuine-undead'
             params = {'event_type': 'sale', 'limit': 50}
             if next_cursor:
@@ -376,6 +383,7 @@ def get_diamond_hands_percent(total_holders):
 
             response = requests.get(url, headers=headers, params=params, timeout=15)
             if response.status_code != 200:
+                print(f'OpenSea API error: {response.status_code}')
                 break
 
             data = response.json()
@@ -389,14 +397,24 @@ def get_diamond_hands_percent(total_holders):
                     total_sales_30d += 1
                     if event.get('seller'):
                         sellers.add(event['seller'].lower())
+                else:
+                    # Found an event older than 30 days, we can stop
+                    found_older_event = True
+
+            # If we found events older than 30 days, we've captured all relevant sales
+            if found_older_event:
+                break
 
             next_cursor = data.get('next')
             if not next_cursor:
                 break
 
+            pages_fetched += 1
+
         if total_holders > 0:
             diamond_hands = total_holders - len(sellers)
             diamond_pct = round((diamond_hands / total_holders) * 100, 1)
+            print(f'Diamond hands: {len(sellers)} sellers out of {total_holders} holders = {diamond_pct}% diamond hands ({total_sales_30d} sales)')
             return diamond_pct, len(sellers), total_sales_30d
         return 0.0, 0, 0
 
@@ -497,11 +515,11 @@ def get_current_data():
                 old_supply = oldest['undead_supply']
                 trends['supply_growth_30d'] = current_supply - old_supply
 
-                # Market cap change (current vs 30 days ago)
-                current_mc = row['undead_floor_eth'] * eth_price * row['undead_supply']
-                old_mc = oldest['undead_market_cap_usd']
-                if old_mc > 0:
-                    trends['market_cap_change_30d'] = ((current_mc - old_mc) / old_mc) * 100
+                # Market cap change (current vs 30 days ago) - compare in ETH to remove ETH price volatility
+                current_mc_eth = row['undead_floor_eth'] * row['undead_supply']
+                old_mc_eth = oldest['undead_floor_eth'] * oldest['undead_supply']
+                if old_mc_eth > 0:
+                    trends['market_cap_change_30d'] = ((current_mc_eth - old_mc_eth) / old_mc_eth) * 100
 
             # Build response using fresh ETH price - focused on Genuine Undead
             data = {
@@ -658,15 +676,18 @@ def refresh_data():
                 if oldest['undead_floor_eth'] > 0:
                     trends['floor_price_change_30d'] = ((undead_floor - oldest['undead_floor_eth']) / oldest['undead_floor_eth']) * 100
                 trends['supply_growth_30d'] = undead_supply - oldest['undead_supply']
-                if oldest['undead_market_cap_usd'] > 0:
-                    trends['market_cap_change_30d'] = ((undead_mc - oldest['undead_market_cap_usd']) / oldest['undead_market_cap_usd']) * 100
-                
+                # Market cap change in ETH terms to remove ETH price volatility
+                current_mc_eth = undead_floor * undead_supply
+                old_mc_eth = oldest['undead_floor_eth'] * oldest['undead_supply']
+                if old_mc_eth > 0:
+                    trends['market_cap_change_30d'] = ((current_mc_eth - old_mc_eth) / old_mc_eth) * 100
+
                 # 7-day change (if we have at least 7 days of data)
                 if len(historical_data) >= 7:
                     day7 = historical_data[6]
                     if day7['undead_floor_eth'] > 0:
                         trends['floor_price_change_7d'] = ((undead_floor - day7['undead_floor_eth']) / day7['undead_floor_eth']) * 100
-                
+
                 # 1-day change (yesterday vs today)
                 if len(historical_data) >= 1:
                     yesterday = historical_data[0]  # Most recent is index 0 after today is inserted
