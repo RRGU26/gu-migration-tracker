@@ -86,11 +86,13 @@ def get_gustr_token_data():
         volume_24h = 0
 
         # Get ETH price for conversion
-        eth_price = 3500  # fallback
         try:
-            eth_price = get_eth_price_sync() or 3500
-        except:
-            pass
+            eth_price = get_eth_price_sync()
+            if not eth_price or eth_price <= 0:
+                eth_price = 3500
+        except Exception as e:
+            print(f"ETH price fetch error in GUSTR: {e}")
+            eth_price = 3500
 
         # Primary source: TokenStrategy API
         try:
@@ -1044,7 +1046,8 @@ def health():
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
-        'database': 'connected'
+        'database': 'connected',
+        'version': '2026-02-23-v3'  # Updated with ETH price sync fix
     })
 
 @app.route('/api/export-pdf')
