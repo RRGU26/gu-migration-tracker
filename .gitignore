@@ -78,4 +78,6 @@ tmp/
 # Test files
 test_*.py
 *_test.py
-tests/temp/.venv-test/
+tests/temp/
+.venv-test/
+
