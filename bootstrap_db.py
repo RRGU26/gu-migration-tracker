@@ -27,6 +27,7 @@ ANALYTICS_COLUMNS = [
     'combined_market_cap_usd', 'daily_new_migrations',
     'undead_holders', 'undead_volume_24h_eth', 'undead_listed',
     'undead_diamond_hands_pct', 'undead_sellers_30d', 'undead_sales_30d', 'snapshot_at',
+    'source',
 ]
 
 EXTRA_ANALYTICS_COLUMNS = [
@@ -37,6 +38,7 @@ EXTRA_ANALYTICS_COLUMNS = [
     ('undead_sellers_30d', 'INTEGER'),
     ('undead_sales_30d', 'INTEGER'),
     ('snapshot_at', 'TEXT'),
+    ('source', 'TEXT'),
 ]
 
 

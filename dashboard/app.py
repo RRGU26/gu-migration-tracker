@@ -85,6 +85,7 @@ EXTRA_ANALYTICS_COLUMNS = [
     ('undead_sellers_30d', 'INTEGER'),
     ('undead_sales_30d', 'INTEGER'),
     ('snapshot_at', 'TEXT'),
+    ('source', 'TEXT'),  # 'live' | 'sales_reconstruction' | NULL (legacy/unknown)
 ]
 
 
@@ -255,7 +256,8 @@ def _iter_sale_events(slug=UNDEAD_SLUG, oldest_timestamp=0, max_pages=120):
 
 
 def _sale_price_eth(event):
-    """Sale price in ETH, or None for non-ETH/WETH payments."""
+    """Sale price in ETH; None for non-ETH/WETH payments and dust/private
+    transfers (near-zero prices are not market trades)."""
     payment = event.get('payment') or {}
     symbol = (payment.get('symbol') or '').upper()
     if symbol not in ('ETH', 'WETH'):
@@ -263,7 +265,8 @@ def _sale_price_eth(event):
     try:
         quantity = int(payment.get('quantity') or 0)
         decimals = int(payment.get('decimals') or 18)
-        return quantity / (10 ** decimals)
+        price = quantity / (10 ** decimals)
+        return price if price >= 0.001 else None
     except Exception:
         return None
 
@@ -301,6 +304,102 @@ def update_sales_history(days):
         conn.commit()
     print(f'[Sales] Updated {len(daily)} days from {count} sales (window={days}d)')
     return len(daily)
+
+
+def fetch_eth_price_history(days=365):
+    """Real daily ETH/USD closes from CoinGecko; upserts daily_eth_prices."""
+    try:
+        response = requests.get(
+            'https://api.coingecko.com/api/v3/coins/ethereum/market_chart',
+            params={'vs_currency': 'usd', 'days': days, 'interval': 'daily'},
+            timeout=20)
+        if response.status_code != 200:
+            print(f'[ETH History] CoinGecko error {response.status_code}')
+            return 0
+        prices = response.json().get('prices', [])
+        with db.get_connection() as conn:
+            for ts_ms, price in prices:
+                day = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).date().isoformat()
+                conn.execute("""
+                    INSERT OR REPLACE INTO daily_eth_prices (price_date, eth_price_usd)
+                    VALUES (?, ?)
+                """, (day, round(float(price), 2)))
+            conn.commit()
+        print(f'[ETH History] Stored {len(prices)} daily prices')
+        return len(prices)
+    except Exception as e:
+        print(f'[ETH History] failed: {e}')
+        return 0
+
+
+def rebuild_history(days=365):
+    """Replace fabricated legacy history with real on-chain data.
+
+    The pre-2026-06 daily_analytics rows came from flat backfills and hardcoded
+    seeds — not real market history. This rebuilds the past from verifiable
+    sources: lowest daily sale price (floor proxy) from OpenSea sale events,
+    and real daily ETH/USD closes from CoinGecko. Supply is held at the
+    current value (the collection is fully migrated). Today's live row is kept.
+    """
+    sales_days = update_sales_history(days=days)
+    eth_days = fetch_eth_price_history(days=days)
+
+    today = date.today().isoformat()
+    with db.get_connection() as conn:
+        latest = conn.execute("""
+            SELECT undead_supply, eth_price_usd FROM daily_analytics
+            WHERE source = 'live' ORDER BY analytics_date DESC LIMIT 1
+        """).fetchone()
+        if not latest:
+            latest = conn.execute(
+                'SELECT undead_supply, eth_price_usd FROM daily_analytics '
+                'ORDER BY analytics_date DESC LIMIT 1').fetchone()
+        supply = latest['undead_supply'] if latest else 0
+
+        deleted = conn.execute(
+            "DELETE FROM daily_analytics WHERE analytics_date < ? "
+            "AND (source IS NULL OR source != 'live')", (today,)).rowcount
+
+        eth_prices = {r['price_date']: r['eth_price_usd'] for r in conn.execute(
+            'SELECT price_date, eth_price_usd FROM daily_eth_prices').fetchall()}
+
+        sales_rows = conn.execute(
+            'SELECT * FROM daily_sales WHERE sale_date < ? ORDER BY sale_date ASC',
+            (today,)).fetchall()
+        rebuilt = 0
+        last_eth = None
+        for row in sales_rows:
+            day = row['sale_date']
+            eth = eth_prices.get(day) or last_eth
+            if not eth:
+                continue
+            last_eth = eth
+            floor = row['min_price_eth']
+            if not floor or floor <= 0:
+                continue
+            mcap = floor * supply * eth
+            conn.execute("""
+                INSERT INTO daily_analytics (
+                    analytics_date, eth_price_usd,
+                    undead_floor_eth, undead_supply, undead_market_cap_usd,
+                    undead_volume_24h_eth, source
+                ) VALUES (?, ?, ?, ?, ?, ?, 'sales_reconstruction')
+                ON CONFLICT(analytics_date) DO UPDATE SET
+                    eth_price_usd=excluded.eth_price_usd,
+                    undead_floor_eth=excluded.undead_floor_eth,
+                    undead_supply=excluded.undead_supply,
+                    undead_market_cap_usd=excluded.undead_market_cap_usd,
+                    undead_volume_24h_eth=excluded.undead_volume_24h_eth,
+                    source='sales_reconstruction'
+            """, (day, eth, floor, supply, mcap, row['volume_eth']))
+            rebuilt += 1
+        conn.commit()
+
+    print(f'[Rebuild] deleted {deleted} fabricated rows, rebuilt {rebuilt} days '
+          f'from sales ({sales_days} sales-days, {eth_days} ETH prices)')
+    return {'deleted_legacy_rows': deleted, 'rebuilt_days': rebuilt,
+            'sales_days': sales_days, 'eth_price_days': eth_days,
+            'supply_used': supply}
 
 
 def compute_diamond_hands(total_holders):
@@ -373,8 +472,8 @@ def collect_snapshot(force=False):
                     origins_floor_eth, origins_supply, origins_market_cap_usd, origins_floor_change_24h,
                     undead_floor_eth, undead_supply, undead_market_cap_usd, undead_floor_change_24h,
                     total_migrations, migration_percent, price_ratio, combined_market_cap_usd,
-                    undead_holders, undead_volume_24h_eth, undead_listed, snapshot_at
-                ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)
+                    undead_holders, undead_volume_24h_eth, undead_listed, snapshot_at, source
+                ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, 'live')
                 ON CONFLICT(analytics_date) DO UPDATE SET
                     eth_price_usd=excluded.eth_price_usd,
                     origins_floor_eth=excluded.origins_floor_eth,
@@ -390,7 +489,8 @@ def collect_snapshot(force=False):
                     undead_holders=excluded.undead_holders,
                     undead_volume_24h_eth=excluded.undead_volume_24h_eth,
                     undead_listed=excluded.undead_listed,
-                    snapshot_at=excluded.snapshot_at
+                    snapshot_at=excluded.snapshot_at,
+                    source='live'
             """, (
                 today, eth_price,
                 origins_floor, ORIGINS_MAX_SUPPLY, origins_mc,
@@ -754,7 +854,6 @@ def build_current_payload(latest, conn):
             'num_listed': listed,
             'listing_percent': (listed / supply * 100) if listed and supply else None,
             'diamond_hands_pct': diamond,
-            'migration_percent': (supply / ORIGINS_MAX_SUPPLY) * 100 if supply else None,
         },
         'trends': trends,
     }
@@ -820,6 +919,22 @@ def snapshot():
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 
+@app.route('/api/rebuild-history')
+def rebuild_history_endpoint():
+    """One-time admin op: replace fabricated legacy history with real
+    sales-reconstructed history. Requires ?confirm=1."""
+    if request.args.get('confirm') != '1':
+        return jsonify({'error': 'Pass ?confirm=1 to rebuild history. This deletes '
+                                 'legacy (non-live) rows and rebuilds from real sales '
+                                 'and ETH price data.'}), 400
+    try:
+        result = rebuild_history(days=365)
+        return jsonify({'status': 'rebuilt', **result,
+                        'timestamp': datetime.now().isoformat()})
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
 @app.route('/api/charts')
 def get_chart_data():
     """Raw date-aligned series for the chart section. ?days=30|90|180|all"""
@@ -857,9 +972,7 @@ def get_chart_data():
             'supply': [r['undead_supply'] for r in rows],
             'holders': [col(r, 'undead_holders') for r in rows],
             'eth_price_usd': [r['eth_price_usd'] for r in rows],
-            'migration_percent': [
-                (r['undead_supply'] / ORIGINS_MAX_SUPPLY * 100) if r['undead_supply'] else None
-                for r in rows],
+            'source': [col(r, 'source') for r in rows],
         }
         sales_series = {
             'dates': [s['sale_date'] for s in sales],
@@ -876,6 +989,8 @@ def get_chart_data():
                 'first_date': series['dates'][0] if series['dates'] else None,
                 'last_date': series['dates'][-1] if series['dates'] else None,
                 'origins_max_supply': ORIGINS_MAX_SUPPLY,
+                'live_since': next((series['dates'][i] for i, src in enumerate(series['source'])
+                                    if src == 'live'), None),
                 'generated_at': datetime.now().isoformat(),
             },
         })
