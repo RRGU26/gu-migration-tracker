@@ -5,6 +5,7 @@ Calculates 7-day and 30-day hold percentages
 Generates conviction table and quadrant map data
 """
 
+import os
 import requests
 import time
 import json
@@ -12,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
 # Configuration
-OPENSEA_API_KEY = '518c0d7ea6ad4116823f41c5245b1098'
+OPENSEA_API_KEY = os.environ.get('OPENSEA_API_KEY', '')
 COLLECTION_SLUG = 'genuine-undead'
 OPENSEA_BASE_URL = 'https://api.opensea.io/api/v2'
 

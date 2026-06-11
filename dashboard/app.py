@@ -1,315 +1,585 @@
 #!/usr/bin/env python3
 """
-Simplified GU Migration Tracker Dashboard
-Direct database connection, no complex caching
+GU Migration Tracker Dashboard — industrialized backend.
+
+Key properties:
+- Single collect_snapshot() writes today's row in daily_analytics (upsert, never
+  destroys columns it didn't compute).
+- Background collector thread refreshes data hourly; /api/current also kicks a
+  throttled background collection whenever the latest snapshot is stale.
+- Real sales history backfilled from OpenSea events into daily_sales.
+- /api/charts serves raw date-aligned series for the frontend chart section.
+- /api/export-history + /api/snapshot let a GitHub Action persist history across
+  Railway's ephemeral filesystem.
 """
 import os
 import sys
-from datetime import datetime, date
-from flask import Flask, render_template, jsonify, send_file
+import json
+import time
+import threading
+from datetime import datetime, date, timedelta, timezone
+from flask import Flask, render_template, jsonify, send_file, request
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Add parent directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from src.database.database import DatabaseManager
 import requests
-import subprocess
-import threading
+
+VERSION = '2026-06-11-v4-industrial'
+
+UNDEAD_SLUG = 'genuine-undead'
+ORIGINS_SLUG = 'gu-origins'
+ORIGINS_MAX_SUPPLY = 9993
+BURNED_GU = 26  # GU burned before migration started; counted as migrated
+GUSTR_ADDRESS = '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00'
+GUSTR_POOL = '0xe8d6ad309e597da6e05c225008e9518d4124806cf8fa52200469e3d8eb16d573'
+
+STALE_AFTER_MINUTES = 90       # /api/current flags data older than this
+COLLECT_MIN_INTERVAL = 600     # throttle: at most one collection per 10 min
+COLLECTOR_PERIOD = 3600        # background collector cadence (1h)
+DIAMOND_HANDS_PERIOD = 6 * 3600  # recompute expensive diamond-hands every 6h
+SALES_BACKFILL_DAYS = 90
 
 app = Flask(__name__)
 
-# Single database connection
 db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'gu_migration.db')
 db = DatabaseManager(db_path)
 
-def get_eth_price_sync():
-    """Get current ETH price synchronously with multiple fallbacks"""
-    # Try CoinGecko
-    try:
-        print("[ETH Price] Trying CoinGecko...")
-        response = requests.get(
-            'https://api.coingecko.com/api/v3/simple/price',
-            params={'ids': 'ethereum', 'vs_currencies': 'usd'},
-            timeout=5
-        )
-        if response.status_code == 200:
-            data = response.json()
-            price = data.get('ethereum', {}).get('usd')
-            if price:
-                print(f"[ETH Price] CoinGecko success: ${price}")
-                return float(price)
-        print(f"[ETH Price] CoinGecko status: {response.status_code}")
-    except Exception as e:
-        print(f"[ETH Price] CoinGecko failed: {e}")
 
-    # Try CryptoCompare
-    try:
-        print("[ETH Price] Trying CryptoCompare...")
-        response = requests.get(
-            'https://min-api.cryptocompare.com/data/price',
-            params={'fsym': 'ETH', 'tsyms': 'USD'},
-            timeout=5
-        )
-        if response.status_code == 200:
-            data = response.json()
-            price = data.get('USD')
-            if price:
-                print(f"[ETH Price] CryptoCompare success: ${price}")
-                return float(price)
-        print(f"[ETH Price] CryptoCompare status: {response.status_code}")
-    except Exception as e:
-        print(f"[ETH Price] CryptoCompare failed: {e}")
+def opensea_headers():
+    return {'X-API-KEY': os.environ.get('OPENSEA_API_KEY', '')}
 
-    # Try Binance
-    try:
-        print("[ETH Price] Trying Binance...")
-        response = requests.get(
-            'https://api.binance.com/api/v3/ticker/price',
-            params={'symbol': 'ETHUSDT'},
-            timeout=5
-        )
-        if response.status_code == 200:
-            data = response.json()
-            price = data.get('price')
-            if price:
-                print(f"[ETH Price] Binance success: ${price}")
-                return float(price)
-        print(f"[ETH Price] Binance status: {response.status_code}")
-    except Exception as e:
-        print(f"[ETH Price] Binance failed: {e}")
 
-    print("[ETH Price] All APIs failed, using fallback $3200")
-    return 3200.0
+# ---------------------------------------------------------------------------
+# Tiny in-memory TTL cache (per worker process)
+# ---------------------------------------------------------------------------
+_cache = {}
+_cache_lock = threading.Lock()
 
-def get_gustr_token_data():
-    """Get GUSTR token data from TokenStrategy (primary), GeckoTerminal (backup), DexScreener (trading activity)"""
-    try:
-        price_usd = 0
-        price_eth = 0
-        market_cap = 0
-        liquidity = 0
-        volume_24h = 0
 
-        # Get ETH price for conversion
+def cached(key, ttl_seconds, fn):
+    now = time.time()
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit and now - hit[0] < ttl_seconds:
+            return hit[1]
+    value = fn()
+    if value is not None:
+        with _cache_lock:
+            _cache[key] = (time.time(), value)
+    return value
+
+
+# ---------------------------------------------------------------------------
+# Schema migrations (idempotent, run at import)
+# ---------------------------------------------------------------------------
+EXTRA_ANALYTICS_COLUMNS = [
+    ('undead_holders', 'INTEGER'),
+    ('undead_volume_24h_eth', 'REAL'),
+    ('undead_listed', 'INTEGER'),
+    ('undead_diamond_hands_pct', 'REAL'),
+    ('undead_sellers_30d', 'INTEGER'),
+    ('undead_sales_30d', 'INTEGER'),
+    ('snapshot_at', 'TEXT'),
+]
+
+
+def migrate_schema():
+    with db.get_connection() as conn:
+        for col, col_type in EXTRA_ANALYTICS_COLUMNS:
+            try:
+                conn.execute(f'ALTER TABLE daily_analytics ADD COLUMN {col} {col_type}')
+            except Exception:
+                pass  # column already exists
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS daily_sales (
+                sale_date TEXT PRIMARY KEY,
+                sales_count INTEGER NOT NULL DEFAULT 0,
+                volume_eth REAL NOT NULL DEFAULT 0,
+                avg_price_eth REAL,
+                min_price_eth REAL,
+                max_price_eth REAL,
+                updated_at TEXT
+            )
+        """)
+        conn.commit()
+
+
+migrate_schema()
+
+
+# ---------------------------------------------------------------------------
+# External data fetchers
+# ---------------------------------------------------------------------------
+def _fetch_eth_price():
+    """ETH/USD with three independent fallbacks."""
+    sources = [
+        ('CoinGecko', 'https://api.coingecko.com/api/v3/simple/price',
+         {'ids': 'ethereum', 'vs_currencies': 'usd'},
+         lambda d: d.get('ethereum', {}).get('usd')),
+        ('CryptoCompare', 'https://min-api.cryptocompare.com/data/price',
+         {'fsym': 'ETH', 'tsyms': 'USD'},
+         lambda d: d.get('USD')),
+        ('Binance', 'https://api.binance.com/api/v3/ticker/price',
+         {'symbol': 'ETHUSDT'},
+         lambda d: d.get('price')),
+    ]
+    for name, url, params, extract in sources:
         try:
-            eth_price = get_eth_price_sync()
-            if not eth_price or eth_price <= 0:
-                eth_price = 3500
+            response = requests.get(url, params=params, timeout=5)
+            if response.status_code == 200:
+                price = extract(response.json())
+                if price:
+                    return float(price)
+            print(f'[ETH Price] {name} status: {response.status_code}')
         except Exception as e:
-            print(f"ETH price fetch error in GUSTR: {e}")
-            eth_price = 3500
+            print(f'[ETH Price] {name} failed: {e}')
+    return None
 
-        # Primary source: TokenStrategy API
+
+def get_eth_price():
+    """Cached ETH price; falls back to last DB price, then a constant."""
+    price = cached('eth_price', 300, _fetch_eth_price)
+    if price:
+        return price
+    try:
+        with db.get_connection() as conn:
+            row = conn.execute(
+                'SELECT eth_price_usd FROM daily_eth_prices ORDER BY price_date DESC LIMIT 1'
+            ).fetchone()
+            if row and row['eth_price_usd']:
+                return float(row['eth_price_usd'])
+    except Exception:
+        pass
+    return 2000.0
+
+
+def fetch_collection_stats(slug):
+    """OpenSea stats: floor, owners, one-day volume/sales. Returns dict or None."""
+    try:
+        response = requests.get(
+            f'https://api.opensea.io/api/v2/collections/{slug}/stats',
+            headers=opensea_headers(), timeout=10)
+        if response.status_code != 200:
+            print(f'[OpenSea] {slug} stats error {response.status_code}: {response.text[:150]}')
+            return None
+        data = response.json()
+        total = data.get('total', {})
+        result = {
+            'floor_price_eth': float(total.get('floor_price') or 0),
+            'num_owners': int(total.get('num_owners') or 0),
+            'volume_24h_eth': 0.0,
+            'sales_24h': 0,
+        }
+        for interval in data.get('intervals', []):
+            if interval.get('interval') == 'one_day':
+                result['volume_24h_eth'] = float(interval.get('volume') or 0)
+                result['sales_24h'] = int(interval.get('sales') or 0)
+        return result
+    except Exception as e:
+        print(f'[OpenSea] {slug} stats exception: {e}')
+        return None
+
+
+def fetch_collection_supply(slug):
+    try:
+        response = requests.get(
+            f'https://api.opensea.io/api/v2/collections/{slug}',
+            headers=opensea_headers(), timeout=10)
+        if response.status_code == 200:
+            supply = response.json().get('total_supply')
+            if supply:
+                return int(supply)
+    except Exception as e:
+        print(f'[OpenSea] {slug} supply exception: {e}')
+    return None
+
+
+def fetch_listings_count(slug=UNDEAD_SLUG, max_pages=5):
+    try:
+        total = 0
+        next_cursor = None
+        for _ in range(max_pages):
+            params = {'limit': 100}
+            if next_cursor:
+                params['next'] = next_cursor
+            response = requests.get(
+                f'https://api.opensea.io/api/v2/listings/collection/{slug}/all',
+                headers=opensea_headers(), params=params, timeout=10)
+            if response.status_code != 200:
+                break
+            data = response.json()
+            total += len(data.get('listings', []))
+            next_cursor = data.get('next')
+            if not next_cursor:
+                break
+        return total
+    except Exception as e:
+        print(f'[OpenSea] listings exception: {e}')
+        return None
+
+
+def _iter_sale_events(slug=UNDEAD_SLUG, oldest_timestamp=0, max_pages=120):
+    """Yield sale events newest-first until older than oldest_timestamp."""
+    next_cursor = None
+    for _ in range(max_pages):
+        params = {'event_type': 'sale', 'limit': 50}
+        if next_cursor:
+            params['next'] = next_cursor
+        response = requests.get(
+            f'https://api.opensea.io/api/v2/events/collection/{slug}',
+            headers=opensea_headers(), params=params, timeout=15)
+        if response.status_code != 200:
+            print(f'[OpenSea] events error {response.status_code}')
+            return
+        data = response.json()
+        events = data.get('asset_events', [])
+        if not events:
+            return
+        done = False
+        for event in events:
+            if (event.get('event_timestamp') or 0) < oldest_timestamp:
+                done = True
+                continue
+            yield event
+        if done:
+            return
+        next_cursor = data.get('next')
+        if not next_cursor:
+            return
+        time.sleep(0.3)  # stay under OpenSea rate limits
+
+
+def _sale_price_eth(event):
+    """Sale price in ETH, or None for non-ETH/WETH payments."""
+    payment = event.get('payment') or {}
+    symbol = (payment.get('symbol') or '').upper()
+    if symbol not in ('ETH', 'WETH'):
+        return None
+    try:
+        quantity = int(payment.get('quantity') or 0)
+        decimals = int(payment.get('decimals') or 18)
+        return quantity / (10 ** decimals)
+    except Exception:
+        return None
+
+
+def update_sales_history(days):
+    """Aggregate OpenSea sale events into per-day rows in daily_sales."""
+    cutoff_ts = int(time.time()) - days * 86400
+    daily = {}
+    count = 0
+    for event in _iter_sale_events(oldest_timestamp=cutoff_ts):
+        price = _sale_price_eth(event)
+        if price is None:
+            continue
+        day = datetime.fromtimestamp(event['event_timestamp'], tz=timezone.utc).date().isoformat()
+        bucket = daily.setdefault(day, [])
+        bucket.append(price)
+        count += 1
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with db.get_connection() as conn:
+        for day, prices in daily.items():
+            conn.execute("""
+                INSERT INTO daily_sales
+                    (sale_date, sales_count, volume_eth, avg_price_eth,
+                     min_price_eth, max_price_eth, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(sale_date) DO UPDATE SET
+                    sales_count=excluded.sales_count,
+                    volume_eth=excluded.volume_eth,
+                    avg_price_eth=excluded.avg_price_eth,
+                    min_price_eth=excluded.min_price_eth,
+                    max_price_eth=excluded.max_price_eth,
+                    updated_at=excluded.updated_at
+            """, (day, len(prices), sum(prices), sum(prices) / len(prices),
+                  min(prices), max(prices), now_iso))
+        conn.commit()
+    print(f'[Sales] Updated {len(daily)} days from {count} sales (window={days}d)')
+    return len(daily)
+
+
+def compute_diamond_hands(total_holders):
+    """% of holders with no sale in the last 30 days. Expensive: paginated events."""
+    if not total_holders:
+        return None
+    cutoff_ts = int(time.time()) - 30 * 86400
+    sellers = set()
+    sales = 0
+    for event in _iter_sale_events(oldest_timestamp=cutoff_ts, max_pages=20):
+        sales += 1
+        seller = event.get('seller')
+        if seller:
+            sellers.add(seller.lower())
+    pct = round((total_holders - len(sellers)) / total_holders * 100, 1)
+    return {'diamond_hands_pct': pct, 'sellers_30d': len(sellers), 'sales_30d': sales}
+
+
+# ---------------------------------------------------------------------------
+# Snapshot collection — the single source of truth
+# ---------------------------------------------------------------------------
+_collect_lock = threading.Lock()
+_last_collect_ts = 0.0
+_last_diamond_ts = 0.0
+
+
+def collect_snapshot(force=False):
+    """Fetch live data and upsert today's daily_analytics row.
+
+    Returns the collected summary dict, or None if skipped (throttled or
+    already in progress).
+    """
+    global _last_collect_ts, _last_diamond_ts
+    if not _collect_lock.acquire(blocking=False):
+        return None
+    try:
+        if not force and time.time() - _last_collect_ts < COLLECT_MIN_INTERVAL:
+            return None
+
+        eth_price = get_eth_price()
+        undead = fetch_collection_stats(UNDEAD_SLUG)
+        if not undead or undead['floor_price_eth'] <= 0:
+            print('[Collect] Undead stats unavailable — skipping snapshot write')
+            return None
+        origins = fetch_collection_stats(ORIGINS_SLUG) or {}
+        undead_supply = fetch_collection_supply(UNDEAD_SLUG)
+        listed = fetch_listings_count()
+
+        diamond = None
+        if time.time() - _last_diamond_ts > DIAMOND_HANDS_PERIOD:
+            diamond = compute_diamond_hands(undead['num_owners'])
+            if diamond:
+                _last_diamond_ts = time.time()
+
+        today = date.today().isoformat()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        undead_floor = undead['floor_price_eth']
+        origins_floor = origins.get('floor_price_eth') or 0
+        with db.get_connection() as conn:
+            if undead_supply is None:
+                row = conn.execute(
+                    'SELECT undead_supply FROM daily_analytics ORDER BY analytics_date DESC LIMIT 1'
+                ).fetchone()
+                undead_supply = row['undead_supply'] if row else 0
+            undead_mc = undead_floor * undead_supply * eth_price
+            origins_mc = origins_floor * ORIGINS_MAX_SUPPLY * eth_price
+            conn.execute("""
+                INSERT INTO daily_analytics (
+                    analytics_date, eth_price_usd,
+                    origins_floor_eth, origins_supply, origins_market_cap_usd, origins_floor_change_24h,
+                    undead_floor_eth, undead_supply, undead_market_cap_usd, undead_floor_change_24h,
+                    total_migrations, migration_percent, price_ratio, combined_market_cap_usd,
+                    undead_holders, undead_volume_24h_eth, undead_listed, snapshot_at
+                ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(analytics_date) DO UPDATE SET
+                    eth_price_usd=excluded.eth_price_usd,
+                    origins_floor_eth=excluded.origins_floor_eth,
+                    origins_supply=excluded.origins_supply,
+                    origins_market_cap_usd=excluded.origins_market_cap_usd,
+                    undead_floor_eth=excluded.undead_floor_eth,
+                    undead_supply=excluded.undead_supply,
+                    undead_market_cap_usd=excluded.undead_market_cap_usd,
+                    total_migrations=excluded.total_migrations,
+                    migration_percent=excluded.migration_percent,
+                    price_ratio=excluded.price_ratio,
+                    combined_market_cap_usd=excluded.combined_market_cap_usd,
+                    undead_holders=excluded.undead_holders,
+                    undead_volume_24h_eth=excluded.undead_volume_24h_eth,
+                    undead_listed=excluded.undead_listed,
+                    snapshot_at=excluded.snapshot_at
+            """, (
+                today, eth_price,
+                origins_floor, ORIGINS_MAX_SUPPLY, origins_mc,
+                undead_floor, undead_supply, undead_mc,
+                undead_supply + BURNED_GU,
+                (undead_supply / ORIGINS_MAX_SUPPLY) * 100,
+                (undead_floor / origins_floor) if origins_floor > 0 else 0,
+                origins_mc + undead_mc,
+                undead['num_owners'] or None,
+                undead['volume_24h_eth'],
+                listed,
+                now_iso,
+            ))
+            if diamond:
+                conn.execute("""
+                    UPDATE daily_analytics SET
+                        undead_diamond_hands_pct = ?,
+                        undead_sellers_30d = ?,
+                        undead_sales_30d = ?
+                    WHERE analytics_date = ?
+                """, (diamond['diamond_hands_pct'], diamond['sellers_30d'],
+                      diamond['sales_30d'], today))
+            conn.execute("""
+                INSERT OR REPLACE INTO daily_eth_prices (price_date, eth_price_usd)
+                VALUES (?, ?)
+            """, (today, eth_price))
+            conn.commit()
+
+        _last_collect_ts = time.time()
+        print(f'[Collect] Snapshot {today}: floor={undead_floor} ETH, '
+              f'supply={undead_supply}, holders={undead["num_owners"]}, listed={listed}')
+        # Keep today's/yesterday's sales rows current (cheap: stops at 2-day cutoff)
+        try:
+            update_sales_history(days=2)
+        except Exception as e:
+            print(f'[Collect] sales update failed: {e}')
+        return {
+            'analytics_date': today,
+            'eth_price_usd': eth_price,
+            'undead_floor_eth': undead_floor,
+            'undead_supply': undead_supply,
+            'undead_holders': undead['num_owners'],
+            'undead_listed': listed,
+        }
+    finally:
+        _collect_lock.release()
+
+
+def kick_background_collection():
+    """Fire-and-forget collection (throttled inside collect_snapshot)."""
+    threading.Thread(target=collect_snapshot, kwargs={'force': False}, daemon=True).start()
+
+
+# ---------------------------------------------------------------------------
+# GUSTR token data
+# ---------------------------------------------------------------------------
+def get_gustr_token_data():
+    """GUSTR data: TokenStrategy (primary), GeckoTerminal (backup), DexScreener (activity)."""
+    try:
+        price_usd = price_eth = market_cap = liquidity = volume_24h = 0
+        eth_price = get_eth_price()
+
         try:
             ts_response = requests.get(
-                'https://www.tokenstrategy.com/api/strategies/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00',
-                timeout=10
-            )
+                f'https://www.tokenstrategy.com/api/strategies/{GUSTR_ADDRESS}', timeout=10)
             if ts_response.status_code == 200:
-                ts_json = ts_response.json()
-                ts_data = ts_json.get('data', {})
+                ts_data = ts_response.json().get('data', {})
                 price_usd = float(ts_data.get('priceUsd', 0) or 0)
                 market_cap = float(ts_data.get('marketCap', 0) or 0)
                 liquidity = float(ts_data.get('liquidity', 0) or 0)
                 volume_24h = float(ts_data.get('volume24h', 0) or 0)
                 price_eth = price_usd / eth_price if eth_price > 0 else 0
         except Exception as ts_err:
-            print(f"TokenStrategy API error: {ts_err}")
+            print(f'TokenStrategy API error: {ts_err}')
 
-        # Backup source: GeckoTerminal API (Uniswap V4 pool)
         if price_usd == 0:
             try:
                 gecko_response = requests.get(
-                    'https://api.geckoterminal.com/api/v2/networks/eth/pools/0xe8d6ad309e597da6e05c225008e9518d4124806cf8fa52200469e3d8eb16d573',
-                    timeout=10
-                )
+                    f'https://api.geckoterminal.com/api/v2/networks/eth/pools/{GUSTR_POOL}',
+                    timeout=10)
                 if gecko_response.status_code == 200:
-                    gecko_json = gecko_response.json()
-                    pool_data = gecko_json.get('data', {}).get('attributes', {})
-                    price_usd = float(pool_data.get('base_token_price_usd', 0) or 0)
-                    price_eth = float(pool_data.get('base_token_price_native_currency', 0) or 0)
-                    market_cap = float(pool_data.get('fdv_usd', 0) or 0)
-                    liquidity = float(pool_data.get('reserve_in_usd', 0) or 0)
-                    volume_24h = float(pool_data.get('volume_usd', {}).get('h24', 0) or 0)
+                    pool = gecko_response.json().get('data', {}).get('attributes', {})
+                    price_usd = float(pool.get('base_token_price_usd', 0) or 0)
+                    price_eth = float(pool.get('base_token_price_native_currency', 0) or 0)
+                    market_cap = float(pool.get('fdv_usd', 0) or 0)
+                    liquidity = float(pool.get('reserve_in_usd', 0) or 0)
+                    volume_24h = float(pool.get('volume_usd', {}).get('h24', 0) or 0)
             except Exception as gecko_err:
-                print(f"GeckoTerminal API error: {gecko_err}")
+                print(f'GeckoTerminal API error: {gecko_err}')
 
         if price_usd == 0:
             return None
 
-        # Initialize trading activity (no active DEX trading)
         result = {
-            'price_usd': price_usd,
-            'price_eth': price_eth,
-            'market_cap': market_cap,
-            'liquidity_usd': liquidity,
-            'volume_24h': volume_24h,
-            'volume_6h': 0,
-            'volume_1h': 0,
-            'volume_5m': 0,
-            'price_change_24h': 0,
-            'price_change_6h': 0,
-            'price_change_1h': 0,
-            'price_change_5m': 0,
-            'buys_24h': 0,
-            'sells_24h': 0,
-            'buys_6h': 0,
-            'sells_6h': 0,
-            'buys_1h': 0,
-            'sells_1h': 0,
-            'buys_5m': 0,
-            'sells_5m': 0
+            'price_usd': price_usd, 'price_eth': price_eth, 'market_cap': market_cap,
+            'liquidity_usd': liquidity, 'volume_24h': volume_24h,
+            'volume_6h': 0, 'volume_1h': 0, 'volume_5m': 0,
+            'price_change_24h': 0, 'price_change_6h': 0, 'price_change_1h': 0, 'price_change_5m': 0,
+            'buys_24h': 0, 'sells_24h': 0, 'buys_6h': 0, 'sells_6h': 0,
+            'buys_1h': 0, 'sells_1h': 0, 'buys_5m': 0, 'sells_5m': 0,
         }
 
-        # Try DexScreener for trading activity data (if available)
         try:
             dex_response = requests.get(
-                'https://api.dexscreener.com/latest/dex/tokens/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00',
-                timeout=5
-            )
+                f'https://api.dexscreener.com/latest/dex/tokens/{GUSTR_ADDRESS}', timeout=5)
             if dex_response.status_code == 200:
-                dex_data = dex_response.json()
-                if dex_data.get('pairs') and len(dex_data['pairs']) > 0:
-                    pair = dex_data['pairs'][0]
+                pairs = dex_response.json().get('pairs') or []
+                if pairs:
+                    pair = pairs[0]
                     txns = pair.get('txns', {})
                     volume = pair.get('volume', {})
                     price_change = pair.get('priceChange', {})
-
-                    # Update with DexScreener trading data
                     result.update({
-                        'volume_6h': float(volume.get('h6', 0)),
-                        'volume_1h': float(volume.get('h1', 0)),
-                        'volume_5m': float(volume.get('m5', 0)),
+                        'volume_6h': float(volume.get('h6', 0) or 0),
+                        'volume_1h': float(volume.get('h1', 0) or 0),
+                        'volume_5m': float(volume.get('m5', 0) or 0),
                         'price_change_24h': float(price_change.get('h24', 0) or 0),
                         'price_change_6h': float(price_change.get('h6', 0) or 0),
                         'price_change_1h': float(price_change.get('h1', 0) or 0),
                         'price_change_5m': float(price_change.get('m5', 0) or 0),
-                        'buys_24h': int(txns.get('h24', {}).get('buys', 0)),
-                        'sells_24h': int(txns.get('h24', {}).get('sells', 0)),
-                        'buys_6h': int(txns.get('h6', {}).get('buys', 0)),
-                        'sells_6h': int(txns.get('h6', {}).get('sells', 0)),
-                        'buys_1h': int(txns.get('h1', {}).get('buys', 0)),
-                        'sells_1h': int(txns.get('h1', {}).get('sells', 0)),
-                        'buys_5m': int(txns.get('m5', {}).get('buys', 0)),
-                        'sells_5m': int(txns.get('m5', {}).get('sells', 0))
+                        'buys_24h': int(txns.get('h24', {}).get('buys', 0) or 0),
+                        'sells_24h': int(txns.get('h24', {}).get('sells', 0) or 0),
+                        'buys_6h': int(txns.get('h6', {}).get('buys', 0) or 0),
+                        'sells_6h': int(txns.get('h6', {}).get('sells', 0) or 0),
+                        'buys_1h': int(txns.get('h1', {}).get('buys', 0) or 0),
+                        'sells_1h': int(txns.get('h1', {}).get('sells', 0) or 0),
+                        'buys_5m': int(txns.get('m5', {}).get('buys', 0) or 0),
+                        'sells_5m': int(txns.get('m5', {}).get('sells', 0) or 0),
                     })
         except Exception as dex_err:
-            print(f"DexScreener unavailable (using TokenStrategy only): {dex_err}")
+            print(f'DexScreener unavailable: {dex_err}')
 
         return result
-
     except Exception as e:
-        print(f"Error fetching GUSTR data: {e}")
+        print(f'Error fetching GUSTR data: {e}')
         return None
 
 
 def get_strategy_nft_holdings():
-    """Get NFT holdings count for the GUSTR strategy contract"""
     try:
-        # Strategy contract address
-        strategy_address = '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00'
-        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY')}
-
-        # Query OpenSea for NFTs owned by the strategy
         response = requests.get(
-            f'https://api.opensea.io/api/v2/chain/ethereum/account/{strategy_address}/nfts',
-            headers=headers,
-            timeout=10
-        )
-
+            f'https://api.opensea.io/api/v2/chain/ethereum/account/{GUSTR_ADDRESS}/nfts',
+            headers=opensea_headers(), timeout=10)
         if response.status_code == 200:
-            data = response.json()
-            nfts = data.get('nfts', [])
-            # Count NFTs from Genuine Undead collection
-            gu_nfts = [nft for nft in nfts if 'genuine' in nft.get('collection', '').lower() or 'undead' in nft.get('collection', '').lower()]
+            nfts = response.json().get('nfts', [])
+            gu_nfts = [n for n in nfts
+                       if 'genuine' in (n.get('collection') or '').lower()
+                       or 'undead' in (n.get('collection') or '').lower()]
             return len(gu_nfts) if gu_nfts else len(nfts)
         return 0
     except Exception as e:
-        print(f"Error fetching strategy NFT holdings: {e}")
+        print(f'Error fetching strategy NFT holdings: {e}')
         return 0
 
 
 def get_gustr_burn_amount():
-    """Get GUSTR tokens burned from TokenStrategy API"""
     try:
         response = requests.get(
-            'https://www.tokenstrategy.com/api/strategies/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00',
-            timeout=10
-        )
+            f'https://www.tokenstrategy.com/api/strategies/{GUSTR_ADDRESS}', timeout=10)
         if response.status_code == 200:
-            json_data = response.json()
-            # Response is wrapped in a "data" object
-            data = json_data.get('data', {})
-            # Burned amount is in raw token units (18 decimals) - field is "burnedAmount"
-            burned_raw = int(data.get('burnedAmount', 0) or 0)
-            # Convert to human readable (divide by 10^18)
-            burned_tokens = burned_raw / (10 ** 18)
-            # Total supply is 1 billion
-            total_supply = 1_000_000_000
-            burn_percent = (burned_tokens / total_supply) * 100
-            return {
-                'burned_tokens': burned_tokens,
-                'burn_percent': burn_percent
-            }
+            data = response.json().get('data', {})
+            burned_tokens = int(data.get('burnedAmount', 0) or 0) / (10 ** 18)
+            return {'burned_tokens': burned_tokens,
+                    'burn_percent': (burned_tokens / 1_000_000_000) * 100}
         return {'burned_tokens': 0, 'burn_percent': 0}
     except Exception as e:
-        print(f"Error fetching GUSTR burn amount: {e}")
+        print(f'Error fetching GUSTR burn amount: {e}')
         return {'burned_tokens': 0, 'burn_percent': 0}
 
 
 def get_gustr_holder_count():
-    """Get GUSTR token holder count by scraping Etherscan token page"""
+    """Holder count scraped from Etherscan's token page meta description."""
     try:
         import re
-        # GUSTR token contract address
-        gustr_address = '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00'
-
-        # Scrape Etherscan token page
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        url = f'https://etherscan.io/token/{gustr_address}'
-        response = requests.get(url, headers=headers, timeout=15)
-
+        response = requests.get(
+            f'https://etherscan.io/token/{GUSTR_ADDRESS}',
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+            timeout=15)
         if response.status_code == 200:
-            html = response.text
-            # Look for holder count in meta description: "Holders: 80 |"
-            match = re.search(r'Holders:\s*([\d,]+)', html)
+            match = re.search(r'Holders:\s*([\d,]+)', response.text)
             if match:
-                holder_count = int(match.group(1).replace(',', ''))
-                return {'holder_count': holder_count, 'source': 'etherscan_web'}
-
-        return {'holder_count': None, 'source': None}
-    except Exception as e:
-        print(f"Error fetching GUSTR holder count: {e}")
-        return {'holder_count': None, 'source': None}
-
-
-def get_gustr_holder_change():
-    """Get GUSTR holder count change from database"""
-    try:
-        with db.get_connection() as conn:
-            # Get yesterday's holder count
-            cursor = conn.execute("""
-                SELECT holder_count FROM gustr_daily_snapshots
-                WHERE snapshot_date = date('now', '-1 day')
-                LIMIT 1
-            """)
-            row = cursor.fetchone()
-            if row and row['holder_count']:
-                return row['holder_count']
+                return int(match.group(1).replace(',', ''))
         return None
     except Exception as e:
-        print(f"Error getting GUSTR holder change: {e}")
+        print(f'Error fetching GUSTR holder count: {e}')
         return None
 
 
 def save_gustr_snapshot(holder_count, market_cap, price_usd, volume_24h):
-    """Save daily GUSTR snapshot to database"""
     try:
         with db.get_connection() as conn:
             conn.execute("""
@@ -319,895 +589,452 @@ def save_gustr_snapshot(holder_count, market_cap, price_usd, volume_24h):
             """, (holder_count, market_cap, price_usd, volume_24h))
             conn.commit()
     except Exception as e:
-        print(f"Error saving GUSTR snapshot: {e}")
+        print(f'Error saving GUSTR snapshot: {e}')
 
 
-def get_quick_volume_data():
-    """Get volume data directly from OpenSea API"""
+def _build_gustr_payload():
+    token_data = get_gustr_token_data()
+    if not token_data:
+        return None
+    nft_holdings = get_strategy_nft_holdings()
+    burn_data = get_gustr_burn_amount()
+    holder_count = get_gustr_holder_count()
+
+    holder_change_pct = None
     try:
-        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY')}
-        
-        # Get Origins volume
-        origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats', 
-                                       headers=headers, timeout=5)
-        origins_vol = 0.0127  # fallback
-        if origins_response.status_code == 200:
-            origins_data = origins_response.json()
-            if 'intervals' in origins_data:
-                for interval in origins_data['intervals']:
-                    if interval.get('interval') == 'one_day':
-                        origins_vol = float(interval.get('volume', 0.0127))
-                        break
-        
-        # Get Undead volume
-        undead_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead/stats', 
-                                      headers=headers, timeout=5)
-        undead_vol = 0.033  # fallback
-        if undead_response.status_code == 200:
-            undead_data = undead_response.json()
-            if 'intervals' in undead_data:
-                for interval in undead_data['intervals']:
-                    if interval.get('interval') == 'one_day':
-                        undead_vol = float(interval.get('volume', 0.033))
-                        break
-                        
-        return origins_vol, undead_vol
-    except:
-        return 0.0127, 0.033  # fallback values
+        with db.get_connection() as conn:
+            row = conn.execute("""
+                SELECT holder_count FROM gustr_daily_snapshots
+                WHERE snapshot_date = date('now', '-1 day') LIMIT 1
+            """).fetchone()
+            if holder_count and row and row['holder_count']:
+                holder_change_pct = ((holder_count - row['holder_count'])
+                                     / row['holder_count']) * 100
+    except Exception:
+        pass
 
-def get_live_floor_prices_and_supply():
-    """Get live floor prices, supplies, and holder count from OpenSea API"""
+    if holder_count:
+        save_gustr_snapshot(holder_count, token_data.get('market_cap', 0),
+                            token_data.get('price_usd', 0), token_data.get('volume_24h', 0))
+
+    return {
+        'timestamp': datetime.now().isoformat(),
+        'token': {
+            'name': 'GenuineUndeadStrategy', 'symbol': 'GUSTR', 'address': GUSTR_ADDRESS,
+            **token_data,
+            'holder_count': holder_count,
+            'holder_change_24h': holder_change_pct,
+        },
+        'strategy': {
+            'nft_holdings': nft_holdings,
+            'burned_tokens': burn_data['burned_tokens'],
+            'burn_percent': burn_data['burn_percent'],
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Trend helpers
+# ---------------------------------------------------------------------------
+def _row_at_or_before(conn, days_ago):
+    """Closest daily_analytics row at/before N days ago (skips gaps honestly)."""
+    target = (date.today() - timedelta(days=days_ago)).isoformat()
+    return conn.execute("""
+        SELECT * FROM daily_analytics
+        WHERE analytics_date <= ?
+        ORDER BY analytics_date DESC LIMIT 1
+    """, (target,)).fetchone()
+
+
+def _pct(new, old):
+    if old and old > 0:
+        return ((new - old) / old) * 100
+    return None
+
+
+def build_trends(conn, latest):
+    """Date-windowed 1d/7d/30d changes with the actual window length reported."""
+    trends = {
+        'floor_price_change_1d': None,
+        'floor_price_change_7d': None,
+        'floor_price_change_30d': None,
+        'market_cap_change_30d': None,
+        'supply_growth_30d': None,
+        'holders_change_30d': None,
+        'window_actual_days_30d': None,
+    }
+    current_floor = latest['undead_floor_eth']
+    current_supply = latest['undead_supply']
+
+    # max_age: don't report a "1d change" computed against a weeks-old row
+    for days, max_age, key in ((1, 3, 'floor_price_change_1d'),
+                               (7, 14, 'floor_price_change_7d')):
+        ref = _row_at_or_before(conn, days)
+        if ref and ref['analytics_date'] != latest['analytics_date']:
+            ref_age = (date.today() - date.fromisoformat(ref['analytics_date'])).days
+            if ref_age <= max_age:
+                trends[key] = _pct(current_floor, ref['undead_floor_eth'])
+
+    ref30 = _row_at_or_before(conn, 30)
+    if ref30 and ref30['analytics_date'] != latest['analytics_date']:
+        trends['floor_price_change_30d'] = _pct(current_floor, ref30['undead_floor_eth'])
+        trends['supply_growth_30d'] = current_supply - ref30['undead_supply']
+        # market cap change in ETH terms to strip out ETH/USD volatility
+        trends['market_cap_change_30d'] = _pct(
+            current_floor * current_supply,
+            ref30['undead_floor_eth'] * ref30['undead_supply'])
+        try:
+            if ref30['undead_holders'] and latest['undead_holders']:
+                trends['holders_change_30d'] = latest['undead_holders'] - ref30['undead_holders']
+        except (KeyError, IndexError):
+            pass
+        trends['window_actual_days_30d'] = (
+            date.today() - date.fromisoformat(ref30['analytics_date'])).days
+
+    # 30d average daily sale volume from real sales history
+    vol_row = conn.execute("""
+        SELECT AVG(volume_eth) AS avg_vol, SUM(sales_count) AS sales
+        FROM daily_sales WHERE sale_date >= date('now', '-30 day')
+    """).fetchone()
+    trends['avg_daily_volume_30d'] = round(vol_row['avg_vol'], 4) if vol_row and vol_row['avg_vol'] else 0
+    trends['sales_30d_total'] = vol_row['sales'] if vol_row and vol_row['sales'] else 0
+    return trends
+
+
+def build_current_payload(latest, conn):
+    eth_price = get_eth_price()
+    floor = latest['undead_floor_eth']
+    supply = latest['undead_supply']
+    holders = None
+    listed = None
+    diamond = None
+    snapshot_at = None
     try:
-        api_key = os.environ.get('OPENSEA_API_KEY')
-        if not api_key:
-            print("[OpenSea] ERROR: OPENSEA_API_KEY not set!")
-            return 0.0330, 0.0460, 9993, 5566, 718
+        holders = latest['undead_holders']
+        listed = latest['undead_listed']
+        diamond = latest['undead_diamond_hands_pct']
+        snapshot_at = latest['snapshot_at']
+    except (KeyError, IndexError):
+        pass
 
-        headers = {'X-API-KEY': api_key}
-        print(f"[OpenSea] API key present: {api_key[:10]}...")
+    age_minutes = None
+    if snapshot_at:
+        try:
+            snap_dt = datetime.fromisoformat(snapshot_at)
+            if snap_dt.tzinfo is None:
+                snap_dt = snap_dt.replace(tzinfo=timezone.utc)
+            age_minutes = round((datetime.now(timezone.utc) - snap_dt).total_seconds() / 60)
+        except Exception:
+            pass
 
-        # Get Origins floor price
-        print("[OpenSea] Fetching Origins stats...")
-        origins_response = requests.get('https://api.opensea.io/api/v2/collections/gu-origins/stats',
-                                       headers=headers, timeout=5)
-        print(f"[OpenSea] Origins response: {origins_response.status_code}")
-        origins_floor = 0.0330
-        origins_supply = 9993
-        if origins_response.status_code == 200:
-            origins_data = origins_response.json()
-            origins_floor = float(origins_data.get('total', {}).get('floor_price', 0.0330))
-            print(f"[OpenSea] Origins floor: {origins_floor}")
+    is_today = latest['analytics_date'] == date.today().isoformat()
+    stale = (not is_today) or age_minutes is None or age_minutes > STALE_AFTER_MINUTES
 
-        # Get Undead stats (floor, num_owners)
-        print("[OpenSea] Fetching Undead stats...")
-        undead_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead/stats',
-                                      headers=headers, timeout=5)
-        print(f"[OpenSea] Undead response: {undead_response.status_code}")
-        undead_floor = 0.0460
-        undead_holders = 718
-        if undead_response.status_code == 200:
-            undead_data = undead_response.json()
-            undead_floor = float(undead_data.get('total', {}).get('floor_price', 0.0460))
-            undead_holders = int(undead_data.get('total', {}).get('num_owners', 718))
-            print(f"[OpenSea] Undead floor: {undead_floor}, holders: {undead_holders}")
-        else:
-            print(f"[OpenSea] Undead API error: {undead_response.text[:200]}")
-
-        # Get Undead supply
-        undead_supply = 5566
-        undead_collection_response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead',
-                                                headers=headers, timeout=5)
-        if undead_collection_response.status_code == 200:
-            undead_collection = undead_collection_response.json()
-            undead_supply = int(undead_collection.get('total_supply', 5566))
-            print(f"[OpenSea] Undead supply: {undead_supply}")
-
-        return origins_floor, undead_floor, origins_supply, undead_supply, undead_holders
-
-    except Exception as e:
-        print(f"[OpenSea] Exception: {e}")
-        import traceback
-        traceback.print_exc()
-        return 0.0330, 0.0460, 9993, 5566, 718
+    trends = build_trends(conn, latest)
+    return {
+        'timestamp': datetime.now().isoformat(),
+        'analytics_date': latest['analytics_date'],
+        'eth_price_usd': eth_price,
+        'freshness': {
+            'snapshot_at': snapshot_at,
+            'age_minutes': age_minutes,
+            'stale': stale,
+            'stale_after_minutes': STALE_AFTER_MINUTES,
+        },
+        'undead': {
+            'floor_price_eth': floor,
+            'floor_price_usd': floor * eth_price,
+            'total_supply': supply,
+            'market_cap_usd': floor * eth_price * supply,
+            'floor_change_24h': trends['floor_price_change_1d'] or 0.0,
+            'volume_24h_eth': (latest['undead_volume_24h_eth']
+                               if 'undead_volume_24h_eth' in latest.keys()
+                               and latest['undead_volume_24h_eth'] is not None else 0),
+            'holders_count': holders,
+            'num_listed': listed,
+            'listing_percent': (listed / supply * 100) if listed and supply else None,
+            'diamond_hands_pct': diamond,
+            'migration_percent': (supply / ORIGINS_MAX_SUPPLY) * 100 if supply else None,
+        },
+        'trends': trends,
+    }
 
 
-def get_listings_count():
-    """Get total number of active listings"""
-    try:
-        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY')}
-        total = 0
-        next_cursor = None
-        for _ in range(3):
-            params = {'limit': 200}
-            if next_cursor:
-                params['next'] = next_cursor
-            response = requests.get('https://api.opensea.io/api/v2/listings/collection/genuine-undead/all',
-                                   headers=headers, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                total += len(data.get('listings', []))
-                next_cursor = data.get('next')
-                if not next_cursor:
-                    break
-            else:
-                break
-        return total
-    except:
-        return 0
-
-
-def get_diamond_hands_percent(total_holders):
-    """Calculate % of holders who haven't sold in last 30 days"""
-    try:
-        import time
-        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY')}
-        thirty_days_ago = int(time.time()) - (30 * 24 * 60 * 60)
-        sellers = set()
-        next_cursor = None
-        total_sales_30d = 0
-        max_pages = 20
-        pages_fetched = 0
-
-        print(f'[Diamond Hands] Starting calculation. 30 days ago timestamp: {thirty_days_ago}')
-        print(f'[Diamond Hands] Total holders: {total_holders}')
-
-        # Keep fetching until we find events older than 30 days or hit max pages
-        while pages_fetched < max_pages:
-            url = 'https://api.opensea.io/api/v2/events/collection/genuine-undead'
-            params = {'event_type': 'sale', 'limit': 50}
-            if next_cursor:
-                params['next'] = next_cursor
-
-            response = requests.get(url, headers=headers, params=params, timeout=15)
-            if response.status_code != 200:
-                print(f'[Diamond Hands] OpenSea API error: {response.status_code}')
-                break
-
-            data = response.json()
-            events = data.get('asset_events', [])
-            print(f'[Diamond Hands] Page {pages_fetched + 1}: Got {len(events)} events')
-
-            if not events:
-                break
-
-            found_older_event = False
-            for event in events:
-                timestamp = event.get('event_timestamp', 0)
-                if timestamp >= thirty_days_ago:
-                    total_sales_30d += 1
-                    seller = event.get('seller')
-                    if seller:
-                        sellers.add(seller.lower())
-                else:
-                    found_older_event = True
-
-            # If we found events older than 30 days, we've captured all relevant sales
-            if found_older_event:
-                print(f'[Diamond Hands] Found older events, stopping at page {pages_fetched + 1}')
-                break
-
-            next_cursor = data.get('next')
-            if not next_cursor:
-                print(f'[Diamond Hands] No more pages')
-                break
-
-            pages_fetched += 1
-
-        unique_sellers = len(sellers)
-        if total_holders > 0:
-            diamond_hands = total_holders - unique_sellers
-            diamond_pct = round((diamond_hands / total_holders) * 100, 1)
-            print(f'[Diamond Hands] RESULT: {unique_sellers} unique sellers, {total_sales_30d} sales, {diamond_pct}% diamond hands')
-            return diamond_pct, unique_sellers, total_sales_30d
-
-        print(f'[Diamond Hands] No holders data, returning 0')
-        return 0.0, 0, 0
-
-    except Exception as e:
-        print(f'[Diamond Hands] ERROR: {e}')
-        import traceback
-        traceback.print_exc()
-        return 0.0, 0, 0
-
-
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 @app.route('/')
 def index():
-    """Serve the dashboard"""
     return render_template('dashboard.html')
+
 
 @app.route('/api/current')
 def get_current_data():
-    """Get current data directly from database - no caching, always fresh"""
+    """Latest snapshot from DB + freshness metadata. Kicks a background
+    collection when stale so the next poll is fresh."""
     try:
-        # Get fresh ETH price from API
-        try:
-            eth_price = get_eth_price_sync()
-            if not eth_price or eth_price <= 0:
-                eth_price = 2600.0  # Fallback
-        except:
-            eth_price = 2600.0  # Fallback
-
         with db.get_connection() as conn:
-            # Get the latest analytics data
-            cursor = conn.execute("""
-                SELECT
-                    analytics_date,
-                    eth_price_usd,
-                    origins_floor_eth,
-                    origins_supply,
-                    origins_market_cap_usd,
-                    origins_floor_change_24h,
-                    undead_floor_eth,
-                    undead_supply,
-                    undead_market_cap_usd,
-                    undead_floor_change_24h,
-                    total_migrations,
-                    migration_percent,
-                    price_ratio,
-                    combined_market_cap_usd
-                FROM daily_analytics
-                ORDER BY analytics_date DESC
-                LIMIT 1
-            """)
-
-            row = cursor.fetchone()
-
-            if not row:
-                # Return default values if no data
-                return jsonify({
-                    'error': 'No data available',
-                    'timestamp': datetime.now().isoformat()
-                })
-
-            # Get real volume data
-            try:
-                origins_vol, undead_vol = get_quick_volume_data()
-            except:
-                origins_vol, undead_vol = 0.0127, 0.033
-            
-            # Get 30-day historical data for trends
-            cursor_30d = conn.execute("""
-                SELECT
-                    undead_floor_eth,
-                    undead_supply,
-                    undead_market_cap_usd,
-                    analytics_date
-                FROM daily_analytics
-                ORDER BY analytics_date DESC
-                LIMIT 30
-            """)
-
-            historical_data = cursor_30d.fetchall()
-
-            # Calculate 30-day trends
-            trends = {
-                'floor_price_change_30d': 0.0,
-                'supply_growth_30d': 0,
-                'market_cap_change_30d': 0.0,
-                'avg_daily_volume_30d': undead_vol,  # Simplified for now
-                'holder_count': row['undead_supply']  # Using supply as proxy
-            }
-
-            if len(historical_data) >= 2:
-                # Floor price change (current vs 30 days ago)
-                oldest = historical_data[-1]
-                current_floor = row['undead_floor_eth']
-                old_floor = oldest['undead_floor_eth']
-                if old_floor > 0:
-                    trends['floor_price_change_30d'] = ((current_floor - old_floor) / old_floor) * 100
-
-                # Supply growth (current vs 30 days ago)
-                current_supply = row['undead_supply']
-                old_supply = oldest['undead_supply']
-                trends['supply_growth_30d'] = current_supply - old_supply
-
-                # Market cap change (current vs 30 days ago) - compare in ETH to remove ETH price volatility
-                current_mc_eth = row['undead_floor_eth'] * row['undead_supply']
-                old_mc_eth = oldest['undead_floor_eth'] * oldest['undead_supply']
-                if old_mc_eth > 0:
-                    trends['market_cap_change_30d'] = ((current_mc_eth - old_mc_eth) / old_mc_eth) * 100
-
-            # Build response using fresh ETH price - focused on Genuine Undead
-            data = {
-                'timestamp': datetime.now().isoformat(),
-                'analytics_date': row['analytics_date'],
-                'eth_price_usd': eth_price,
-                'undead': {
-                    'floor_price_eth': row['undead_floor_eth'],
-                    'floor_price_usd': row['undead_floor_eth'] * eth_price,
-                    'total_supply': row['undead_supply'],
-                    'market_cap_usd': row['undead_floor_eth'] * eth_price * row['undead_supply'],
-                    'floor_change_24h': 0.0,  # Removed for reliability
-                    'volume_24h_eth': undead_vol,
-                    'holders_count': row['undead_supply']  # Will be actual holders when available
-                },
-                'trends': trends
-            }
-
-            return jsonify(data)
-            
+            latest = conn.execute(
+                'SELECT * FROM daily_analytics ORDER BY analytics_date DESC LIMIT 1'
+            ).fetchone()
+            if not latest:
+                kick_background_collection()
+                return jsonify({'error': 'No data available yet — collection started',
+                                'timestamp': datetime.now().isoformat()})
+            payload = build_current_payload(latest, conn)
+        if payload['freshness']['stale']:
+            kick_background_collection()
+        return jsonify(payload)
     except Exception as e:
-        return jsonify({
-            'error': str(e),
-            'timestamp': datetime.now().isoformat()
-        }), 500
+        return jsonify({'error': str(e), 'timestamp': datetime.now().isoformat()}), 500
+
 
 @app.route('/api/refresh')
 def refresh_data():
-    """Get live ETH price and fresh volume data immediately - Updated Sept 13"""
+    """Force a synchronous collection, then return the fresh payload."""
     try:
-        # Get live ETH price directly
-        live_eth_price = None
-        try:
-            live_eth_price = get_eth_price_sync()
-            if not live_eth_price or live_eth_price <= 0:
-                raise ValueError("Invalid ETH price")
-        except Exception as e:
-            print(f"Error fetching ETH price: {e}")
-            # Use existing database price as fallback
-            with db.get_connection() as conn:
-                cursor = conn.execute("""
-                    SELECT eth_price_usd FROM daily_analytics 
-                    WHERE analytics_date = ? 
-                    LIMIT 1
-                """, (date.today().isoformat(),))
-                row = cursor.fetchone()
-                if row and row['eth_price_usd']:
-                    live_eth_price = row['eth_price_usd']
-                else:
-                    live_eth_price = 4418  # Updated fallback to current price
-        
-        # Get live floor prices, supplies, holders, and listings
-        try:
-            origins_floor, undead_floor, origins_supply, undead_supply, undead_holders = get_live_floor_prices_and_supply()
-            print(f'[Refresh] Live floor prices: Origins={origins_floor}, Undead={undead_floor}')
-        except Exception as e:
-            print(f'[Refresh] ERROR fetching live floor prices: {e}')
-            import traceback
-            traceback.print_exc()
-            origins_floor, undead_floor, origins_supply, undead_supply, undead_holders = 0.0330, 0.0460, 9993, 5566, 718
-        
-        # Get listings count
-        try:
-            num_listed = get_listings_count()
-        except:
-            num_listed = 0
-
-        # Calculate diamond hands % (recalculates on every refresh)
-        try:
-            diamond_hands_pct, num_sellers_30d, total_sales_30d = get_diamond_hands_percent(undead_holders)
-        except:
-            diamond_hands_pct, num_sellers_30d, total_sales_30d = 0.0, 0, 0
-
+        collect_snapshot(force=True)
         with db.get_connection() as conn:
-            # Update ETH price and floor prices in database
-            today = date.today().isoformat()
-            # Calculate metrics for INSERT
-            origins_mc = origins_floor * origins_supply * live_eth_price
-            undead_mc_calc = undead_floor * undead_supply * live_eth_price
-            total_mig = undead_supply + 26
-            mig_pct = (undead_supply / 9993) * 100
-            p_ratio = undead_floor / origins_floor if origins_floor > 0 else 0
-
-            # INSERT OR REPLACE - creates today data if missing
-            conn.execute("""
-                INSERT OR REPLACE INTO daily_analytics (
-                    analytics_date, eth_price_usd,
-                    origins_floor_eth, origins_supply, origins_market_cap_usd, origins_floor_change_24h,
-                    undead_floor_eth, undead_supply, undead_market_cap_usd, undead_floor_change_24h,
-                    total_migrations, migration_percent, price_ratio, combined_market_cap_usd
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (today, live_eth_price, origins_floor, origins_supply, origins_mc, 0.0,
-                  undead_floor, undead_supply, undead_mc_calc, 0.0, total_mig, mig_pct, p_ratio, origins_mc + undead_mc_calc))
-            
-            conn.execute("""
-                INSERT OR REPLACE INTO daily_eth_prices (price_date, eth_price_usd)
-                VALUES (?, ?)
-            """, (today, live_eth_price))
-            conn.commit()
-            
-            # Get today's data for other fields
-            cursor = conn.execute("""
-                SELECT 
-                    analytics_date, eth_price_usd, origins_floor_eth, origins_supply,
-                    origins_market_cap_usd, origins_floor_change_24h, undead_floor_eth, 
-                    undead_supply, undead_market_cap_usd, undead_floor_change_24h,
-                    total_migrations, migration_percent, price_ratio, combined_market_cap_usd
-                FROM daily_analytics
-                ORDER BY analytics_date DESC
-                LIMIT 1
-            """)
-            
-            row = cursor.fetchone()
-            if not row:
-                return jsonify({'error': 'No data available'}), 404
-                
-            # Note: 24h change calculations removed for simplicity and reliability
-
-            # Get fresh volume data
-            try:
-                origins_vol, undead_vol = get_quick_volume_data()
-            except:
-                origins_vol, undead_vol = 0.09, 0.49
-
-            # Recalculate market cap with live floor price, ETH price, and supply
-            undead_mc = undead_floor * live_eth_price * undead_supply
-
-            # Get 30-day historical data for trends
-            cursor_30d = conn.execute("""
-                SELECT
-                    undead_floor_eth,
-                    undead_supply,
-                    undead_market_cap_usd,
-                    analytics_date
-                FROM daily_analytics
-                ORDER BY analytics_date DESC
-                LIMIT 30
-            """)
-
-            historical_data = cursor_30d.fetchall()
-
-            # Calculate trends from historical data
-            trends = {
-                'floor_price_change_30d': 0.0,
-                'floor_price_change_7d': 0.0,
-                'floor_price_change_1d': 0.0,
-                'supply_growth_30d': 0,
-                'market_cap_change_30d': 0.0,
-                'avg_daily_volume_30d': undead_vol,
-                'holder_count': undead_holders,
-                'num_listed': num_listed
-            }
-
-            if len(historical_data) >= 2:
-                # 30-day changes
-                oldest = historical_data[-1]
-                if oldest['undead_floor_eth'] > 0:
-                    trends['floor_price_change_30d'] = ((undead_floor - oldest['undead_floor_eth']) / oldest['undead_floor_eth']) * 100
-                trends['supply_growth_30d'] = undead_supply - oldest['undead_supply']
-                # Market cap change in ETH terms to remove ETH price volatility
-                current_mc_eth = undead_floor * undead_supply
-                old_mc_eth = oldest['undead_floor_eth'] * oldest['undead_supply']
-                if old_mc_eth > 0:
-                    trends['market_cap_change_30d'] = ((current_mc_eth - old_mc_eth) / old_mc_eth) * 100
-
-                # 7-day change (if we have at least 7 days of data)
-                if len(historical_data) >= 7:
-                    day7 = historical_data[6]
-                    if day7['undead_floor_eth'] > 0:
-                        trends['floor_price_change_7d'] = ((undead_floor - day7['undead_floor_eth']) / day7['undead_floor_eth']) * 100
-
-                # 1-day change (yesterday vs today)
-                if len(historical_data) >= 1:
-                    yesterday = historical_data[0]  # Most recent is index 0 after today is inserted
-                    if yesterday['undead_floor_eth'] > 0 and yesterday['analytics_date'] != today:
-                        trends['floor_price_change_1d'] = ((undead_floor - yesterday['undead_floor_eth']) / yesterday['undead_floor_eth']) * 100
-
-            # Build response with live data
-            data = {
-                'timestamp': datetime.now().isoformat(),
-                'analytics_date': today,
-                'eth_price_usd': live_eth_price,
-                'undead': {
-                    'floor_price_eth': undead_floor,
-                    'floor_price_usd': undead_floor * live_eth_price,
-                    'total_supply': undead_supply,
-                    'market_cap_usd': undead_mc,
-                    'floor_change_24h': trends['floor_price_change_1d'],
-                    'volume_24h_eth': undead_vol,
-                    'holders_count': undead_holders,
-                    'num_listed': num_listed,
-                    'listing_percent': (num_listed / undead_supply * 100) if undead_supply > 0 else 0,
-                    'diamond_hands_pct': diamond_hands_pct,
-                    'num_sellers_30d': num_sellers_30d,
-                    'total_sales_30d': total_sales_30d
-                },
-                'trends': trends
-            }
-
-            return jsonify(data)
-
+            latest = conn.execute(
+                'SELECT * FROM daily_analytics ORDER BY analytics_date DESC LIMIT 1'
+            ).fetchone()
+            if not latest:
+                return jsonify({'error': 'Collection failed — no data'}), 502
+            return jsonify(build_current_payload(latest, conn))
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/api/snapshot')
+def snapshot():
+    """Force collection (used by the GitHub Action and manual ops)."""
+    try:
+        result = collect_snapshot(force=True)
+        if result:
+            return jsonify({'status': 'collected', **result,
+                            'timestamp': datetime.now().isoformat()})
+        return jsonify({'status': 'skipped',
+                        'reason': 'collection already in progress or source unavailable',
+                        'timestamp': datetime.now().isoformat()}), 202
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
 @app.route('/api/charts')
 def get_chart_data():
-    """Get historical data for charts"""
+    """Raw date-aligned series for the chart section. ?days=30|90|180|all"""
     try:
+        days_param = request.args.get('days', '90')
         with db.get_connection() as conn:
-            # Get last 30 days of data (last 3 days + next 27 for projection)
-            cursor = conn.execute("""
-                SELECT 
-                    analytics_date,
-                    origins_floor_eth,
-                    undead_floor_eth,
-                    origins_market_cap_usd,
-                    undead_market_cap_usd,
-                    total_migrations,
-                    undead_supply
-                FROM daily_analytics
-                ORDER BY analytics_date DESC
-                LIMIT 30
-            """)
-            
-            rows = cursor.fetchall()
-            
-            if not rows:
-                return jsonify({'charts': []})
-            
-            # Build chart data - focus on Genuine Undead trends
-            dates = []
-            floor_prices = []
-            undead_mc = []
-            undead_supply = []
+            if days_param == 'all':
+                rows = conn.execute(
+                    'SELECT * FROM daily_analytics ORDER BY analytics_date ASC').fetchall()
+                sales = conn.execute(
+                    'SELECT * FROM daily_sales ORDER BY sale_date ASC').fetchall()
+            else:
+                days = max(2, min(int(days_param), 3650))
+                cutoff = (date.today() - timedelta(days=days)).isoformat()
+                rows = conn.execute("""
+                    SELECT * FROM daily_analytics
+                    WHERE analytics_date >= ? ORDER BY analytics_date ASC
+                """, (cutoff,)).fetchall()
+                sales = conn.execute("""
+                    SELECT * FROM daily_sales
+                    WHERE sale_date >= ? ORDER BY sale_date ASC
+                """, (cutoff,)).fetchall()
 
-            for row in reversed(rows):  # Reverse to get chronological order
-                dates.append(row['analytics_date'])
-                floor_prices.append(row['undead_floor_eth'])
-                undead_mc.append(row['undead_market_cap_usd'])
-                undead_supply.append(row['undead_supply'])
+        def col(row, name):
+            try:
+                return row[name]
+            except (KeyError, IndexError):
+                return None
 
-            # Create clean, professional charts focused on GU trends
-            charts_data = {
-                'floor_price_chart': {
-                    'data': [{
-                        'x': dates,
-                        'y': floor_prices,
-                        'type': 'scatter',
-                        'mode': 'lines+markers',
-                        'name': 'Floor Price',
-                        'line': {'color': '#8b5cf6', 'width': 3},
-                        'marker': {'size': 8, 'color': '#8b5cf6', 'line': {'color': 'white', 'width': 1}},
-                        'hovertemplate': '<b>%{y:.4f}</b> ETH<br>%{x}<extra></extra>',
-                        'fill': 'tozeroy',
-                        'fillcolor': 'rgba(139, 92, 246, 0.1)'
-                    }],
-                    'layout': {
-                        'title': {
-                            'text': 'Floor Price Trend (30 Days)',
-                            'x': 0.5,
-                            'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#1f2937'}
-                        },
-                        'xaxis': {
-                            'title': '',
-                            'showgrid': False,
-                            'showline': True,
-                            'linecolor': '#e5e7eb',
-                            'tickfont': {'size': 12, 'color': '#6b7280'}
-                        },
-                        'yaxis': {
-                            'title': 'Floor Price (ETH)',
-                            'titlefont': {'size': 14, 'color': '#6b7280'},
-                            'showgrid': True,
-                            'gridcolor': '#f3f4f6',
-                            'showline': True,
-                            'linecolor': '#e5e7eb',
-                            'tickfont': {'size': 12, 'color': '#6b7280'},
-                            'tickformat': '.4f'
-                        },
-                        'plot_bgcolor': 'rgba(0,0,0,0)',
-                        'paper_bgcolor': 'rgba(0,0,0,0)',
-                        'margin': {'t': 50, 'l': 60, 'r': 20, 'b': 40},
-                        'showlegend': False,
-                        'height': 350
-                    }
-                },
-                'market_cap_chart': {
-                    'data': [{
-                        'x': dates,
-                        'y': undead_mc,
-                        'type': 'scatter',
-                        'mode': 'lines+markers',
-                        'name': 'Market Cap',
-                        'line': {'color': '#10b981', 'width': 3},
-                        'marker': {'size': 8, 'color': '#10b981', 'line': {'color': 'white', 'width': 1}},
-                        'hovertemplate': '<b>$%{y:,.0f}</b><br>%{x}<extra></extra>',
-                        'fill': 'tozeroy',
-                        'fillcolor': 'rgba(16, 185, 129, 0.1)'
-                    }],
-                    'layout': {
-                        'title': {
-                            'text': 'Market Cap Trend (30 Days)',
-                            'x': 0.5,
-                            'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#1f2937'}
-                        },
-                        'xaxis': {
-                            'title': '',
-                            'showgrid': False,
-                            'showline': True,
-                            'linecolor': '#e5e7eb',
-                            'tickfont': {'size': 12, 'color': '#6b7280'}
-                        },
-                        'yaxis': {
-                            'title': 'Market Cap (USD)',
-                            'titlefont': {'size': 14, 'color': '#6b7280'},
-                            'showgrid': True,
-                            'gridcolor': '#f3f4f6',
-                            'showline': True,
-                            'linecolor': '#e5e7eb',
-                            'tickfont': {'size': 12, 'color': '#6b7280'},
-                            'tickformat': '$,.0f'
-                        },
-                        'plot_bgcolor': 'rgba(0,0,0,0)',
-                        'paper_bgcolor': 'rgba(0,0,0,0)',
-                        'margin': {'t': 50, 'l': 80, 'r': 20, 'b': 60},
-                        'showlegend': False,
-                        'height': 350
-                    }
-                },
-                'supply_chart': {
-                    'data': [{
-                        'x': dates,
-                        'y': undead_supply,
-                        'type': 'scatter',
-                        'mode': 'lines+markers',
-                        'name': 'Supply',
-                        'line': {'color': '#3b82f6', 'width': 3},
-                        'marker': {'size': 8, 'color': '#3b82f6', 'line': {'color': 'white', 'width': 1}},
-                        'hovertemplate': '<b>%{y:,}</b> NFTs<br>%{x}<extra></extra>',
-                        'fill': 'tozeroy',
-                        'fillcolor': 'rgba(59, 130, 246, 0.1)'
-                    }],
-                    'layout': {
-                        'title': {
-                            'text': 'Supply Growth (30 Days)',
-                            'x': 0.5,
-                            'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#1f2937'}
-                        },
-                        'xaxis': {
-                            'title': '',
-                            'showgrid': False,
-                            'showline': True,
-                            'linecolor': '#e5e7eb',
-                            'tickfont': {'size': 12, 'color': '#6b7280'}
-                        },
-                        'yaxis': {
-                            'title': 'NFT Count',
-                            'titlefont': {'size': 14, 'color': '#6b7280'},
-                            'showgrid': True,
-                            'gridcolor': '#f3f4f6',
-                            'showline': True,
-                            'linecolor': '#e5e7eb',
-                            'tickfont': {'size': 12, 'color': '#6b7280'},
-                            'tickformat': ',.0f'
-                        },
-                        'plot_bgcolor': 'rgba(0,0,0,0)',
-                        'paper_bgcolor': 'rgba(0,0,0,0)',
-                        'margin': {'t': 50, 'l': 60, 'r': 20, 'b': 40},
-                        'showlegend': False,
-                        'height': 350
-                    }
-                }
-            }
-            
-            return jsonify(charts_data)
-            
-    except Exception as e:
+        series = {
+            'dates': [r['analytics_date'] for r in rows],
+            'floor_eth': [r['undead_floor_eth'] for r in rows],
+            'floor_usd': [(r['undead_floor_eth'] or 0) * (r['eth_price_usd'] or 0) for r in rows],
+            'market_cap_usd': [r['undead_market_cap_usd'] for r in rows],
+            'supply': [r['undead_supply'] for r in rows],
+            'holders': [col(r, 'undead_holders') for r in rows],
+            'eth_price_usd': [r['eth_price_usd'] for r in rows],
+            'migration_percent': [
+                (r['undead_supply'] / ORIGINS_MAX_SUPPLY * 100) if r['undead_supply'] else None
+                for r in rows],
+        }
+        sales_series = {
+            'dates': [s['sale_date'] for s in sales],
+            'volume_eth': [s['volume_eth'] for s in sales],
+            'sales_count': [s['sales_count'] for s in sales],
+            'avg_price_eth': [s['avg_price_eth'] for s in sales],
+        }
         return jsonify({
-            'error': str(e),
-            'charts': []
-        }), 500
+            'series': series,
+            'sales': sales_series,
+            'meta': {
+                'requested_days': days_param,
+                'data_points': len(rows),
+                'first_date': series['dates'][0] if series['dates'] else None,
+                'last_date': series['dates'][-1] if series['dates'] else None,
+                'origins_max_supply': ORIGINS_MAX_SUPPLY,
+                'generated_at': datetime.now().isoformat(),
+            },
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/gustr')
 def get_gustr_data():
-    """Get GUSTR token metrics"""
+    """GUSTR token metrics (cached 5 min — backed by 4-5 external calls)."""
     try:
-        # Get token data from DexScreener
-        token_data = get_gustr_token_data()
-
-        # Get NFT holdings count
-        nft_holdings = get_strategy_nft_holdings()
-
-        # Get burn data from TokenStrategy
-        burn_data = get_gustr_burn_amount()
-
-        # Get holder count from Etherscan
-        holder_data = get_gustr_holder_count()
-        holder_count = holder_data.get('holder_count')
-
-        # Get yesterday's holder count for % change
-        yesterday_holders = get_gustr_holder_change()
-        holder_change_pct = None
-        if holder_count and yesterday_holders and yesterday_holders > 0:
-            holder_change_pct = ((holder_count - yesterday_holders) / yesterday_holders) * 100
-
-        # Save today's snapshot if we have holder data
-        if token_data and holder_count:
-            save_gustr_snapshot(
-                holder_count,
-                token_data.get('market_cap', 0),
-                token_data.get('price_usd', 0),
-                token_data.get('volume_24h', 0)
-            )
-
-        if token_data:
-            response_data = {
-                'timestamp': datetime.now().isoformat(),
-                'token': {
-                    'name': 'GenuineUndeadStrategy',
-                    'symbol': 'GUSTR',
-                    'address': '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00',
-                    'price_usd': token_data['price_usd'],
-                    'price_eth': token_data['price_eth'],
-                    'market_cap': token_data['market_cap'],
-                    'liquidity_usd': token_data['liquidity_usd'],
-                    'volume_24h': token_data['volume_24h'],
-                    'volume_6h': token_data.get('volume_6h', 0),
-                    'volume_1h': token_data.get('volume_1h', 0),
-                    'volume_5m': token_data.get('volume_5m', 0),
-                    'price_change_24h': token_data['price_change_24h'],
-                    'price_change_6h': token_data['price_change_6h'],
-                    'price_change_1h': token_data['price_change_1h'],
-                    'price_change_5m': token_data.get('price_change_5m', 0),
-                    'buys_24h': token_data['buys_24h'],
-                    'sells_24h': token_data['sells_24h'],
-                    'buys_6h': token_data.get('buys_6h', 0),
-                    'sells_6h': token_data.get('sells_6h', 0),
-                    'buys_1h': token_data.get('buys_1h', 0),
-                    'sells_1h': token_data.get('sells_1h', 0),
-                    'buys_5m': token_data.get('buys_5m', 0),
-                    'sells_5m': token_data.get('sells_5m', 0),
-                    'holder_count': holder_count,
-                    'holder_change_24h': holder_change_pct
-                },
-                'strategy': {
-                    'nft_holdings': nft_holdings,
-                    'burned_tokens': burn_data['burned_tokens'],
-                    'burn_percent': burn_data['burn_percent']
-                }
-            }
-            return jsonify(response_data)
-        else:
-            return jsonify({
-                'error': 'Unable to fetch GUSTR data',
-                'timestamp': datetime.now().isoformat()
-            }), 500
-
+        payload = cached('gustr_payload', 300, _build_gustr_payload)
+        if payload:
+            return jsonify(payload)
+        return jsonify({'error': 'Unable to fetch GUSTR data',
+                        'timestamp': datetime.now().isoformat()}), 502
     except Exception as e:
+        return jsonify({'error': str(e), 'timestamp': datetime.now().isoformat()}), 500
+
+
+@app.route('/api/export-history')
+def export_history():
+    """Full history dump — committed back to the repo by the nightly GitHub
+    Action so history survives Railway redeploys."""
+    try:
+        with db.get_connection() as conn:
+            analytics = [dict(r) for r in conn.execute(
+                'SELECT * FROM daily_analytics ORDER BY analytics_date ASC').fetchall()]
+            sales = [dict(r) for r in conn.execute(
+                'SELECT * FROM daily_sales ORDER BY sale_date ASC').fetchall()]
+            gustr = [dict(r) for r in conn.execute(
+                'SELECT * FROM gustr_daily_snapshots ORDER BY snapshot_date ASC').fetchall()]
+        for row in analytics + sales + gustr:
+            row.pop('id', None)
         return jsonify({
-            'error': str(e),
-            'timestamp': datetime.now().isoformat()
-        }), 500
+            'exported_at': datetime.now(timezone.utc).isoformat(),
+            'version': VERSION,
+            'daily_analytics': analytics,
+            'daily_sales': sales,
+            'gustr_daily_snapshots': gustr,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/health')
 def health():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'database': 'connected',
-        'version': '2026-02-23-v3'  # Updated with ETH price sync fix
-    })
+    info = {'status': 'healthy', 'timestamp': datetime.now().isoformat(),
+            'version': VERSION}
+    try:
+        with db.get_connection() as conn:
+            latest = conn.execute(
+                'SELECT analytics_date, snapshot_at FROM daily_analytics '
+                'ORDER BY analytics_date DESC LIMIT 1').fetchone()
+            count = conn.execute('SELECT COUNT(*) AS c FROM daily_analytics').fetchone()['c']
+            sales_count = conn.execute('SELECT COUNT(*) AS c FROM daily_sales').fetchone()['c']
+        info.update({
+            'database': 'connected',
+            'history_days': count,
+            'sales_history_days': sales_count,
+            'latest_snapshot_date': latest['analytics_date'] if latest else None,
+            'latest_snapshot_at': latest['snapshot_at'] if latest else None,
+        })
+    except Exception as e:
+        info.update({'status': 'degraded', 'database': f'error: {e}'})
+    return jsonify(info)
+
 
 @app.route('/api/export-pdf')
 def export_pdf():
-    """Export current dashboard data as PDF"""
     try:
-        # Get current data
         with db.get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT 
-                    analytics_date, eth_price_usd, origins_floor_eth, origins_supply,
-                    origins_market_cap_usd, undead_floor_eth, undead_supply,
-                    undead_market_cap_usd, total_migrations, migration_percent,
-                    price_ratio, combined_market_cap_usd
-                FROM daily_analytics
-                ORDER BY analytics_date DESC
-                LIMIT 1
-            """)
-            
-            row = cursor.fetchone()
+            row = conn.execute("""
+                SELECT * FROM daily_analytics ORDER BY analytics_date DESC LIMIT 1
+            """).fetchone()
             if not row:
                 return jsonify({'error': 'No data available'}), 404
-            
-            # Get real volume data
-            try:
-                origins_vol, undead_vol = get_quick_volume_data()
-            except:
-                origins_vol, undead_vol = 0.09, 0.49
-                
-            # Format data for PDF
             pdf_data = {
                 'eth_price_usd': row['eth_price_usd'],
                 'origins': {
                     'floor_price_eth': row['origins_floor_eth'],
-                    'floor_price_usd': row['origins_floor_eth'] * row['eth_price_usd'],
-                    'volume_24h_eth': origins_vol,
+                    'floor_price_usd': (row['origins_floor_eth'] or 0) * row['eth_price_usd'],
+                    'volume_24h_eth': 0,
                     'market_cap_usd': row['origins_market_cap_usd'],
-                    'total_supply': row['origins_supply']
+                    'total_supply': row['origins_supply'],
                 },
                 'undead': {
                     'floor_price_eth': row['undead_floor_eth'],
-                    'floor_price_usd': row['undead_floor_eth'] * row['eth_price_usd'],
-                    'volume_24h_eth': undead_vol,
+                    'floor_price_usd': (row['undead_floor_eth'] or 0) * row['eth_price_usd'],
+                    'volume_24h_eth': (row['undead_volume_24h_eth']
+                                       if 'undead_volume_24h_eth' in row.keys()
+                                       and row['undead_volume_24h_eth'] is not None else 0),
                     'market_cap_usd': row['undead_market_cap_usd'],
-                    'total_supply': row['undead_supply']
+                    'total_supply': row['undead_supply'],
                 },
                 'migration_analytics': {
                     'migration_rate': {
                         'total_migrations': row['total_migrations'],
                         'migration_percent': row['migration_percent'],
-                        'price_ratio': row['price_ratio']
+                        'price_ratio': row['price_ratio'],
                     }
                 },
-                'ecosystem_value': row['combined_market_cap_usd']
+                'ecosystem_value': row['combined_market_cap_usd'],
             }
-            
-        # Generate PDF
         from pdf_generator import PDFReportGenerator
-        generator = PDFReportGenerator()
-        pdf_buffer = generator.generate_pdf(pdf_data)
-        
+        pdf_buffer = PDFReportGenerator().generate_pdf(pdf_data)
         return send_file(
-            pdf_buffer,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=f'GU_Migration_Report_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf'
-        )
-        
+            pdf_buffer, mimetype='application/pdf', as_attachment=True,
+            download_name=f'GU_Report_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/fix-data')
-def fix_data():
-    """Fix incorrect historical data by backfilling with current floor price"""
+
+# ---------------------------------------------------------------------------
+# Background collector
+# ---------------------------------------------------------------------------
+_collector_started = False
+_collector_guard = threading.Lock()
+
+
+def _collector_loop():
+    time.sleep(15)  # let the web server come up first
+    # One-time: backfill real sales history if the table is empty
     try:
-        from datetime import timedelta
         with db.get_connection() as conn:
-            # Get current floor price
-            cursor = conn.execute("""
-                SELECT undead_floor_eth, undead_supply, eth_price_usd
-                FROM daily_analytics
-                ORDER BY analytics_date DESC
-                LIMIT 1
-            """)
-            row = cursor.fetchone()
-
-            if not row:
-                return jsonify({'status': 'error', 'message': 'No current data found'}), 404
-
-            current_floor = row['undead_floor_eth']
-            current_supply = row['undead_supply']
-            current_eth_price = row['eth_price_usd']
-
-            # Backfill last 30 days with current floor price
-            today = date.today()
-            for days_ago in range(1, 31):
-                past_date = today - timedelta(days=days_ago)
-                date_str = past_date.isoformat()
-
-                market_cap = current_floor * current_supply * current_eth_price
-
-                conn.execute("""
-                    INSERT OR REPLACE INTO daily_analytics (
-                        analytics_date, eth_price_usd,
-                        origins_floor_eth, origins_supply, origins_market_cap_usd, origins_floor_change_24h,
-                        undead_floor_eth, undead_supply, undead_market_cap_usd, undead_floor_change_24h,
-                        total_migrations, migration_percent, price_ratio, combined_market_cap_usd
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    date_str, current_eth_price,
-                    0.033, 9993, 0.033 * 9993 * current_eth_price, 0.0,
-                    current_floor, current_supply, market_cap, 0.0,
-                    current_supply + 26, (current_supply / 9993) * 100,
-                    current_floor / 0.033, market_cap + (0.033 * 9993 * current_eth_price)
-                ))
-
-            conn.commit()
-
-            return jsonify({
-                'status': 'success',
-                'message': f'Backfilled 30 days with floor: {current_floor} ETH',
-                'floor_price': current_floor,
-                'timestamp': datetime.now().isoformat()
-            })
-
+            empty = conn.execute('SELECT COUNT(*) AS c FROM daily_sales').fetchone()['c'] == 0
+        if empty:
+            print(f'[Collector] Backfilling {SALES_BACKFILL_DAYS}d of sales history...')
+            update_sales_history(days=SALES_BACKFILL_DAYS)
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'error': str(e)
-        }), 500
+        print(f'[Collector] sales backfill failed: {e}')
+
+    while True:
+        try:
+            collect_snapshot(force=True)
+        except Exception as e:
+            print(f'[Collector] snapshot failed: {e}')
+        try:
+            cached('gustr_payload', 300, _build_gustr_payload)
+        except Exception as e:
+            print(f'[Collector] GUSTR refresh failed: {e}')
+        time.sleep(COLLECTOR_PERIOD)
+
+
+def start_collector():
+    global _collector_started
+    if os.environ.get('DISABLE_COLLECTOR') == '1':
+        return
+    with _collector_guard:
+        if _collector_started:
+            return
+        threading.Thread(target=_collector_loop, daemon=True,
+                         name='snapshot-collector').start()
+        _collector_started = True
+        print('[Collector] Background collector started (hourly)')
+
+
+start_collector()
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

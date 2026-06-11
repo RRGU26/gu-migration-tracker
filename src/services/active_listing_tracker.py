@@ -33,7 +33,7 @@ class ActiveListingTracker:
     
     def __init__(self):
         self.db = DatabaseManager()
-        self.opensea_headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        self.opensea_headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY', '')}
         
         # Collections to track
         self.collections = {

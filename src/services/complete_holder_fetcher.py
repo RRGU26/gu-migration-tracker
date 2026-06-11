@@ -24,7 +24,7 @@ class CompleteHolderFetcher:
     """Fetches complete holder data for Genuine Undead collection"""
     
     def __init__(self):
-        self.opensea_headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        self.opensea_headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY', '')}
         self.collection_slug = 'genuine-undead'
         self.contract_address = '0x209e639a0ec166ac7a1a4ba41968fa967db30221'
         self.total_supply = 5300  # Known total supply

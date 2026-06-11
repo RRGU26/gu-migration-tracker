@@ -62,7 +62,7 @@ heroku create your-custom-name-here
 ### 3. Set Environment Variables
 ```bash
 # Set your OpenSea API key
-heroku config:set OPENSEA_API_KEY=518c0d7ea6ad4116823f41c5245b1098
+heroku config:set OPENSEA_API_KEY=<your-opensea-api-key>
 
 # Optional: Set other variables
 heroku config:set ETHERSCAN_API_KEY=your_etherscan_key_here
@@ -86,7 +86,7 @@ Railway offers better free tier limits:
 ### 1. Sign up at https://railway.app with GitHub
 ### 2. Connect your GitHub repository
 ### 3. Add environment variables in Railway dashboard:
-   - `OPENSEA_API_KEY` = `518c0d7ea6ad4116823f41c5245b1098`
+   - `OPENSEA_API_KEY` = `<your-opensea-api-key>`
 ### 4. Deploy automatically!
 
 ## 🌊 Alternative: Deploy to Vercel

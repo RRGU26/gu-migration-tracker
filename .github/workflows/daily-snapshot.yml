@@ -1,0 +1,45 @@
+name: Daily snapshot & history persistence
+
+# Railway's filesystem is wiped on every deploy. This workflow forces a fresh
+# data collection on the live app, then commits the full exported history back
+# to the repo so bootstrap_db.py can rebuild the DB on the next deploy.
+
+on:
+  schedule:
+    - cron: '10 21 * * *'   # daily 21:10 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  APP_URL: https://web-production-2ae4a.up.railway.app
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger fresh collection
+        run: |
+          curl -sf --max-time 180 "$APP_URL/api/snapshot" | head -c 500
+          echo
+
+      - name: Export history
+        run: |
+          curl -sf --max-time 120 "$APP_URL/api/export-history" -o data/history_seed.json
+          python3 -m json.tool data/history_seed.json > /dev/null
+          python3 -c "import json; d=json.load(open('data/history_seed.json')); print('analytics rows:', len(d['daily_analytics']), '| sales rows:', len(d['daily_sales']))"
+
+      - name: Commit updated seed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/history_seed.json
+          if git diff --cached --quiet; then
+            echo "No history changes to commit"
+          else
+            git commit -m "chore: persist daily history snapshot"
+            git push
+          fi

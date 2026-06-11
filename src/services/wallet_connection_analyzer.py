@@ -24,7 +24,7 @@ class WalletConnectionAnalyzer:
     """Analyzes wallet connections and transaction patterns"""
     
     def __init__(self):
-        self.opensea_headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        self.opensea_headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY', '')}
         self.etherscan_api = "YourEtherscanAPIKey"  # Would need real key for full analysis
         
         # The major buyer we're investigating

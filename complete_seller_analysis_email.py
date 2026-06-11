@@ -21,7 +21,7 @@ async def send_complete_seller_analysis():
     print("GU MIGRATION TRACKER - COMPLETE SELLER ANALYSIS")
     print("=" * 60)
     
-    headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+    headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY', '')}
     
     try:
         # Get collection stats

@@ -2,6 +2,7 @@
 """
 Efficient Origins holder collection using direct NFT scanning
 """
+import os
 import requests
 import time
 import json
@@ -10,7 +11,7 @@ from datetime import datetime
 def get_all_origins_holders_efficient():
     """Get ALL Origins holders using direct NFT collection scan (most reliable method)"""
 
-    headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+    headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY', '')}
 
     print("EFFICIENT ORIGINS HOLDER COLLECTION")
     print("=" * 60)

@@ -2,6 +2,7 @@
 """
 Comprehensive Origins holder collection using multiple data sources
 """
+import os
 import requests
 import time
 import json
@@ -10,7 +11,7 @@ from datetime import datetime
 def get_comprehensive_origins_holders():
     """Get ALL Origins holders using multiple comprehensive methods"""
 
-    headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+    headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY', '')}
 
     print("COMPREHENSIVE ORIGINS HOLDER COLLECTION")
     print("=" * 60)

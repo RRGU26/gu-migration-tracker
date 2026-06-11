@@ -87,7 +87,7 @@ class DailyCollectionRunner:
             try:
                 import requests
                 
-                headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+                headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY', '')}
                 
                 # Get Origins floor price and supply
                 logger.info("Fetching Origins data directly from OpenSea...")

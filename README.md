@@ -12,6 +12,28 @@
 
 **Hosted on:** Railway (auto-deploys from GitHub)
 
+## ⚙️ Architecture (2026-06 industrialized)
+
+**Data freshness** — three layers keep data current with no manual refresh:
+1. In-app background collector takes a full snapshot every hour (floor, supply, holders, listings, volume, diamond hands).
+2. `/api/current` flags stale data (>90 min) and kicks an immediate background collection.
+3. A nightly GitHub Action (`.github/workflows/daily-snapshot.yml`) forces a snapshot and commits the exported history to `data/history_seed.json`.
+
+**History persistence** — Railway's filesystem is ephemeral. On every deploy, `bootstrap_db.py` rebuilds the SQLite DB from the committed `data/history_seed.json` (INSERT OR IGNORE — live rows are never overwritten). Real per-day sales history is backfilled from OpenSea sale events (90 days) on first boot.
+
+**Key API endpoints:**
+| Endpoint | Purpose |
+|----------|---------|
+| `/api/current` | Latest snapshot + freshness metadata + 1d/7d/30d trends |
+| `/api/refresh` | Force a synchronous live collection |
+| `/api/charts?days=30\|90\|365\|all` | Raw date-aligned series for the chart section |
+| `/api/snapshot` | Force collection (used by the GitHub Action) |
+| `/api/export-history` | Full history dump (persisted nightly to the repo) |
+| `/api/gustr` | GUSTR token metrics (cached 5 min) |
+| `/health` | Status + history depth + last snapshot time |
+
+**Chart exports** — every chart has a one-click PNG download; "Export Charts" produces a single branded composite image; "Share Card" generates a 1200×675 stats card for social media.
+
 ## 🎯 What This Tracks
 
 **Collections Monitored:**

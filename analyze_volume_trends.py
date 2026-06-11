@@ -9,13 +9,14 @@ Usage:
     python analyze_volume_trends.py
 """
 
+import os
 import requests
 from datetime import datetime, timedelta
 from collections import defaultdict
 import time
 import json
 
-OPENSEA_API_KEY = '518c0d7ea6ad4116823f41c5245b1098'
+OPENSEA_API_KEY = os.environ.get('OPENSEA_API_KEY', '')
 COLLECTION_SLUG = 'genuine-undead'
 
 

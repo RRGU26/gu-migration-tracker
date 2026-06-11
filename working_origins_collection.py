@@ -2,6 +2,7 @@
 """
 Working Origins collection using the method that successfully found the whale wallet
 """
+import os
 import requests
 import time
 import json
@@ -10,7 +11,7 @@ from datetime import datetime
 def get_origins_holders_working_method():
     """Get Origins holders using transfer events - the method that actually works"""
 
-    headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+    headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY', '')}
 
     print("WORKING ORIGINS HOLDER COLLECTION")
     print("=" * 60)

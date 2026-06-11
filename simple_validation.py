@@ -73,7 +73,7 @@ def quick_validation():
 
     # 4. Test API connection
     try:
-        headers = {'X-API-KEY': '518c0d7ea6ad4116823f41c5245b1098'}
+        headers = {'X-API-KEY': os.environ.get('OPENSEA_API_KEY', '')}
         response = requests.get('https://api.opensea.io/api/v2/collections/genuine-undead/stats',
                               headers=headers, timeout=10)
         if response.status_code == 200:
