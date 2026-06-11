@@ -776,6 +776,13 @@ def build_trends(conn, latest):
                 trends[key] = _pct(current_floor, ref['undead_floor_eth'])
 
     ref30 = _row_at_or_before(conn, 30)
+    if not ref30:
+        # History shorter than 30 days: compare against the oldest snapshot
+        # (window_actual_days_30d reports the true span)
+        oldest = conn.execute(
+            'SELECT * FROM daily_analytics ORDER BY analytics_date ASC LIMIT 1').fetchone()
+        if oldest and (date.today() - date.fromisoformat(oldest['analytics_date'])).days >= 7:
+            ref30 = oldest
     if ref30 and ref30['analytics_date'] != latest['analytics_date']:
         trends['floor_price_change_30d'] = _pct(current_floor, ref30['undead_floor_eth'])
         trends['supply_growth_30d'] = current_supply - ref30['undead_supply']
