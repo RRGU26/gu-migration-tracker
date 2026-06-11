@@ -3,381 +3,467 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Genuine Undead Analytics - Live Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Genuine Undead Analytics — Live Dashboard</title>
+    <meta property="og:title" content="Genuine Undead Analytics">
+    <meta property="og:description" content="Live floor price, market cap, migration and holder analytics for the Genuine Undead NFT collection.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧟</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        :root {
+            --bg: #0b0b14;
+            --card: rgba(23, 23, 38, 0.72);
+            --card-border: rgba(139, 92, 246, 0.16);
+            --card-border-hover: rgba(139, 92, 246, 0.4);
+            --text: #e2e8f0;
+            --text-dim: #94a3b8;
+            --text-faint: #64748b;
+            --purple: #a78bfa;
+            --green: #34d399;
+            --blue: #60a5fa;
+            --amber: #fbbf24;
+            --red: #f87171;
         }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            font-feature-settings: 'tnum';
+            background-image:
+                radial-gradient(ellipse 60% 40% at 15% -5%, rgba(124, 58, 237, 0.18), transparent),
+                radial-gradient(ellipse 50% 35% at 85% 0%, rgba(16, 185, 129, 0.10), transparent),
+                radial-gradient(ellipse 40% 30% at 50% 110%, rgba(124, 58, 237, 0.08), transparent);
+            background-attachment: fixed;
+        }
+        h1, h2, h3, .display { font-family: 'Space Grotesk', 'Inter', sans-serif; }
+
+        .container { max-width: 1280px; margin: 0 auto; padding: 0 20px; }
+
+        /* ---------- header ---------- */
+        header {
+            position: sticky; top: 0; z-index: 50;
+            background: rgba(11, 11, 20, 0.82);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--card-border);
+        }
+        .header-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 0; }
+        .brand { display: flex; align-items: center; gap: 14px; }
+        .brand-emoji { font-size: 34px; filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.5)); }
+        .brand h1 {
+            font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+            background: linear-gradient(90deg, #c4b5fd, #34d399);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .brand p { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+        .header-meta { text-align: right; }
+        .header-meta .date { font-size: 13px; font-weight: 600; }
+        .header-meta .updated { font-size: 11px; color: var(--text-dim); }
+        .header-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 7px;
+            font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+            padding: 8px 14px; border-radius: 10px; cursor: pointer;
+            border: 1px solid var(--card-border); color: var(--text);
+            background: rgba(139, 92, 246, 0.08);
+            transition: all 0.15s ease;
+        }
+        .btn:hover { border-color: var(--card-border-hover); background: rgba(139, 92, 246, 0.18); transform: translateY(-1px); }
+        .btn-primary {
+            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+            border-color: rgba(167, 139, 250, 0.45);
+            box-shadow: 0 0 18px rgba(124, 58, 237, 0.3);
+        }
+        .btn-primary:hover { box-shadow: 0 0 26px rgba(124, 58, 237, 0.5); background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+        .btn-green {
+            background: linear-gradient(135deg, #059669, #047857);
+            border-color: rgba(52, 211, 153, 0.4);
+        }
+        .btn-green:hover { background: linear-gradient(135deg, #10b981, #059669); }
+
+        .status-indicator { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+        .status-online { background: var(--green); box-shadow: 0 0 10px rgba(52, 211, 153, 0.8); }
+        .status-stale { background: var(--amber); box-shadow: 0 0 10px rgba(251, 191, 36, 0.8); }
+        .status-loading { background: var(--amber); animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* ---------- cards & sections ---------- */
+        main { padding: 28px 0 48px; }
         .card {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            margin-bottom: 18px;
         }
-        .metric-card {
-            transition: transform 0.2s ease-in-out;
+        .card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+        .card-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+        .card-head .sub { font-size: 11px; color: var(--text-faint); }
+
+        .pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 11px; font-weight: 600; padding: 4px 11px; border-radius: 999px;
+            background: rgba(52, 211, 153, 0.12); color: var(--green);
+            border: 1px solid rgba(52, 211, 153, 0.25);
         }
-        .metric-card:hover {
-            transform: translateY(-2px);
+        .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.6s infinite; }
+
+        /* ---------- hero band ---------- */
+        .hero { display: flex; flex-wrap: wrap; justify-content: center; gap: 40px; padding: 18px 20px; }
+        .hero-stat { text-align: center; }
+        .hero-stat .label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
+        .hero-stat .value { font-size: 24px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; margin-top: 2px; }
+        .hero-stat .value.eth { color: var(--purple); }
+
+        /* ---------- metric grid ---------- */
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+        .metric {
+            background: rgba(30, 30, 50, 0.5);
+            border: 1px solid rgba(148, 163, 184, 0.09);
+            border-left: 3px solid var(--accent, var(--purple));
+            border-radius: 12px; padding: 14px 16px;
+            transition: transform 0.15s ease, border-color 0.15s ease;
         }
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-        .status-online { background-color: #10b981; }
-        .status-stale { background-color: #f59e0b; }
-        .status-loading { background-color: #f59e0b; animation: pulse 1s infinite; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
+        .metric:hover { transform: translateY(-2px); border-left-color: var(--accent, var(--purple)); border-color: var(--card-border-hover); }
+        .metric .label { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 5px; }
+        .metric .value { font-size: 20px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.01em; }
+        .metric .sub { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
+        .metric .sub.up { color: var(--green); }
+        .metric .sub.down { color: var(--red); }
+        .m-purple { --accent: #a78bfa; }
+        .m-blue { --accent: #60a5fa; }
+        .m-green { --accent: #34d399; }
+        .m-indigo { --accent: #818cf8; }
+        .m-orange { --accent: #fb923c; }
+        .m-pink { --accent: #f472b6; }
+        .m-amber { --accent: #fbbf24; }
+        .m-cyan { --accent: #22d3ee; }
+        .m-rose { --accent: #fb7185; }
+        .m-slate { --accent: #94a3b8; }
+
+        /* ---------- charts ---------- */
+        .range-group { display: flex; gap: 6px; align-items: center; }
         .range-btn {
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #6b7280;
-            background: #f3f4f6;
-            transition: all .15s;
+            padding: 5px 13px; border-radius: 999px; font-size: 12px; font-weight: 600;
+            color: var(--text-dim); background: rgba(148, 163, 184, 0.08);
+            border: 1px solid transparent; cursor: pointer; transition: all 0.15s;
+            font-family: 'Inter', sans-serif;
         }
+        .range-btn:hover { color: var(--text); }
         .range-btn.active {
-            background: #7c3aed;
-            color: white;
+            background: rgba(124, 58, 237, 0.25); color: #d8b4fe;
+            border-color: rgba(167, 139, 250, 0.4);
         }
+        .chart-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+        @media (min-width: 1024px) { .chart-grid { grid-template-columns: 1fr 1fr; } }
         .chart-card {
             position: relative;
+            background: rgba(15, 15, 28, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.09);
+            border-radius: 12px; padding: 6px;
         }
+        .chart-card.full { grid-column: 1 / -1; }
         .chart-export-btn {
-            position: absolute;
-            top: 14px;
-            right: 14px;
-            z-index: 5;
-            color: #9ca3af;
+            position: absolute; top: 12px; right: 14px; z-index: 5;
+            background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 14px;
+            transition: color 0.15s;
         }
-        .chart-export-btn:hover { color: #7c3aed; }
+        .chart-export-btn:hover { color: var(--purple); }
+        .chart-meta { font-size: 11px; color: var(--text-faint); margin-top: 12px; }
+
+        /* ---------- GUSTR trading ---------- */
+        .tick-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+        .tick {
+            text-align: center; padding: 9px 6px; border-radius: 10px;
+            background: rgba(30, 30, 50, 0.6); border: 1px solid rgba(148, 163, 184, 0.08);
+        }
+        .tick .label { font-size: 10px; color: var(--text-faint); font-weight: 600; }
+        .tick .value { font-size: 13px; font-weight: 700; margin-top: 2px; }
+        .trade-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .trade-box {
+            background: rgba(30, 30, 50, 0.5); border: 1px solid rgba(148, 163, 184, 0.09);
+            border-radius: 12px; padding: 14px 16px;
+        }
+        .trade-box .label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-faint); margin-bottom: 6px; }
+        .trade-box .value { font-size: 20px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
+        .trade-box .row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--text-dim); }
+        .bar-track { display: flex; margin-top: 6px; height: 5px; border-radius: 99px; overflow: hidden; background: rgba(148,163,184,0.1); }
+
+        .ext-link { font-size: 12px; color: var(--blue); text-decoration: none; }
+        .ext-link:hover { color: #93c5fd; }
+
+        footer {
+            border-top: 1px solid var(--card-border);
+            padding: 26px 0; text-align: center; color: var(--text-faint); font-size: 13px;
+        }
+        footer a { color: var(--blue); text-decoration: none; margin: 0 10px; }
+        footer a:hover { color: #93c5fd; }
+
+        .loading { opacity: 0.55; pointer-events: none; }
+        .hidden { display: none; }
+        .text-up { color: var(--green); }
+        .text-down { color: var(--red); }
+        .text-dim { color: var(--text-dim); }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <!-- Header -->
-    <header class="gradient-bg shadow-lg">
-        <div class="container mx-auto px-4 py-6">
-            <div class="flex flex-wrap justify-between items-center gap-4">
-                <div class="flex items-center space-x-4">
-                    <div class="text-3xl">🧟</div>
-                    <div>
-                        <h1 class="text-3xl font-bold text-white">Genuine Undead Analytics</h1>
-                        <p class="text-blue-100">Real-time collection metrics &amp; trends</p>
-                    </div>
+<body>
+    <header>
+        <div class="container header-inner">
+            <div class="brand">
+                <div class="brand-emoji">🧟</div>
+                <div>
+                    <h1>Genuine Undead Analytics</h1>
+                    <p>Live collection metrics &amp; trends</p>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-white text-sm font-semibold" id="currentDate">Loading...</div>
-                        <div class="text-blue-100 text-xs" id="lastUpdate">Loading...</div>
-                    </div>
-                    <span class="status-indicator status-loading" id="statusIndicator"></span>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="refreshData()" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-200">
-                            <i class="fas fa-refresh mr-2"></i>Refresh
-                        </button>
-                        <button onclick="exportAllCharts()" class="bg-purple-700 bg-opacity-80 hover:bg-opacity-100 text-white px-4 py-2 rounded-lg transition-all duration-200">
-                            <i class="fas fa-camera mr-2"></i>Export Charts
-                        </button>
-                        <button onclick="exportShareCard()" class="bg-indigo-600 bg-opacity-80 hover:bg-opacity-100 text-white px-4 py-2 rounded-lg transition-all duration-200">
-                            <i class="fas fa-id-card mr-2"></i>Share Card
-                        </button>
-                        <button onclick="shareToTwitter()" class="bg-green-600 bg-opacity-90 hover:bg-opacity-100 text-white px-4 py-2 rounded-lg transition-all duration-200">
-                            <i class="fab fa-twitter mr-2"></i>Share
-                        </button>
-                    </div>
+            </div>
+            <div class="header-actions">
+                <div class="header-meta">
+                    <div class="date" id="currentDate">Loading…</div>
+                    <div class="updated" id="lastUpdate">Loading…</div>
                 </div>
+                <span class="status-indicator status-loading" id="statusIndicator"></span>
+                <button class="btn" onclick="refreshData()"><i class="fas fa-rotate"></i>Refresh</button>
+                <button class="btn btn-primary" onclick="exportAllCharts()"><i class="fas fa-camera"></i>Export Charts</button>
+                <button class="btn btn-primary" onclick="exportShareCard()"><i class="fas fa-id-card"></i>Share Card</button>
+                <button class="btn btn-green" onclick="shareToTwitter()"><i class="fab fa-twitter"></i>Share</button>
             </div>
         </div>
     </header>
 
-    <div class="container mx-auto px-4 py-8">
-        <!-- ETH Price + Freshness Banner -->
-        <div class="card rounded-xl shadow-lg p-4 mb-6">
-            <div class="flex justify-center items-center space-x-8">
-                <div class="flex items-center space-x-3">
-                    <div class="text-2xl">⟠</div>
-                    <div class="text-center">
-                        <div class="text-xs text-gray-500 uppercase tracking-wide">Ethereum Price</div>
-                        <div class="text-2xl font-bold text-gray-800" id="ethPrice">$--,---</div>
-                    </div>
-                </div>
-                <div class="text-center">
-                    <div class="text-xs text-gray-500 uppercase tracking-wide">Data Freshness</div>
-                    <div class="text-sm font-semibold" id="freshnessBadge">checking…</div>
-                </div>
+    <main class="container">
+        <!-- Hero band -->
+        <div class="card hero">
+            <div class="hero-stat">
+                <div class="label">Ethereum Price</div>
+                <div class="value" id="ethPrice">$--,---</div>
+            </div>
+            <div class="hero-stat">
+                <div class="label">GU Floor</div>
+                <div class="value eth" id="heroFloor">-.---- ETH</div>
+            </div>
+            <div class="hero-stat">
+                <div class="label">Market Cap</div>
+                <div class="value" id="heroMcap">$---</div>
+            </div>
+            <div class="hero-stat">
+                <div class="label">Data Freshness</div>
+                <div class="value" style="font-size:17px; padding-top:5px;" id="freshnessBadge">checking…</div>
             </div>
         </div>
 
         <!-- Live Metrics -->
-        <div class="card rounded-xl shadow-lg p-4 mb-4">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Genuine Undead - Live Metrics</h2>
-                <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium flex items-center">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                    Live
-                </div>
+        <div class="card">
+            <div class="card-head">
+                <h2>Genuine Undead — Live Metrics</h2>
+                <div class="pill"><span class="dot"></span>Live</div>
             </div>
-
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div class="metric-card bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
-                    <div class="text-xs text-purple-600 font-medium mb-1">Floor Price</div>
-                    <div class="text-lg font-bold text-gray-800" id="undeadFloorETH">-.---- ETH</div>
-                    <div class="text-xs text-gray-500" id="undeadFloorUSD">$---</div>
+            <div class="metrics">
+                <div class="metric m-purple">
+                    <div class="label">Floor Price</div>
+                    <div class="value" id="undeadFloorETH">-.---- ETH</div>
+                    <div class="sub" id="undeadFloorUSD">$---</div>
                 </div>
-
-                <div class="metric-card bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
-                    <div class="text-xs text-blue-600 font-medium mb-1">24h Volume</div>
-                    <div class="text-lg font-bold text-gray-800" id="undeadVolume">-.-- ETH</div>
-                    <div class="text-xs text-gray-500" id="undeadVolumeUSD">$---</div>
+                <div class="metric m-blue">
+                    <div class="label">24h Volume</div>
+                    <div class="value" id="undeadVolume">-.-- ETH</div>
+                    <div class="sub" id="undeadVolumeUSD">$---</div>
                 </div>
-
-                <div class="metric-card bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
-                    <div class="text-xs text-green-600 font-medium mb-1">Market Cap</div>
-                    <div class="text-lg font-bold text-gray-800" id="undeadMarketCap">$--M</div>
-                    <div class="text-xs" id="undeadMarketCapChange">---%</div>
+                <div class="metric m-green">
+                    <div class="label">Market Cap</div>
+                    <div class="value" id="undeadMarketCap">$--M</div>
+                    <div class="sub" id="undeadMarketCapChange">---%</div>
                 </div>
-
-                <div class="metric-card bg-gradient-to-br from-indigo-50 to-indigo-100 p-3 rounded-lg border border-indigo-200">
-                    <div class="text-xs text-indigo-600 font-medium mb-1">Total Supply</div>
-                    <div class="text-lg font-bold text-gray-800" id="undeadSupply">-,---</div>
-                    <div class="text-xs text-gray-500" id="migrationPercent">NFTs</div>
+                <div class="metric m-indigo">
+                    <div class="label">Total Supply</div>
+                    <div class="value" id="undeadSupply">-,---</div>
+                    <div class="sub" id="migrationPercent">NFTs</div>
                 </div>
-
-                <div class="metric-card bg-gradient-to-br from-orange-50 to-orange-100 p-3 rounded-lg border border-orange-200">
-                    <div class="text-xs text-orange-600 font-medium mb-1">Unique Holders</div>
-                    <div class="text-lg font-bold text-gray-800" id="holderCount">---</div>
-                    <div class="text-xs text-gray-500">wallets</div>
+                <div class="metric m-orange">
+                    <div class="label">Unique Holders</div>
+                    <div class="value" id="holderCount">---</div>
+                    <div class="sub">wallets</div>
                 </div>
-
-                <div class="metric-card bg-gradient-to-br from-pink-50 to-pink-100 p-3 rounded-lg border border-pink-200">
-                    <div class="text-xs text-pink-600 font-medium mb-1">Listed</div>
-                    <div class="text-lg font-bold text-gray-800" id="numListed">---</div>
-                    <div class="text-xs text-gray-500" id="listingPercent">--% of supply</div>
+                <div class="metric m-pink">
+                    <div class="label">Listed</div>
+                    <div class="value" id="numListed">---</div>
+                    <div class="sub" id="listingPercent">--% of supply</div>
                 </div>
             </div>
         </div>
 
         <!-- 30-Day Trends -->
-        <div class="card rounded-xl shadow-lg p-4 mb-4">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Genuine Undead - 30-Day Trends</h2>
-                <div class="text-xs text-gray-400" id="trendWindowNote"></div>
+        <div class="card">
+            <div class="card-head">
+                <h2>30-Day Trends</h2>
+                <div class="sub" id="trendWindowNote"></div>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div class="metric-card bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
-                    <div class="text-xs text-blue-600 font-medium mb-1">Floor Price</div>
-                    <div class="text-lg font-bold text-gray-800" id="floorPriceChange30d">---%</div>
-                    <div class="text-xs text-gray-500">30-day change</div>
+            <div class="metrics">
+                <div class="metric m-blue">
+                    <div class="label">Floor Price</div>
+                    <div class="value" id="floorPriceChange30d">---%</div>
+                    <div class="sub">30-day change</div>
                 </div>
-                <div class="metric-card bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
-                    <div class="text-xs text-green-600 font-medium mb-1">Migrations</div>
-                    <div class="text-lg font-bold text-gray-800" id="migrations30d">+0</div>
-                    <div class="text-xs text-gray-500">Last 30 days</div>
+                <div class="metric m-green">
+                    <div class="label">Migrations</div>
+                    <div class="value" id="migrations30d">+0</div>
+                    <div class="sub">last 30 days</div>
                 </div>
-                <div class="metric-card bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
-                    <div class="text-xs text-purple-600 font-medium mb-1">Avg Volume</div>
-                    <div class="text-lg font-bold text-gray-800" id="volumeTrend30d">-.-- ETH</div>
-                    <div class="text-xs text-gray-500" id="sales30dNote">Daily average</div>
+                <div class="metric m-purple">
+                    <div class="label">Avg Volume</div>
+                    <div class="value" id="volumeTrend30d">-.-- ETH</div>
+                    <div class="sub" id="sales30dNote">daily average</div>
                 </div>
-                <div class="metric-card bg-gradient-to-br from-yellow-50 to-yellow-100 p-3 rounded-lg border border-yellow-200">
-                    <div class="text-xs text-yellow-600 font-medium mb-1">Diamond Hands</div>
-                    <div class="text-lg font-bold text-gray-800" id="diamondHands">--%</div>
-                    <div class="text-xs text-gray-500">No sales in 30d</div>
+                <div class="metric m-amber">
+                    <div class="label">Diamond Hands</div>
+                    <div class="value" id="diamondHands">--%</div>
+                    <div class="sub">no sales in 30d</div>
                 </div>
             </div>
         </div>
 
         <!-- Charts -->
-        <div class="card rounded-xl shadow-lg p-4 mb-4">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Collection Charts</h2>
-                <div class="flex items-center gap-2">
+        <div class="card">
+            <div class="card-head">
+                <h2>Collection Charts</h2>
+                <div class="range-group">
                     <button class="range-btn" data-days="30" onclick="setRange(30)">30D</button>
                     <button class="range-btn active" data-days="90" onclick="setRange(90)">90D</button>
                     <button class="range-btn" data-days="365" onclick="setRange(365)">1Y</button>
                     <button class="range-btn" data-days="all" onclick="setRange('all')">All</button>
-                    <button onclick="exportAllCharts()" class="ml-2 text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-full font-semibold">
-                        <i class="fas fa-camera mr-1"></i>Export All
+                    <button class="btn btn-primary" style="padding:5px 13px; font-size:12px; border-radius:999px; margin-left:6px;" onclick="exportAllCharts()">
+                        <i class="fas fa-camera"></i>Export All
                     </button>
                 </div>
             </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div class="chart-card bg-white rounded-lg border border-gray-200 p-2">
+            <div class="chart-grid">
+                <div class="chart-card">
                     <button class="chart-export-btn" title="Download PNG" onclick="exportChart('chartMcap', 'market-cap')"><i class="fas fa-camera"></i></button>
                     <div id="chartMcap" style="height:340px"></div>
                 </div>
-                <div class="chart-card bg-white rounded-lg border border-gray-200 p-2">
+                <div class="chart-card">
                     <button class="chart-export-btn" title="Download PNG" onclick="exportChart('chartFloor', 'floor-price')"><i class="fas fa-camera"></i></button>
                     <div id="chartFloor" style="height:340px"></div>
                 </div>
-                <div class="chart-card bg-white rounded-lg border border-gray-200 p-2">
+                <div class="chart-card">
                     <button class="chart-export-btn" title="Download PNG" onclick="exportChart('chartSupply', 'supply-migration')"><i class="fas fa-camera"></i></button>
                     <div id="chartSupply" style="height:340px"></div>
                 </div>
-                <div class="chart-card bg-white rounded-lg border border-gray-200 p-2">
+                <div class="chart-card">
                     <button class="chart-export-btn" title="Download PNG" onclick="exportChart('chartVolume', 'volume-sales')"><i class="fas fa-camera"></i></button>
                     <div id="chartVolume" style="height:340px"></div>
                 </div>
-                <div class="chart-card bg-white rounded-lg border border-gray-200 p-2 lg:col-span-2 hidden" id="holdersCard">
+                <div class="chart-card full hidden" id="holdersCard">
                     <button class="chart-export-btn" title="Download PNG" onclick="exportChart('chartHolders', 'holders')"><i class="fas fa-camera"></i></button>
                     <div id="chartHolders" style="height:300px"></div>
                 </div>
             </div>
-            <div class="text-xs text-gray-400 mt-3" id="chartMeta"></div>
+            <div class="chart-meta" id="chartMeta"></div>
         </div>
 
         <!-- GUSTR Token Metrics -->
-        <div class="card rounded-xl shadow-lg p-4 mb-4">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center space-x-3">
-                    <div class="text-2xl">🪙</div>
+        <div class="card">
+            <div class="card-head">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="font-size:26px;">🪙</div>
                     <div>
-                        <h2 class="text-xl font-bold text-gray-800">GUSTR Token Metrics</h2>
-                        <p class="text-xs text-gray-500">GenuineUndeadStrategy Token</p>
+                        <h2>GUSTR Token Metrics</h2>
+                        <div class="sub">GenuineUndeadStrategy Token</div>
                     </div>
                 </div>
-                <a href="https://www.tokenstrategy.com/strategies/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00" target="_blank" class="text-blue-500 hover:text-blue-700 text-sm flex items-center">
-                    <i class="fas fa-external-link-alt mr-1"></i>TokenStrategy
+                <a href="https://www.tokenstrategy.com/strategies/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00" target="_blank" class="ext-link">
+                    <i class="fas fa-external-link-alt"></i> TokenStrategy
                 </a>
             </div>
-
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div class="metric-card bg-gradient-to-br from-amber-50 to-amber-100 p-3 rounded-lg border border-amber-200">
-                    <div class="text-xs text-amber-600 font-medium mb-1">Market Cap</div>
-                    <div class="text-lg font-bold text-gray-800" id="gustrMarketCap">$---</div>
-                    <div class="text-xs" id="gustrPriceChange24h">---%</div>
+            <div class="metrics">
+                <div class="metric m-amber">
+                    <div class="label">Market Cap</div>
+                    <div class="value" id="gustrMarketCap">$---</div>
+                    <div class="sub" id="gustrPriceChange24h">---%</div>
                 </div>
-
-                <div class="metric-card bg-gradient-to-br from-emerald-50 to-emerald-100 p-3 rounded-lg border border-emerald-200">
-                    <div class="text-xs text-emerald-600 font-medium mb-1">Token Price</div>
-                    <div class="text-lg font-bold text-gray-800" id="gustrPrice">$---</div>
-                    <div class="text-xs text-gray-500" id="gustrPriceEth">--- ETH</div>
+                <div class="metric m-green">
+                    <div class="label">Token Price</div>
+                    <div class="value" id="gustrPrice">$---</div>
+                    <div class="sub" id="gustrPriceEth">--- ETH</div>
                 </div>
-
-                <div class="metric-card bg-gradient-to-br from-violet-50 to-violet-100 p-3 rounded-lg border border-violet-200">
-                    <div class="text-xs text-violet-600 font-medium mb-1">Holders</div>
-                    <div class="text-lg font-bold text-gray-800" id="gustrHolders">---</div>
-                    <div class="text-xs text-gray-500" id="gustrHolderChange">tracking...</div>
+                <div class="metric m-purple">
+                    <div class="label">Holders</div>
+                    <div class="value" id="gustrHolders">---</div>
+                    <div class="sub" id="gustrHolderChange">tracking…</div>
                 </div>
-
-                <div class="metric-card bg-gradient-to-br from-cyan-50 to-cyan-100 p-3 rounded-lg border border-cyan-200">
-                    <div class="text-xs text-cyan-600 font-medium mb-1">24h Volume</div>
-                    <div class="text-lg font-bold text-gray-800" id="gustrVolume">$---</div>
-                    <div class="text-xs text-gray-500" id="gustrTrades">--- trades</div>
+                <div class="metric m-cyan">
+                    <div class="label">24h Volume</div>
+                    <div class="value" id="gustrVolume">$---</div>
+                    <div class="sub" id="gustrTrades">--- trades</div>
                 </div>
-
-                <div class="metric-card bg-gradient-to-br from-rose-50 to-rose-100 p-3 rounded-lg border border-rose-200">
-                    <div class="text-xs text-rose-600 font-medium mb-1">NFTs Held</div>
-                    <div class="text-lg font-bold text-gray-800" id="gustrNftHoldings">---</div>
-                    <div class="text-xs text-gray-500">by strategy</div>
+                <div class="metric m-rose">
+                    <div class="label">NFTs Held</div>
+                    <div class="value" id="gustrNftHoldings">---</div>
+                    <div class="sub">by strategy</div>
                 </div>
-
-                <div class="metric-card bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-lg border border-slate-200">
-                    <div class="text-xs text-slate-600 font-medium mb-1">GUSTR Burned</div>
-                    <div class="text-lg font-bold text-gray-800" id="gustrBurned">---%</div>
-                    <div class="text-xs text-gray-500" id="gustrBurnedAmount">--- tokens</div>
+                <div class="metric m-slate">
+                    <div class="label">GUSTR Burned</div>
+                    <div class="value" id="gustrBurned">---%</div>
+                    <div class="sub" id="gustrBurnedAmount">--- tokens</div>
                 </div>
             </div>
         </div>
 
         <!-- GUSTR Trading Activity -->
-        <div class="card rounded-lg shadow-lg p-4 mb-4">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-bold text-gray-800">GUSTR Trading Activity</h2>
-                <a href="https://dexscreener.com/ethereum/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00" target="_blank" class="text-blue-500 hover:text-blue-700 text-sm">DexScreener</a>
+        <div class="card">
+            <div class="card-head">
+                <h2>GUSTR Trading Activity</h2>
+                <a href="https://dexscreener.com/ethereum/0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00" target="_blank" class="ext-link">DexScreener</a>
             </div>
-
-            <!-- Price Change Row -->
-            <div class="grid grid-cols-4 gap-2 mb-3">
-                <div class="text-center bg-gray-800 p-2 rounded-lg">
-                    <div class="text-xs text-gray-400">5M</div>
-                    <div class="text-sm font-bold text-gray-400" id="priceChange5m">N/A</div>
-                </div>
-                <div class="text-center bg-gray-800 p-2 rounded-lg">
-                    <div class="text-xs text-gray-400">1H</div>
-                    <div class="text-sm font-bold text-gray-400" id="priceChange1h">N/A</div>
-                </div>
-                <div class="text-center bg-gray-800 p-2 rounded-lg">
-                    <div class="text-xs text-gray-400">6H</div>
-                    <div class="text-sm font-bold" id="priceChange6h">---%</div>
-                </div>
-                <div class="text-center bg-gray-700 p-2 rounded-lg">
-                    <div class="text-xs text-gray-400">24H</div>
-                    <div class="text-sm font-bold" id="priceChange24h">---%</div>
-                </div>
+            <div class="tick-row">
+                <div class="tick"><div class="label">5M</div><div class="value text-dim" id="priceChange5m">N/A</div></div>
+                <div class="tick"><div class="label">1H</div><div class="value text-dim" id="priceChange1h">N/A</div></div>
+                <div class="tick"><div class="label">6H</div><div class="value" id="priceChange6h">---%</div></div>
+                <div class="tick"><div class="label">24H</div><div class="value" id="priceChange24h">---%</div></div>
             </div>
-
-            <!-- Trading Stats Grid -->
-            <div class="grid grid-cols-3 gap-3">
-                <div class="bg-gray-50 p-3 rounded-lg border">
-                    <div class="text-xs text-gray-500 mb-1">TXNS (24h)</div>
-                    <div class="text-xl font-bold text-gray-800" id="txns24h">---</div>
-                    <div class="flex justify-between mt-2 text-xs">
-                        <div>
-                            <span class="text-gray-500">Buys</span>
-                            <span class="text-green-600 font-semibold ml-1" id="buys24h">--</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">Sells</span>
-                            <span class="text-red-500 font-semibold ml-1" id="sells24h">--</span>
-                        </div>
+            <div class="trade-grid">
+                <div class="trade-box">
+                    <div class="label">TXNS (24H)</div>
+                    <div class="value" id="txns24h">---</div>
+                    <div class="row">
+                        <span>Buys <b class="text-up" id="buys24h">--</b></span>
+                        <span>Sells <b class="text-down" id="sells24h">--</b></span>
                     </div>
-                    <div class="flex mt-1 h-1.5 rounded overflow-hidden">
-                        <div class="bg-green-500" id="buysBar" style="width: 50%"></div>
-                        <div class="bg-red-500" id="sellsBar" style="width: 50%"></div>
+                    <div class="bar-track">
+                        <div style="background:var(--green); width:50%;" id="buysBar"></div>
+                        <div style="background:var(--red); width:50%;" id="sellsBar"></div>
                     </div>
                 </div>
-
-                <div class="bg-gray-50 p-3 rounded-lg border">
-                    <div class="text-xs text-gray-500 mb-1">VOLUME (24h)</div>
-                    <div class="text-xl font-bold text-gray-800" id="volume24hTotal">$---</div>
-                    <div class="flex justify-between mt-2 text-xs">
-                        <div>
-                            <span class="text-gray-500">6h</span>
-                            <span class="text-gray-700 font-semibold ml-1" id="volume6h">$--</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">1h</span>
-                            <span class="text-gray-700 font-semibold ml-1" id="volume1h">$--</span>
-                        </div>
+                <div class="trade-box">
+                    <div class="label">VOLUME (24H)</div>
+                    <div class="value" id="volume24hTotal">$---</div>
+                    <div class="row">
+                        <span>6h <b id="volume6h">$--</b></span>
+                        <span>1h <b id="volume1h">$--</b></span>
                     </div>
                 </div>
-
-                <div class="bg-gray-50 p-3 rounded-lg border">
-                    <div class="text-xs text-gray-500 mb-1">LIQUIDITY</div>
-                    <div class="text-xl font-bold text-gray-800" id="liquidity">$---</div>
-                    <div class="flex justify-between mt-2 text-xs">
-                        <div>
-                            <span class="text-gray-500">FDV</span>
-                            <span class="text-gray-700 font-semibold ml-1" id="fdv">$--</span>
-                        </div>
+                <div class="trade-box">
+                    <div class="label">LIQUIDITY</div>
+                    <div class="value" id="liquidity">$---</div>
+                    <div class="row">
+                        <span>FDV <b id="fdv">$--</b></span>
                     </div>
                 </div>
             </div>
         </div>
+    </main>
 
-    </div>
-
-    <!-- Footer -->
-    <footer class="bg-gray-800 text-white py-6">
-        <div class="container mx-auto px-4 text-center">
-            <p class="text-gray-400 text-sm">Built for the GU community</p>
-            <div class="mt-3 space-x-4">
-                <a href="https://opensea.io/collection/genuine-undead" target="_blank" class="text-blue-400 hover:text-blue-300 text-sm">OpenSea</a>
-                <a href="https://etherscan.io/address/0x39509d8e1dd96cc8bad301ea65c75c7deb52374c" target="_blank" class="text-blue-400 hover:text-blue-300 text-sm">Contract</a>
+    <footer>
+        <div class="container">
+            <p>Built for the GU community</p>
+            <div style="margin-top:10px;">
+                <a href="https://opensea.io/collection/genuine-undead" target="_blank">OpenSea</a>
+                <a href="https://etherscan.io/address/0x39509d8e1dd96cc8bad301ea65c75c7deb52374c" target="_blank">Contract</a>
             </div>
         </div>
     </footer>
@@ -390,7 +476,12 @@
 
         const BRAND = 'Genuine Undead Analytics';
         const PLOT_CONFIG = { displayModeBar: false, responsive: true };
-        const PLOT_FONT = { family: 'Arial, sans-serif' };
+        const PLOT_FONT = { family: 'Inter, Arial, sans-serif' };
+        const C = {
+            text: '#e2e8f0', dim: '#94a3b8', faint: '#64748b',
+            grid: 'rgba(148, 163, 184, 0.08)', line: 'rgba(148, 163, 184, 0.18)',
+            purple: '#a78bfa', green: '#34d399', blue: '#60a5fa', amber: '#fbbf24'
+        };
 
         function formatNumber(num, decimals = 0) {
             if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
@@ -401,10 +492,8 @@
 
         function formatCurrency(num) {
             return new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
+                style: 'currency', currency: 'USD',
+                minimumFractionDigits: 0, maximumFractionDigits: 0
             }).format(num);
         }
 
@@ -436,13 +525,25 @@
             } else {
                 label = Math.round(age / 1440) + ' days ago';
             }
-            el.textContent = freshness.stale ? ('⚠ ' + label + ' (refreshing…)') : ('✓ ' + label);
-            el.className = 'text-sm font-semibold ' + (freshness.stale ? 'text-amber-600' : 'text-green-600');
+            el.textContent = freshness.stale ? ('⚠ ' + label) : ('✓ ' + label);
+            el.style.color = freshness.stale ? 'var(--amber)' : 'var(--green)';
         }
 
         function setText(id, value) {
             const el = document.getElementById(id);
             if (el) el.textContent = value;
+        }
+
+        function setDelta(id, value, suffix) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (value === null || value === undefined) {
+                el.textContent = '—';
+                el.className = 'sub';
+                return;
+            }
+            el.textContent = (value >= 0 ? '▲ +' : '▼ ') + value.toFixed(1) + '%' + (suffix || '');
+            el.className = 'sub ' + (value >= 0 ? 'up' : 'down');
         }
 
         function updateUI(data) {
@@ -453,6 +554,8 @@
 
             if (data.undead) {
                 const u = data.undead;
+                setText('heroFloor', (u.floor_price_eth || 0).toFixed(4) + ' ETH');
+                setText('heroMcap', '$' + formatNumber(u.market_cap_usd || 0, 0));
                 setText('undeadFloorETH', (u.floor_price_eth || 0).toFixed(4) + ' ETH');
                 setText('undeadFloorUSD', formatCurrency((u.floor_price_eth || 0) * ethPrice));
                 setText('undeadVolume', (u.volume_24h_eth || 0).toFixed(2) + ' ETH');
@@ -470,21 +573,13 @@
 
             if (data.trends) {
                 const t = data.trends;
-                const mcChange = t.market_cap_change_30d;
-                const mcEl = document.getElementById('undeadMarketCapChange');
-                if (mcChange !== null && mcChange !== undefined) {
-                    mcEl.textContent = (mcChange >= 0 ? '+' : '') + mcChange.toFixed(1) + '% (30d, ETH basis)';
-                    mcEl.className = mcChange >= 0 ? 'text-xs text-green-600' : 'text-xs text-red-600';
-                } else {
-                    mcEl.textContent = '—';
-                    mcEl.className = 'text-xs text-gray-500';
-                }
+                setDelta('undeadMarketCapChange', t.market_cap_change_30d, ' 30d (ETH basis)');
 
                 const floorChange = t.floor_price_change_30d;
                 const floorEl = document.getElementById('floorPriceChange30d');
                 if (floorChange !== null && floorChange !== undefined) {
                     floorEl.textContent = (floorChange >= 0 ? '+' : '') + floorChange.toFixed(1) + '%';
-                    floorEl.className = floorChange >= 0 ? 'text-lg font-bold text-green-700' : 'text-lg font-bold text-red-600';
+                    floorEl.style.color = floorChange >= 0 ? 'var(--green)' : 'var(--red)';
                 } else {
                     floorEl.textContent = '—';
                 }
@@ -537,19 +632,20 @@
         }
 
         // ------------------------------------------------------------------
-        // Charts
+        // Charts (dark theme)
         // ------------------------------------------------------------------
         function baseLayout(title, yTitle) {
             return {
-                title: { text: title, x: 0.5, font: { size: 17, color: '#1f2937', ...PLOT_FONT } },
-                xaxis: { showgrid: false, showline: true, linecolor: '#e5e7eb', tickfont: { size: 11, color: '#6b7280' } },
-                yaxis: { title: { text: yTitle, font: { size: 12, color: '#6b7280' } }, showgrid: true, gridcolor: '#f3f4f6',
-                         showline: true, linecolor: '#e5e7eb', tickfont: { size: 11, color: '#6b7280' } },
-                plot_bgcolor: 'white',
-                paper_bgcolor: 'white',
-                margin: { t: 48, l: 64, r: 24, b: 40 },
+                title: { text: title, x: 0.5, font: { size: 15, color: C.text, family: 'Space Grotesk, Inter, sans-serif' } },
+                xaxis: { showgrid: false, showline: true, linecolor: C.line, tickfont: { size: 11, color: C.dim } },
+                yaxis: { title: { text: yTitle, font: { size: 12, color: C.dim } }, showgrid: true, gridcolor: C.grid,
+                         showline: true, linecolor: C.line, tickfont: { size: 11, color: C.dim }, zeroline: false },
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                margin: { t: 46, l: 64, r: 24, b: 40 },
                 showlegend: false,
-                font: PLOT_FONT
+                font: PLOT_FONT,
+                hoverlabel: { bgcolor: '#1e1b34', bordercolor: 'rgba(167,139,250,0.4)', font: { color: C.text, size: 12 } }
             };
         }
 
@@ -570,7 +666,8 @@
             mcapLayout.yaxis.tickformat = '$.3s';
             Plotly.react('chartMcap', [{
                 x: s.dates, y: s.market_cap_usd, type: 'scatter', mode: 'lines',
-                line: { color: '#10b981', width: 3 }, fill: 'tozeroy', fillcolor: 'rgba(16,185,129,0.12)',
+                line: { color: C.green, width: 2.5, shape: 'spline', smoothing: 0.6 },
+                fill: 'tozeroy', fillcolor: 'rgba(52,211,153,0.10)',
                 hovertemplate: '<b>$%{y:,.0f}</b><br>%{x}<extra></extra>'
             }], mcapLayout, PLOT_CONFIG);
 
@@ -579,7 +676,8 @@
             floorLayout.yaxis.tickformat = '.4f';
             Plotly.react('chartFloor', [{
                 x: s.dates, y: s.floor_eth, type: 'scatter', mode: 'lines',
-                line: { color: '#8b5cf6', width: 3 }, fill: 'tozeroy', fillcolor: 'rgba(139,92,246,0.12)',
+                line: { color: C.purple, width: 2.5, shape: 'spline', smoothing: 0.6 },
+                fill: 'tozeroy', fillcolor: 'rgba(167,139,250,0.10)',
                 customdata: s.floor_usd,
                 hovertemplate: '<b>%{y:.4f} ETH</b> ($%{customdata:,.0f})<br>%{x}<extra></extra>'
             }], floorLayout, PLOT_CONFIG);
@@ -587,43 +685,40 @@
             // Supply + migration %
             const maxSupply = chartData.meta.origins_max_supply || 9993;
             const lastSupply = s.supply[s.supply.length - 1];
-            const supplyLayout = Object.assign(baseLayout('Supply / Migration Progress', 'NFTs'), {
-                yaxis2: { overlaying: 'y', side: 'right', range: [0, 100], showgrid: false,
-                          tickfont: { size: 11, color: '#3b82f6' }, ticksuffix: '%' },
-                annotations: lastSupply ? [{
-                    x: s.dates[s.dates.length - 1], y: lastSupply,
-                    text: ((lastSupply / maxSupply) * 100).toFixed(1) + '% migrated',
-                    showarrow: true, arrowhead: 0, ax: -60, ay: -25,
-                    font: { size: 12, color: '#1d4ed8' }
-                }] : []
-            });
+            const supplyLayout = baseLayout('Supply / Migration Progress', 'NFTs');
+            supplyLayout.annotations = lastSupply ? [{
+                x: s.dates[s.dates.length - 1], y: lastSupply,
+                text: ((lastSupply / maxSupply) * 100).toFixed(1) + '% migrated',
+                showarrow: true, arrowhead: 0, arrowcolor: C.blue, ax: -65, ay: -28,
+                font: { size: 12, color: C.blue }
+            }] : [];
             Plotly.react('chartSupply', [{
                 x: s.dates, y: s.supply, type: 'scatter', mode: 'lines',
-                line: { color: '#3b82f6', width: 3 }, fill: 'tozeroy', fillcolor: 'rgba(59,130,246,0.12)',
+                line: { color: C.blue, width: 2.5 },
+                fill: 'tozeroy', fillcolor: 'rgba(96,165,250,0.10)',
                 hovertemplate: '<b>%{y:,}</b> NFTs<br>%{x}<extra></extra>'
             }], supplyLayout, PLOT_CONFIG);
 
             // Volume + sales count (real sales history)
             const sales = chartData.sales;
             if (sales && sales.dates.length) {
-                const volLayout = Object.assign(baseLayout('Daily Volume & Sales', 'Volume (ETH)'), {
-                    yaxis2: { title: { text: 'Sales', font: { size: 12, color: '#f59e0b' } }, overlaying: 'y', side: 'right',
-                              showgrid: false, tickfont: { size: 11, color: '#f59e0b' } },
-                    showlegend: true,
-                    legend: { orientation: 'h', y: -0.18, font: { size: 11 } }
-                });
+                const volLayout = baseLayout('Daily Volume & Sales', 'Volume (ETH)');
+                volLayout.yaxis2 = { title: { text: 'Sales', font: { size: 12, color: C.amber } }, overlaying: 'y', side: 'right',
+                                     showgrid: false, tickfont: { size: 11, color: C.amber }, zeroline: false };
+                volLayout.showlegend = true;
+                volLayout.legend = { orientation: 'h', y: -0.18, font: { size: 11, color: C.dim } };
                 Plotly.react('chartVolume', [
                     { x: sales.dates, y: sales.volume_eth, type: 'bar', name: 'Volume (ETH)',
-                      marker: { color: 'rgba(139,92,246,0.65)' },
+                      marker: { color: 'rgba(167,139,250,0.55)', line: { color: 'rgba(167,139,250,0.9)', width: 1 } },
                       hovertemplate: '<b>%{y:.3f} ETH</b><br>%{x}<extra></extra>' },
-                    { x: sales.dates, y: sales.sales_count, type: 'scatter', mode: 'lines', name: 'Sales',
-                      yaxis: 'y2', line: { color: '#f59e0b', width: 2 },
+                    { x: sales.dates, y: sales.sales_count, type: 'scatter', mode: 'lines+markers', name: 'Sales',
+                      yaxis: 'y2', line: { color: C.amber, width: 2 }, marker: { size: 4 },
                       hovertemplate: '<b>%{y}</b> sales<br>%{x}<extra></extra>' }
                 ], volLayout, PLOT_CONFIG);
             } else {
-                Plotly.react('chartVolume', [], Object.assign(baseLayout('Daily Volume & Sales', 'Volume (ETH)'), {
-                    annotations: [{ text: 'Sales history is being collected…', showarrow: false, font: { size: 13, color: '#9ca3af' } }]
-                }), PLOT_CONFIG);
+                const emptyLayout = baseLayout('Daily Volume & Sales', 'Volume (ETH)');
+                emptyLayout.annotations = [{ text: 'Sales history is being collected…', showarrow: false, font: { size: 13, color: C.faint } }];
+                Plotly.react('chartVolume', [], emptyLayout, PLOT_CONFIG);
             }
 
             // Holders (only when we have real history)
@@ -633,7 +728,7 @@
                 holdersCard.classList.remove('hidden');
                 Plotly.react('chartHolders', [{
                     x: hd, y: hv, type: 'scatter', mode: 'lines+markers',
-                    line: { color: '#f97316', width: 3 }, marker: { size: 5 },
+                    line: { color: '#fb923c', width: 2.5 }, marker: { size: 5 },
                     hovertemplate: '<b>%{y:,}</b> holders<br>%{x}<extra></extra>'
                 }], baseLayout('Unique Holders', 'Wallets'), PLOT_CONFIG);
             } else {
@@ -667,6 +762,8 @@
         // ------------------------------------------------------------------
         // Export: per-chart PNG, all-charts composite, share card
         // ------------------------------------------------------------------
+        const EXPORT_BG = '#11101e';
+
         function todayStamp() {
             return new Date().toISOString().slice(0, 10);
         }
@@ -674,10 +771,12 @@
         function exportChart(divId, name) {
             const el = document.getElementById(divId);
             if (!el || !el.data) return;
+            const restore = el.layout.paper_bgcolor;
+            Plotly.relayout(el, { paper_bgcolor: EXPORT_BG, plot_bgcolor: EXPORT_BG });
             Plotly.downloadImage(el, {
                 format: 'png', width: 1200, height: 600, scale: 2,
                 filename: 'gu-' + name + '-' + todayStamp()
-            });
+            }).then(() => Plotly.relayout(el, { paper_bgcolor: restore || 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)' }));
         }
 
         function downloadCanvas(canvas, filename) {
@@ -699,7 +798,9 @@
             const W = 1300, CH = 520, HEADER = 150, FOOTER = 60, PAD = 20;
             const images = [];
             for (const el of charts) {
+                Plotly.relayout(el, { paper_bgcolor: EXPORT_BG, plot_bgcolor: EXPORT_BG });
                 const url = await Plotly.toImage(el, { format: 'png', width: W - PAD * 2, height: CH - PAD, scale: 2 });
+                Plotly.relayout(el, { paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)' });
                 images.push(await new Promise(resolve => {
                     const img = new Image();
                     img.onload = () => resolve(img);
@@ -707,42 +808,43 @@
                 }));
             }
 
+            const totalH = HEADER + charts.length * CH + FOOTER;
             const canvas = document.createElement('canvas');
             canvas.width = W * 2;
-            canvas.height = (HEADER + charts.length * CH + FOOTER) * 2;
+            canvas.height = totalH * 2;
             const ctx = canvas.getContext('2d');
             ctx.scale(2, 2);
 
-            // Background + header band
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, W, HEADER + charts.length * CH + FOOTER);
+            // Dark background + header band
+            ctx.fillStyle = EXPORT_BG;
+            ctx.fillRect(0, 0, W, totalH);
             const grad = ctx.createLinearGradient(0, 0, W, 0);
-            grad.addColorStop(0, '#667eea');
-            grad.addColorStop(1, '#764ba2');
+            grad.addColorStop(0, '#4c1d95');
+            grad.addColorStop(1, '#065f46');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, W, HEADER);
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 40px Arial';
+            ctx.font = 'bold 40px "Space Grotesk", Arial';
             ctx.fillText('🧟 ' + BRAND, 40, 64);
-            ctx.font = '22px Arial';
+            ctx.font = '22px Inter, Arial';
             const u = latestData?.undead || {};
             const statline = 'Floor ' + (u.floor_price_eth || 0).toFixed(4) + ' ETH  ·  Market Cap ' +
                 formatCurrency(u.market_cap_usd || 0) + '  ·  Supply ' + (u.total_supply || 0).toLocaleString() +
                 (u.holders_count ? ('  ·  Holders ' + u.holders_count.toLocaleString()) : '');
             ctx.fillText(statline, 40, 104);
-            ctx.font = '18px Arial';
-            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.font = '18px Inter, Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
             ctx.fillText(new Date().toUTCString(), 40, 134);
 
-            // Charts
+            // Charts with subtle separators
             images.forEach((img, i) => {
                 ctx.drawImage(img, PAD, HEADER + i * CH + PAD / 2, W - PAD * 2, CH - PAD);
             });
 
             // Footer
-            ctx.fillStyle = '#6b7280';
-            ctx.font = '18px Arial';
-            ctx.fillText(window.location.host, 40, HEADER + charts.length * CH + 36);
+            ctx.fillStyle = 'rgba(226,232,240,0.45)';
+            ctx.font = '18px Inter, Arial';
+            ctx.fillText(window.location.host, 40, totalH - 24);
 
             downloadCanvas(canvas, 'gu-analytics-' + todayStamp() + '.png');
         }
@@ -761,17 +863,25 @@
 
             // Background
             const grad = ctx.createLinearGradient(0, 0, W, H);
-            grad.addColorStop(0, '#1e1b4b');
-            grad.addColorStop(1, '#4c1d95');
+            grad.addColorStop(0, '#13111f');
+            grad.addColorStop(0.55, '#1e1b4b');
+            grad.addColorStop(1, '#064e3b');
             ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+
+            // Subtle glow accents
+            const glow = ctx.createRadialGradient(W - 150, 80, 0, W - 150, 80, 400);
+            glow.addColorStop(0, 'rgba(124,58,237,0.25)');
+            glow.addColorStop(1, 'rgba(124,58,237,0)');
+            ctx.fillStyle = glow;
             ctx.fillRect(0, 0, W, H);
 
             // Title
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 52px Arial';
+            ctx.font = 'bold 52px "Space Grotesk", Arial';
             ctx.fillText('🧟 Genuine Undead', 60, 95);
-            ctx.font = '26px Arial';
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.font = '26px Inter, Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.65)';
             ctx.fillText('Collection Stats · ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), 60, 140);
 
             // Stat blocks
@@ -788,15 +898,15 @@
             stats.forEach(([label, value, sub], i) => {
                 const x = 60 + (i % 2) * 560;
                 const y = 230 + Math.floor(i / 2) * 150;
-                ctx.fillStyle = 'rgba(255,255,255,0.55)';
-                ctx.font = 'bold 20px Arial';
+                ctx.fillStyle = 'rgba(196,181,253,0.6)';
+                ctx.font = 'bold 19px Inter, Arial';
                 ctx.fillText(label, x, y);
                 ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 46px Arial';
+                ctx.font = 'bold 46px "Space Grotesk", Arial';
                 ctx.fillText(value, x, y + 50);
                 if (sub) {
-                    ctx.fillStyle = sub.startsWith('+') ? '#34d399' : (sub.startsWith('-') ? '#f87171' : 'rgba(255,255,255,0.6)');
-                    ctx.font = '22px Arial';
+                    ctx.fillStyle = sub.startsWith('+') ? '#34d399' : (sub.startsWith('-') ? '#f87171' : 'rgba(255,255,255,0.55)');
+                    ctx.font = '22px Inter, Arial';
                     ctx.fillText(sub, x, y + 84);
                 }
             });
@@ -809,6 +919,8 @@
                 const min = Math.min(...vals), max = Math.max(...vals);
                 ctx.strokeStyle = '#a78bfa';
                 ctx.lineWidth = 3;
+                ctx.shadowColor = 'rgba(167,139,250,0.6)';
+                ctx.shadowBlur = 8;
                 ctx.beginPath();
                 vals.forEach((v, i) => {
                     const px = sx + (i / (vals.length - 1)) * sw;
@@ -816,14 +928,15 @@
                     i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
                 });
                 ctx.stroke();
-                ctx.fillStyle = 'rgba(255,255,255,0.45)';
-                ctx.font = '17px Arial';
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '17px Inter, Arial';
                 ctx.fillText('Floor price · last ' + vals.length + ' snapshots', sx, sy - 12);
             }
 
             // Footer
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.font = '20px Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.45)';
+            ctx.font = '20px Inter, Arial';
             ctx.fillText(window.location.host, 60, H - 20);
 
             downloadCanvas(canvas, 'gu-share-card-' + todayStamp() + '.png');
@@ -858,10 +971,7 @@
             const strategy = data.strategy;
 
             setText('gustrMarketCap', formatCurrency(token.market_cap));
-            const priceChangeEl = document.getElementById('gustrPriceChange24h');
-            const priceChange = token.price_change_24h || 0;
-            priceChangeEl.textContent = (priceChange >= 0 ? '+' : '') + priceChange.toFixed(1) + '%';
-            priceChangeEl.className = priceChange >= 0 ? 'text-xs text-green-600' : 'text-xs text-red-600';
+            setDelta('gustrPriceChange24h', token.price_change_24h || 0);
 
             setText('gustrPrice', '$' + formatSmallNumber(token.price_usd));
             setText('gustrPriceEth', formatSmallNumber(token.price_eth) + ' ETH');
@@ -871,11 +981,11 @@
             const holderChangeEl = document.getElementById('gustrHolderChange');
             const holderChange = token.holder_change_24h;
             if (holderChange !== null && holderChange !== undefined) {
-                holderChangeEl.textContent = (holderChange >= 0 ? '+' : '') + holderChange.toFixed(1) + '% 24h';
-                holderChangeEl.className = holderChange >= 0 ? 'text-xs text-green-600' : 'text-xs text-red-600';
+                holderChangeEl.textContent = (holderChange >= 0 ? '▲ +' : '▼ ') + holderChange.toFixed(1) + '% 24h';
+                holderChangeEl.className = 'sub ' + (holderChange >= 0 ? 'up' : 'down');
             } else {
-                holderChangeEl.textContent = 'tracking...';
-                holderChangeEl.className = 'text-xs text-gray-500';
+                holderChangeEl.textContent = 'tracking…';
+                holderChangeEl.className = 'sub';
             }
 
             setText('gustrVolume', formatCurrency(token.volume_24h));
@@ -899,10 +1009,10 @@
                 if (!el) return;
                 if (val && val !== 0) {
                     el.textContent = (val >= 0 ? '+' : '') + val.toFixed(2) + '%';
-                    el.className = val >= 0 ? 'text-sm font-bold text-green-400' : 'text-sm font-bold text-red-400';
+                    el.className = 'value ' + (val >= 0 ? 'text-up' : 'text-down');
                 } else {
                     el.textContent = 'N/A';
-                    el.className = 'text-sm font-bold text-gray-400';
+                    el.className = 'value text-dim';
                 }
             });
 
