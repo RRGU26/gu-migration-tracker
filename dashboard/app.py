@@ -37,6 +37,7 @@ ORIGINS_MAX_SUPPLY = 9993
 BURNED_GU = 26  # GU burned before migration started; counted as migrated
 GUSTR_ADDRESS = '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00'
 GUSTR_POOL = '0xe8d6ad309e597da6e05c225008e9518d4124806cf8fa52200469e3d8eb16d573'
+SEAPORT_PROTOCOL = '0x0000000000000068f116a894984e2db1123eb395'
 
 STALE_AFTER_MINUTES = 90       # /api/current flags data older than this
 COLLECT_MIN_INTERVAL = 600     # throttle: at most one collection per 10 min
@@ -105,6 +106,18 @@ def migrate_schema():
                 min_price_eth REAL,
                 max_price_eth REAL,
                 updated_at TEXT
+            )
+        """)
+        # Resolved list->sale timings. A settled sale never changes, so each
+        # order_hash is looked up once and kept.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sale_timing (
+                order_hash TEXT PRIMARY KEY,
+                token_id TEXT,
+                listed_at INTEGER,
+                sold_at INTEGER,
+                hours_to_sale REAL,
+                price_eth REAL
             )
         """)
         conn.commit()
@@ -200,9 +213,13 @@ def fetch_collection_supply(slug):
     return None
 
 
-def fetch_listings_count(slug=UNDEAD_SLUG, max_pages=5):
+def _fetch_active_listings(slug=UNDEAD_SLUG, max_pages=5):
+    """All active listings as {token_id, price_eth, created_at, seller}.
+
+    Returns None on exception so callers can tell failure from an empty book.
+    """
     try:
-        total = 0
+        listings = []
         next_cursor = None
         for _ in range(max_pages):
             params = {'limit': 100}
@@ -214,14 +231,38 @@ def fetch_listings_count(slug=UNDEAD_SLUG, max_pages=5):
             if response.status_code != 200:
                 break
             data = response.json()
-            total += len(data.get('listings', []))
+            for item in data.get('listings', []):
+                try:
+                    current = (item.get('price') or {}).get('current') or {}
+                    price_eth = float(current.get('value', 0)) / (10 ** int(current.get('decimals', 18)))
+                    if price_eth <= 0:
+                        continue
+                    listings.append({
+                        'token_id': (item.get('asset') or {}).get('identifier'),
+                        'price_eth': price_eth,
+                        'created_at': item.get('order_created_at'),
+                        'seller': ((item.get('protocol_data') or {}).get('parameters') or {}).get('offerer')
+                    })
+                except (TypeError, ValueError):
+                    continue
             next_cursor = data.get('next')
             if not next_cursor:
                 break
-        return total
+        return listings
     except Exception as e:
         print(f'[OpenSea] listings exception: {e}')
         return None
+
+
+def fetch_active_listings(slug=UNDEAD_SLUG, max_pages=5):
+    """Cached listing book; the count and the distributions share one fetch."""
+    return cached(f'active_listings:{slug}', 120,
+                  lambda: _fetch_active_listings(slug, max_pages))
+
+
+def fetch_listings_count(slug=UNDEAD_SLUG, max_pages=5):
+    listings = fetch_active_listings(slug, max_pages)
+    return None if listings is None else len(listings)
 
 
 def _iter_sale_events(slug=UNDEAD_SLUG, oldest_timestamp=0, max_pages=120):
@@ -269,6 +310,141 @@ def _sale_price_eth(event):
         return price if price >= 0.001 else None
     except Exception:
         return None
+
+
+def build_price_distribution(listings, floor_price):
+    """Bucket active listings by how far above floor they are asking."""
+    buckets = [('At floor', 0.0, 0.01), ('0-5%', 0.01, 0.05), ('5-10%', 0.05, 0.10),
+               ('10-25%', 0.10, 0.25), ('25-50%', 0.25, 0.50), ('50-100%', 0.50, 1.00),
+               ('100%+', 1.00, float('inf'))]
+    result = [{'label': label, 'count': 0} for label, _, _ in buckets]
+    if not listings or not floor_price or floor_price <= 0:
+        return result, 0
+
+    at_floor = 0
+    for listing in listings:
+        premium = (listing['price_eth'] - floor_price) / floor_price
+        if premium < 0.01:
+            at_floor += 1
+        for i, (_, low, high) in enumerate(buckets):
+            if low <= premium < high:
+                result[i]['count'] += 1
+                break
+    return result, at_floor
+
+
+def build_age_distribution(listings):
+    """Bucket active listings by how long they have been sitting."""
+    buckets = [('< 1 day', 0, 86400), ('1-3 days', 86400, 259200),
+               ('3-7 days', 259200, 604800), ('7-30 days', 604800, 2592000),
+               ('30+ days', 2592000, float('inf'))]
+    result = [{'label': label, 'count': 0} for label, _, _ in buckets]
+    now = time.time()
+    ages = []
+
+    for listing in listings or []:
+        created = listing.get('created_at')
+        if not created:
+            continue
+        age = now - float(created)
+        if age < 0:
+            continue
+        ages.append(age)
+        for i, (_, low, high) in enumerate(buckets):
+            if low <= age < high:
+                result[i]['count'] += 1
+                break
+
+    median_days = 0.0
+    if ages:
+        ages.sort()
+        mid = len(ages) // 2
+        median_days = (ages[mid] if len(ages) % 2 else (ages[mid - 1] + ages[mid]) / 2) / 86400.0
+    return result, median_days, len(ages)
+
+
+def _resolve_listed_at(order_hash):
+    """Creation time of a settled order (sold listings leave the active book)."""
+    try:
+        response = requests.get(
+            f'https://api.opensea.io/api/v2/orders/chain/ethereum/protocol/{SEAPORT_PROTOCOL}/{order_hash}',
+            headers=opensea_headers(), timeout=10)
+        if response.status_code != 200:
+            return None
+        return (response.json().get('order') or {}).get('order_created_at')
+    except Exception:
+        return None
+
+
+def _compute_time_to_sale(max_new_lookups=10, sample_days=30):
+    """How long sold listings sat before selling.
+
+    Each sale costs one extra lookup to resolve its listing time, so resolved
+    timings are stored permanently and only a capped number of unseen sales are
+    resolved per call. Stats warm up across polls instead of blocking.
+    """
+    cutoff = int(time.time()) - sample_days * 86400
+    try:
+        with db.get_connection() as conn:
+            known = {r['order_hash'] for r in conn.execute('SELECT order_hash FROM sale_timing')}
+
+            lookups = 0
+            for event in _iter_sale_events(oldest_timestamp=cutoff, max_pages=3):
+                if lookups >= max_new_lookups:
+                    break
+                order_hash = event.get('order_hash')
+                sold_at = event.get('event_timestamp')
+                price = _sale_price_eth(event)  # filters dust / non-ETH transfers
+                if not order_hash or not sold_at or price is None or order_hash in known:
+                    continue
+                lookups += 1
+                listed_at = _resolve_listed_at(order_hash)
+                if not listed_at:
+                    continue
+                hours = (float(sold_at) - float(listed_at)) / 3600.0
+                if hours < 0:
+                    continue
+                conn.execute("""
+                    INSERT OR REPLACE INTO sale_timing
+                    (order_hash, token_id, listed_at, sold_at, hours_to_sale, price_eth)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (order_hash, (event.get('nft') or {}).get('identifier'),
+                      int(listed_at), int(sold_at), hours, price))
+            conn.commit()
+
+            rows = conn.execute("""
+                SELECT hours_to_sale, sold_at FROM sale_timing
+                WHERE sold_at >= ? ORDER BY sold_at DESC LIMIT 200
+            """, (cutoff,)).fetchall()
+    except Exception as e:
+        print(f'[TimeToSale] error: {e}')
+        return None
+
+    hours_list = sorted(r['hours_to_sale'] for r in rows)
+    stats = {
+        'sales_analyzed': len(hours_list),
+        'sample_days': sample_days,
+        'median_hours': 0.0, 'fastest_hours': 0.0, 'slowest_hours': 0.0,
+        'buckets': [{'label': l, 'count': 0} for l in
+                    ('< 1 hour', '1-24 hours', '1-3 days', '3-7 days', '7+ days')],
+        'last_sale_at': max((r['sold_at'] for r in rows), default=None)
+    }
+    if hours_list:
+        mid = len(hours_list) // 2
+        stats['median_hours'] = hours_list[mid] if len(hours_list) % 2 else (hours_list[mid - 1] + hours_list[mid]) / 2
+        stats['fastest_hours'] = hours_list[0]
+        stats['slowest_hours'] = hours_list[-1]
+        edges = [(0, 1), (1, 24), (24, 72), (72, 168), (168, float('inf'))]
+        for h in hours_list:
+            for i, (low, high) in enumerate(edges):
+                if low <= h < high:
+                    stats['buckets'][i]['count'] += 1
+                    break
+    return stats
+
+
+def get_time_to_sale_stats():
+    return cached('time_to_sale', 300, _compute_time_to_sale)
 
 
 def update_sales_history(days):
@@ -1003,6 +1179,57 @@ def get_chart_data():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/listing-analytics')
+def get_listing_analytics():
+    """Asking price vs floor, listing age, and time to sale."""
+    try:
+        listings = fetch_active_listings()
+        if listings is None:
+            return jsonify({'error': 'listings unavailable',
+                            'generated_at': datetime.now().isoformat()}), 503
+
+        stats = cached(f'stats:{UNDEAD_SLUG}', 120, lambda: fetch_collection_stats(UNDEAD_SLUG))
+        floor = (stats or {}).get('floor_price_eth') or 0.0
+
+        price_buckets, at_floor = build_price_distribution(listings, floor)
+        age_buckets, median_age_days, aged = build_age_distribution(listings)
+        time_to_sale = get_time_to_sale_stats()
+
+        total = len(listings)
+        prices = sorted(l['price_eth'] for l in listings)
+        median_price = 0.0
+        if prices:
+            mid = len(prices) // 2
+            median_price = prices[mid] if len(prices) % 2 else (prices[mid - 1] + prices[mid]) / 2
+
+        # Listings priced within 10% of floor: the part of the book that is
+        # realistically sellable, versus the headline "listed" number.
+        near_floor = sum(b['count'] for b in price_buckets[:3])
+
+        return jsonify({
+            'generated_at': datetime.now().isoformat(),
+            'floor_price_eth': floor,
+            'total_listings': total,
+            'price_distribution': {
+                'buckets': price_buckets,
+                'at_floor_count': at_floor,
+                'at_floor_percent': (at_floor / total * 100) if total else 0,
+                'near_floor_count': near_floor,
+                'median_price_eth': median_price,
+                'median_premium_percent': ((median_price - floor) / floor * 100) if floor else 0,
+            },
+            'age_distribution': {
+                'buckets': age_buckets,
+                'median_age_days': median_age_days,
+                'listings_with_age': aged,
+            },
+            'time_to_sale': time_to_sale or {'sales_analyzed': 0, 'buckets': []},
+        })
+    except Exception as e:
+        print(f'[ListingAnalytics] error: {e}')
+        return jsonify({'error': str(e), 'generated_at': datetime.now().isoformat()}), 500
 
 
 @app.route('/api/gustr')

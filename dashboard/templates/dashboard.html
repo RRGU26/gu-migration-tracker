@@ -334,6 +334,53 @@
             </div>
         </div>
 
+        <!-- Listing Depth & Sale Velocity -->
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <h2>Listing Depth &amp; Sale Velocity</h2>
+                    <div class="sub">How the book is priced against floor, how long listings sit, and how fast they sell</div>
+                </div>
+                <div class="sub" id="listingAnalyticsNote"></div>
+            </div>
+            <div class="metrics">
+                <div class="metric m-pink">
+                    <div class="label">Within 10% of Floor</div>
+                    <div class="value" id="nearFloorCount">---</div>
+                    <div class="sub" id="nearFloorNote">of --- listed</div>
+                </div>
+                <div class="metric m-purple">
+                    <div class="label">Median Ask</div>
+                    <div class="value" id="medianAsk">-.--- ETH</div>
+                    <div class="sub" id="medianPremium">---% vs floor</div>
+                </div>
+                <div class="metric m-indigo">
+                    <div class="label">Median Listing Age</div>
+                    <div class="value" id="medianAge">-.- days</div>
+                    <div class="sub">currently listed</div>
+                </div>
+                <div class="metric m-green">
+                    <div class="label">Median Time to Sale</div>
+                    <div class="value" id="medianTimeToSale">--.- h</div>
+                    <div class="sub" id="salesAnalyzed">--- recent sales</div>
+                </div>
+            </div>
+            <div class="chart-grid" style="margin-top:18px;">
+                <div class="chart-card">
+                    <button class="chart-export-btn" title="Download PNG" onclick="exportChart('chartPriceDist', 'price-vs-floor')"><i class="fas fa-camera"></i></button>
+                    <div id="chartPriceDist" style="height:300px"></div>
+                </div>
+                <div class="chart-card">
+                    <button class="chart-export-btn" title="Download PNG" onclick="exportChart('chartAgeDist', 'listing-age')"><i class="fas fa-camera"></i></button>
+                    <div id="chartAgeDist" style="height:300px"></div>
+                </div>
+                <div class="chart-card">
+                    <button class="chart-export-btn" title="Download PNG" onclick="exportChart('chartTimeToSale', 'time-to-sale')"><i class="fas fa-camera"></i></button>
+                    <div id="chartTimeToSale" style="height:300px"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Charts -->
         <div class="card">
             <div class="card-head">
@@ -633,6 +680,7 @@
                 updateGUSTRUI(gustrData);
                 updateStatus(false);
                 loadCharts(currentRange);
+                loadListingAnalytics();
             })
             .catch(err => { console.error('Refresh error:', err); updateStatus(false); });
         }
@@ -1056,6 +1104,99 @@
             setText('fdv', formatCurrency(token.market_cap || 0));
         }
 
+        // ------------------------------------------------------------------
+        // Listing depth & sale velocity
+        // ------------------------------------------------------------------
+        function formatHours(h) {
+            if (h === null || h === undefined) return '--';
+            if (h < 1 / 60) return Math.max(1, Math.round(h * 3600)) + ' sec';
+            if (h < 1) return Math.round(h * 60) + ' min';
+            if (h < 48) return h.toFixed(1) + ' h';
+            return (h / 24).toFixed(1) + ' days';
+        }
+
+        function bucketBarLayout(title) {
+            const layout = baseLayout(title, '');
+            // Horizontal bars: labels are text, so give them room and drop the y grid
+            layout.margin = { t: 46, l: 92, r: 40, b: 36 };
+            layout.xaxis.showgrid = true;
+            layout.xaxis.gridcolor = C.grid;
+            layout.yaxis.showgrid = false;
+            layout.yaxis.automargin = true;
+            return layout;
+        }
+
+        function renderBucketChart(divId, title, buckets, color) {
+            const el = document.getElementById(divId);
+            if (!el) return;
+            if (!buckets || !buckets.length) {
+                Plotly.purge(el);
+                el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-faint);font-size:13px;">No data yet</div>';
+                return;
+            }
+            const labels = buckets.map(b => b.label);
+            const counts = buckets.map(b => b.count);
+            const total = counts.reduce((a, b) => a + b, 0) || 1;
+
+            Plotly.react(divId, [{
+                x: counts,
+                y: labels,
+                type: 'bar',
+                orientation: 'h',
+                marker: { color: color, opacity: 0.75, line: { color: color, width: 1 } },
+                text: counts.map(c => c + '  (' + (c / total * 100).toFixed(0) + '%)'),
+                textposition: 'outside',
+                textfont: { size: 11, color: C.dim },
+                cliponaxis: false,
+                hovertemplate: '<b>%{x}</b> listings<br>%{y}<extra></extra>'
+            }], bucketBarLayout(title), PLOT_CONFIG);
+        }
+
+        function updateListingAnalytics(data) {
+            if (!data || data.error) {
+                console.error('Listing analytics error:', data && data.error);
+                return;
+            }
+            const price = data.price_distribution || {};
+            const age = data.age_distribution || {};
+            const tts = data.time_to_sale || {};
+            const total = data.total_listings || 0;
+
+            document.getElementById('nearFloorCount').textContent = (price.near_floor_count || 0).toLocaleString();
+            document.getElementById('nearFloorNote').textContent =
+                'of ' + total.toLocaleString() + ' listed · ' + (price.at_floor_count || 0) + ' at floor';
+
+            document.getElementById('medianAsk').textContent = (price.median_price_eth || 0).toFixed(3) + ' ETH';
+            const prem = price.median_premium_percent || 0;
+            document.getElementById('medianPremium').textContent =
+                (prem >= 0 ? '+' : '') + prem.toFixed(0) + '% vs floor';
+
+            document.getElementById('medianAge').textContent = (age.median_age_days || 0).toFixed(1) + ' days';
+
+            document.getElementById('medianTimeToSale').textContent = formatHours(tts.median_hours);
+            document.getElementById('salesAnalyzed').textContent = tts.sales_analyzed
+                ? tts.sales_analyzed + ' sales, last ' + (tts.sample_days || 30) + 'd'
+                : 'warming up…';
+
+            const note = document.getElementById('listingAnalyticsNote');
+            if (note) {
+                note.textContent = tts.sales_analyzed
+                    ? 'fastest ' + formatHours(tts.fastest_hours) + ' · slowest ' + formatHours(tts.slowest_hours)
+                    : '';
+            }
+
+            renderBucketChart('chartPriceDist', 'Asking Price vs Floor', price.buckets, C.purple);
+            renderBucketChart('chartAgeDist', 'Listing Age', age.buckets, C.blue);
+            renderBucketChart('chartTimeToSale', 'Time to Sale', tts.buckets, C.green);
+        }
+
+        function loadListingAnalytics() {
+            fetch('/api/listing-analytics')
+                .then(r => r.json())
+                .then(data => updateListingAnalytics(data))
+                .catch(err => console.error('Listing analytics fetch error:', err));
+        }
+
         function loadGUSTRData() {
             fetch('/api/gustr')
                 .then(r => r.json())
@@ -1086,9 +1227,11 @@
             loadData();
             loadGUSTRData();
             loadCharts(currentRange);
+            loadListingAnalytics();
             setInterval(loadData, 5 * 60 * 1000);
             setInterval(loadGUSTRData, 5 * 60 * 1000);
             setInterval(() => loadCharts(currentRange), 15 * 60 * 1000);
+            setInterval(loadListingAnalytics, 5 * 60 * 1000);
             if (new URLSearchParams(location.search).get('export_preview') === '1') {
                 showExportPreview();
             }
