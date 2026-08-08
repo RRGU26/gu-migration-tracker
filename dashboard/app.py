@@ -1234,23 +1234,60 @@ def get_listing_analytics():
 
 @app.route('/api/tokens-in-range')
 def get_tokens_in_range():
-    """Count tokens listed between current floor and 0.2 ETH target."""
+    """Count tokens listed between current floor and 0.2 ETH target — direct OpenSea query."""
     try:
-        listings = fetch_active_listings()
-        if listings is None:
-            return jsonify({'count': 0, 'target': 0.2, 'status': 'unavailable'}), 503
-
         stats = cached(f'stats:{UNDEAD_SLUG}', 120, lambda: fetch_collection_stats(UNDEAD_SLUG))
         floor = (stats or {}).get('floor_price_eth') or 0.0
 
         TARGET = 0.2
-        count = sum(1 for l in listings if floor <= l['price_eth'] <= TARGET)
+
+        # Query OpenSea directly for active listings in price range
+        # No caching — always fresh data
+        count = 0
+        next_cursor = None
+
+        while True:
+            params = {
+                'collection_slug': UNDEAD_SLUG,
+                'order_direction': 'asc',
+                'order_by': 'created_date',
+                'status': 'active',
+                'limit': 200,
+            }
+            if next_cursor:
+                params['cursor'] = next_cursor
+
+            response = requests.get(
+                'https://api.opensea.io/api/v2/listings/collection',
+                headers=opensea_headers(),
+                params=params,
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                print(f'[TokensInRange] OpenSea error: {response.status_code}')
+                break
+
+            data = response.json()
+            listings = data.get('listings', [])
+
+            if not listings:
+                break
+
+            # Count listings in the target range [floor, 0.2]
+            for listing in listings:
+                price = float(listing.get('price', {}).get('current', {}).get('ethereum', 0))
+                if floor <= price <= TARGET:
+                    count += 1
+
+            next_cursor = data.get('next')
+            if not next_cursor:
+                break
 
         return jsonify({
             'count': count,
             'floor_price_eth': floor,
             'target_price_eth': TARGET,
-            'total_listed': len(listings),
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
