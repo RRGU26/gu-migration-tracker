@@ -217,6 +217,64 @@
         .text-up { color: var(--green); }
         .text-down { color: var(--red); }
         .text-dim { color: var(--text-dim); }
+
+        /* ---------- Road to 0.2 ETH ---------- */
+        .road-to-02 {
+            background: linear-gradient(135deg, rgba(23,23,38,0.9) 0%, rgba(30,20,50,0.7) 100%);
+            border: 2px solid rgba(124,58,237,0.25);
+            position: relative;
+            overflow: hidden;
+        }
+        .road-to-02::before {
+            content: '';
+            position: absolute; top: 0; right: 0;
+            width: 400px; height: 400px;
+            background: radial-gradient(ellipse at 100% 0%, rgba(124,58,237,0.2), transparent);
+            pointer-events: none;
+        }
+        .road-content { position: relative; z-index: 2; }
+        .road-header { margin-bottom: 20px; }
+        .road-header h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+
+        .road-gauge-container { margin: 24px 0; }
+        .road-gauge { width: 100%; height: 200px; max-width: 500px; margin: 0 auto; display: block; }
+
+        @keyframes roadTargetGlow { 0%, 100% { r: 14; opacity: 1; } 50% { r: 18; opacity: 0.6; } }
+        @keyframes roadProgress { 0% { stroke-dasharray: 0 1000; } 100% { stroke-dasharray: var(--dash-progress, 0) 1000; } }
+
+        #roadTargetPulse { animation: roadTargetGlow 2s ease-in-out infinite; }
+        #roadProgressPath { animation: roadProgress 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+        .road-stats {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+            margin: 20px 0; padding: 16px; border-radius: 12px;
+            background: rgba(15,15,28,0.5);
+        }
+        .road-stat { text-align: center; }
+        .road-stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); margin-bottom: 4px; }
+        .road-stat-value { font-size: 22px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.01em; margin: 2px 0; }
+        .road-stat-value.moon { animation: moonShake 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .road-stat-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+        .road-stat-sub.hot { color: var(--amber); animation: pulse 1s infinite; }
+        .road-stat-sub.moon-reached { color: var(--green); font-weight: 600; animation: moonReachedPulse 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+        @keyframes moonShake { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        @keyframes moonReachedPulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+        .road-message {
+            font-size: 14px; color: var(--text-dim); padding: 8px 0;
+            transition: all 0.6s ease;
+        }
+        .road-message.approaching { color: var(--amber); font-weight: 600; }
+        .road-message.reached {
+            color: var(--green); font-weight: 700; font-size: 16px;
+            animation: moonReachedPulse 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @media (max-width: 768px) {
+            .road-stats { grid-template-columns: 1fr; }
+            .road-gauge { height: 160px; }
+        }
     </style>
 </head>
 <body>
@@ -244,6 +302,73 @@
     </header>
 
     <main class="container">
+        <!-- Road to 0.2 ETH — Premium Section -->
+        <div class="card road-to-02" style="margin-bottom: 28px;">
+            <div class="road-content">
+                <div class="road-header">
+                    <h2 style="margin-bottom: 4px;">Road to 0.2 ETH</h2>
+                    <p style="font-size: 13px; color: var(--text-dim); margin: 0;">Collection floor price progress</p>
+                </div>
+
+                <div class="road-gauge-container">
+                    <svg class="road-gauge" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid meet">
+                        <!-- Background track -->
+                        <path d="M 40 140 Q 200 40 360 140" stroke="rgba(148,163,184,0.15)" stroke-width="24" fill="none" stroke-linecap="round"/>
+
+                        <!-- Progress fill (animated) -->
+                        <path id="roadProgressPath" d="M 40 140 Q 200 40 360 140" stroke="url(#roadGradient)" stroke-width="24" fill="none" stroke-linecap="round" stroke-dasharray="0 1000" style="transition: stroke-dasharray 0.8s ease;"/>
+
+                        <!-- Gradient definition -->
+                        <defs>
+                            <linearGradient id="roadGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#f87171" />
+                                <stop offset="50%" stop-color="#fbbf24" />
+                                <stop offset="100%" stop-color="#34d399" />
+                            </linearGradient>
+                            <filter id="roadGlow">
+                                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+
+                        <!-- Target marker (0.2 ETH) -->
+                        <circle cx="360" cy="140" r="14" fill="rgba(52,211,153,0.2)" stroke="#34d399" stroke-width="2"/>
+                        <circle cx="360" cy="140" r="10" fill="none" stroke="#34d399" stroke-width="2" opacity="0.6" id="roadTargetPulse"/>
+                        <text x="360" y="175" font-size="12" fill="var(--green)" text-anchor="middle" font-weight="600">0.2 ETH</text>
+
+                        <!-- Start marker -->
+                        <circle cx="40" cy="140" r="8" fill="var(--purple)" stroke="rgba(167,139,250,0.4)" stroke-width="2"/>
+                        <text x="40" y="175" font-size="12" fill="var(--purple)" text-anchor="middle" font-weight="600">Start</text>
+                    </svg>
+                </div>
+
+                <div class="road-stats">
+                    <div class="road-stat">
+                        <div class="road-stat-label">Current Floor</div>
+                        <div class="road-stat-value" id="roadCurrentFloor">-.---- ETH</div>
+                        <div class="road-stat-sub" id="roadCurrentFloorUSD">$---</div>
+                    </div>
+                    <div class="road-stat">
+                        <div class="road-stat-label">Distance to Target</div>
+                        <div class="road-stat-value" id="roadDistance">+-.---- ETH</div>
+                        <div class="road-stat-sub" id="roadDistancePercent">--% away</div>
+                    </div>
+                    <div class="road-stat">
+                        <div class="road-stat-label">Progress</div>
+                        <div class="road-stat-value" id="roadProgress">---%</div>
+                        <div class="road-stat-sub" id="roadHype" style="font-weight: 600; letter-spacing: 0.02em;">🚀 LFG</div>
+                    </div>
+                </div>
+
+                <div class="road-message" id="roadMessage" style="text-align: center; margin-top: 12px; font-size: 13px; color: var(--text-dim); font-weight: 500;">
+                    Charging toward the moon…
+                </div>
+            </div>
+        </div>
+
         <!-- Hero band -->
         <div class="card hero">
             <div class="hero-stat">
@@ -596,6 +721,68 @@
             el.className = 'sub ' + (value >= 0 ? 'up' : 'down');
         }
 
+        function updateRoadTo02(floorETH, ethPrice) {
+            const TARGET = 0.2;
+            const progress = Math.min(floorETH / TARGET, 1);
+            const distance = Math.max(TARGET - floorETH, 0);
+            const distancePercent = (distance / TARGET) * 100;
+
+            // Update text values
+            setText('roadCurrentFloor', floorETH.toFixed(4) + ' ETH');
+            setText('roadCurrentFloorUSD', formatCurrency(floorETH * ethPrice));
+            setText('roadDistance', (distance >= 0 ? '+' : '') + distance.toFixed(4) + ' ETH');
+            setText('roadProgress', (progress * 100).toFixed(1) + '%');
+
+            // Update distance percentage
+            const distEl = document.getElementById('roadDistancePercent');
+            if (distEl) {
+                if (progress >= 1) {
+                    distEl.textContent = '✓ TARGET REACHED';
+                    distEl.className = 'road-stat-sub moon-reached';
+                } else {
+                    distEl.textContent = distancePercent.toFixed(1) + '% away';
+                    distEl.className = 'road-stat-sub' + (progress > 0.7 ? ' hot' : '');
+                }
+            }
+
+            // Update SVG progress bar
+            const pathLength = 460; // approximate path length for the SVG curve
+            const dashProgress = pathLength * progress;
+            const progressPath = document.getElementById('roadProgressPath');
+            if (progressPath) {
+                progressPath.style.setProperty('--dash-progress', dashProgress + 'px');
+                progressPath.setAttribute('stroke-dasharray', dashProgress + ' ' + (pathLength - dashProgress));
+            }
+
+            // Update messaging with escalating hype
+            const messageEl = document.getElementById('roadMessage');
+            const hyped = document.getElementById('roadHype');
+            if (messageEl && hyped) {
+                if (progress >= 1) {
+                    messageEl.textContent = '🚀 MOON LANDED 🌙';
+                    messageEl.className = 'road-message reached';
+                    hyped.textContent = '🎉 FLOOR AT 0.2 ETH!';
+                    document.querySelector('.road-to-02').style.borderColor = 'rgba(52,211,153,0.6)';
+                } else if (progress > 0.85) {
+                    messageEl.textContent = '🔥 ALMOST THERE — LFG TO THE MOON! 🚀';
+                    messageEl.className = 'road-message approaching';
+                    hyped.textContent = '🔥🔥🔥 HYPE MAXIMUM';
+                } else if (progress > 0.7) {
+                    messageEl.textContent = '⚡ Getting close — keep building!';
+                    messageEl.className = 'road-message approaching';
+                    hyped.textContent = '🚀 MOON INCOMING';
+                } else if (progress > 0.5) {
+                    messageEl.textContent = 'Halfway to the moon… 🌕';
+                    messageEl.className = 'road-message';
+                    hyped.textContent = '🚀 LFG';
+                } else {
+                    messageEl.textContent = 'Charging toward the moon…';
+                    messageEl.className = 'road-message';
+                    hyped.textContent = '🚀 LFG';
+                }
+            }
+        }
+
         function updateUI(data) {
             latestData = data;
             const ethPrice = data.eth_price_usd || 3000;
@@ -604,10 +791,11 @@
 
             if (data.undead) {
                 const u = data.undead;
-                setText('heroFloor', (u.floor_price_eth || 0).toFixed(4) + ' ETH');
+                const floorPrice = u.floor_price_eth || 0;
+                setText('heroFloor', floorPrice.toFixed(4) + ' ETH');
                 setText('heroMcap', '$' + formatNumber(u.market_cap_usd || 0, 0));
-                setText('undeadFloorETH', (u.floor_price_eth || 0).toFixed(4) + ' ETH');
-                setText('undeadFloorUSD', formatCurrency((u.floor_price_eth || 0) * ethPrice));
+                setText('undeadFloorETH', floorPrice.toFixed(4) + ' ETH');
+                setText('undeadFloorUSD', formatCurrency(floorPrice * ethPrice));
                 setText('undeadVolume', (u.volume_24h_eth || 0).toFixed(2) + ' ETH');
                 setText('undeadVolumeUSD', formatCurrency((u.volume_24h_eth || 0) * ethPrice));
                 setText('undeadMarketCap', formatCurrency(u.market_cap_usd || 0));
@@ -616,6 +804,9 @@
                 setText('numListed', (u.num_listed !== null && u.num_listed !== undefined) ? u.num_listed.toLocaleString() : '—');
                 setText('listingPercent', u.listing_percent ? u.listing_percent.toFixed(1) + '% of supply' : '— of supply');
                 setText('diamondHands', (u.diamond_hands_pct !== null && u.diamond_hands_pct !== undefined) ? u.diamond_hands_pct.toFixed(1) + '%' : '—');
+
+                // Update the Road to 0.2 ETH graphic
+                updateRoadTo02(floorPrice, ethPrice);
             }
 
             if (data.trends) {
