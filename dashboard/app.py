@@ -1258,7 +1258,7 @@ def get_tokens_in_range():
                 params['cursor'] = next_cursor
 
             response = requests.get(
-                'https://api.opensea.io/api/v2/listings/collection',
+                f'https://api.opensea.io/api/v2/listings/collection/{UNDEAD_SLUG}/all',
                 headers=opensea_headers(),
                 params=params,
                 timeout=10
