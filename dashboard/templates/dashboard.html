@@ -308,60 +308,6 @@
     </header>
 
     <main class="container">
-        <!-- Road to 0.2 ETH — Premium Milestone -->
-        <div class="card road-milestone" style="margin-bottom: 28px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
-                <div>
-                    <h2 style="margin: 0 0 4px 0; font-size: 18px;">🎯 Road to 0.2 ETH</h2>
-                    <p style="font-size: 12px; color: var(--text-faint); margin: 0;">Floor price milestone tracker</p>
-                </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 28px; font-weight: 700; font-family: 'Space Grotesk'; color: var(--purple);" id="roadFloorDisplay">-.---- ETH</div>
-                    <div style="font-size: 11px; color: var(--text-dim);" id="roadFloorUSD">$---</div>
-                </div>
-            </div>
-
-            <!-- Progress Bar with Milestones -->
-            <div style="margin-bottom: 20px;">
-                <div class="progress-track">
-                    <div class="progress-fill" id="roadProgressFill" style="width: 0%;"></div>
-                </div>
-                <div class="milestone-markers">
-                    <div class="milestone" style="left: 0%;"><span>0</span></div>
-                    <div class="milestone" style="left: 25%;"><span>0.05</span></div>
-                    <div class="milestone" style="left: 50%;"><span>0.1</span></div>
-                    <div class="milestone" style="left: 75%;"><span>0.15</span></div>
-                    <div class="milestone target" style="left: 100%;"><span>0.2 ✓</span></div>
-                </div>
-            </div>
-
-            <!-- Stats Row -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
-                <div class="stat-box">
-                    <div class="stat-label">Progress</div>
-                    <div class="stat-value" id="roadProgressPercent">---%</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Distance</div>
-                    <div class="stat-value" id="roadDistanceETH">+-.---- ETH</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">In Range</div>
-                    <div class="stat-value" id="roadInRange">---</div>
-                    <div style="font-size: 10px; color: var(--text-faint); margin-top: 2px;">to 0.2 ETH</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Status</div>
-                    <div class="stat-value" id="roadStatus" style="font-size: 16px;">🚀 LFG</div>
-                </div>
-            </div>
-
-            <!-- Message -->
-            <div class="road-message-line" id="roadMessageLine" style="text-align: center; font-size: 13px; font-weight: 500; color: var(--text-dim);">
-                Charging toward the moon…
-            </div>
-        </div>
-
         <!-- Hero band -->
         <div class="card hero">
             <div class="hero-stat">
@@ -419,6 +365,60 @@
                     <div class="value" id="numListed">---</div>
                     <div class="sub" id="listingPercent">--% of supply</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Road to 0.2 ETH — Premium Milestone -->
+        <div class="card road-milestone" style="margin-bottom: 28px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                <div>
+                    <h2 style="margin: 0 0 4px 0; font-size: 18px;">🎯 Road to 0.2 ETH</h2>
+                    <p style="font-size: 12px; color: var(--text-faint); margin: 0;">Floor price milestone tracker</p>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 28px; font-weight: 700; font-family: 'Space Grotesk'; color: var(--purple);" id="roadFloorDisplay">-.---- ETH</div>
+                    <div style="font-size: 11px; color: var(--text-dim);" id="roadFloorUSD">$---</div>
+                </div>
+            </div>
+
+            <!-- Progress Bar with Milestones -->
+            <div style="margin-bottom: 20px;">
+                <div class="progress-track">
+                    <div class="progress-fill" id="roadProgressFill" style="width: 0%;"></div>
+                </div>
+                <div class="milestone-markers">
+                    <div class="milestone" style="left: 0%;"><span>0</span></div>
+                    <div class="milestone" style="left: 25%;"><span>0.05</span></div>
+                    <div class="milestone" style="left: 50%;"><span>0.1</span></div>
+                    <div class="milestone" style="left: 75%;"><span>0.15</span></div>
+                    <div class="milestone target" style="left: 100%;"><span>0.2 ✓</span></div>
+                </div>
+            </div>
+
+            <!-- Stats Row -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+                <div class="stat-box">
+                    <div class="stat-label">Progress</div>
+                    <div class="stat-value" id="roadProgressPercent">---%</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Distance</div>
+                    <div class="stat-value" id="roadDistanceETH">+-.---- ETH</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">In Range</div>
+                    <div class="stat-value" id="roadInRange">---</div>
+                    <div style="font-size: 10px; color: var(--text-faint); margin-top: 2px;">to 0.2 ETH</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Status</div>
+                    <div class="stat-value" id="roadStatus" style="font-size: 16px;">🚀 LFG</div>
+                </div>
+            </div>
+
+            <!-- Message -->
+            <div class="road-message-line" id="roadMessageLine" style="text-align: center; font-size: 13px; font-weight: 500; color: var(--text-dim);">
+                Charging toward the moon…
             </div>
         </div>
 
