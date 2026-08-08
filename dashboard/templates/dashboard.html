@@ -218,68 +218,148 @@
         .text-down { color: var(--red); }
         .text-dim { color: var(--text-dim); }
 
-        /* ---------- Road to 0.2 ETH Milestone ---------- */
+        /* ---------- Road to 0.2 ETH — flight-path milestone ---------- */
         .road-milestone {
-            background: linear-gradient(135deg, rgba(23,23,38,0.95) 0%, rgba(30,20,50,0.8) 100%);
-            border: 2px solid rgba(124,58,237,0.3);
+            background: linear-gradient(135deg, rgba(23,23,38,0.96) 0%, rgba(30,20,50,0.85) 100%);
+            border: 2px solid rgba(124,58,237,0.32);
             position: relative;
             overflow: hidden;
+            transition: border-color 1s ease;
+            animation: roadBorderBreathe 4s ease-in-out infinite;
+        }
+        @keyframes roadBorderBreathe {
+            0%, 100% { box-shadow: 0 0 0 rgba(124,58,237,0); }
+            50% { box-shadow: 0 0 28px rgba(124,58,237,0.12); }
         }
         .road-milestone::before {
             content: '';
-            position: absolute; top: -100px; right: -100px;
-            width: 300px; height: 300px;
-            background: radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%);
+            position: absolute; top: -120px; right: -100px;
+            width: 340px; height: 340px;
+            background: radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%);
             pointer-events: none;
         }
+        .road-stars {
+            position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+            background-image:
+                radial-gradient(1.5px 1.5px at 8% 20%, rgba(255,255,255,0.7), transparent),
+                radial-gradient(1px 1px at 22% 65%, rgba(255,255,255,0.5), transparent),
+                radial-gradient(1.5px 1.5px at 38% 15%, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1px 1px at 55% 78%, rgba(255,255,255,0.4), transparent),
+                radial-gradient(1.5px 1.5px at 70% 30%, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.5), transparent),
+                radial-gradient(1.5px 1.5px at 95% 15%, rgba(255,255,255,0.5), transparent);
+            animation: roadTwinkle 5s ease-in-out infinite;
+        }
+        @keyframes roadTwinkle { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.65; } }
 
-        .progress-track {
-            position: relative; height: 8px; border-radius: 999px;
-            background: rgba(148,163,184,0.12); overflow: hidden;
-            margin-bottom: 6px;
+        .road-header-row {
+            position: relative; z-index: 2;
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 44px;
         }
-        .progress-fill {
-            height: 100%; border-radius: 999px;
-            background: linear-gradient(90deg, #f87171 0%, #fbbf24 50%, #34d399 100%);
-            box-shadow: 0 0 16px rgba(52,211,153,0.4);
-            transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        .road-title-block h2 { margin: 0 0 4px 0; font-size: 18px; }
+        .road-title-block p { font-size: 12px; color: var(--text-faint); margin: 0; }
+        .road-floor-block { text-align: right; }
+        .road-floor-value {
+            font-size: 28px; font-weight: 700; font-family: 'Space Grotesk', sans-serif;
+            color: var(--purple); text-shadow: 0 0 18px rgba(167,139,250,0.35);
+        }
+        .road-floor-usd { font-size: 11px; color: var(--text-dim); }
+
+        /* Flight path */
+        .road-track-wrap { position: relative; z-index: 2; padding: 30px 6px 26px; }
+        .road-track {
+            position: relative; height: 10px; border-radius: 999px;
+            background: rgba(148,163,184,0.14);
+        }
+        .road-track-fill {
+            position: relative; height: 100%; border-radius: 999px;
+            background: linear-gradient(90deg, #f87171 0%, #fbbf24 55%, #34d399 100%);
+            background-size: 200% 100%;
+            box-shadow: 0 0 16px rgba(52,211,153,0.35);
+            transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: roadShimmer 3s linear infinite;
+            overflow: hidden;
+        }
+        @keyframes roadShimmer { 0% { background-position: 0% 0; } 100% { background-position: -200% 0; } }
+
+        .road-ship {
+            position: absolute; top: 50%; transform: translate(-50%, -50%);
+            transition: left 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 3;
+        }
+        .road-ship-icon {
+            font-size: 22px; display: block; transform: rotate(90deg);
+            filter: drop-shadow(0 0 8px rgba(251,191,36,0.6));
+            animation: roadShipFloat 2.2s ease-in-out infinite;
+        }
+        @keyframes roadShipFloat {
+            0%, 100% { transform: rotate(90deg) translateY(0); }
+            50% { transform: rotate(90deg) translateY(-3px); }
+        }
+        .road-ship-trail {
+            position: absolute; top: 50%; right: 100%;
+            width: 34px; height: 6px; transform: translateY(-50%);
+            background: linear-gradient(90deg, transparent, rgba(251,191,36,0.55));
+            border-radius: 999px; filter: blur(2px);
         }
 
-        .milestone-markers {
-            position: relative; height: 20px; margin-top: 8px;
+        .road-milestone-dot {
+            position: absolute; top: 100%; margin-top: 8px; transform: translateX(-50%);
+            width: 9px; height: 9px; border-radius: 50%;
+            background: rgba(148,163,184,0.25); border: 2px solid rgba(15,15,28,0.9);
+            transition: background 0.5s ease, box-shadow 0.5s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
         }
-        .milestone {
-            position: absolute; top: 0; transform: translateX(-50%);
-            display: flex; flex-direction: column; align-items: center;
+        .road-milestone-dot.reached {
+            background: var(--green); box-shadow: 0 0 10px rgba(52,211,153,0.7);
+            transform: translateX(-50%) scale(1.35);
         }
-        .milestone span {
-            font-size: 10px; font-weight: 600; color: var(--text-faint);
-            background: rgba(15,15,28,0.8); padding: 2px 6px; border-radius: 4px;
-            white-space: nowrap; margin-top: 2px;
+        .road-milestone-label {
+            position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+            font-size: 10px; font-weight: 600; color: var(--text-faint); white-space: nowrap;
+            transition: color 0.5s ease;
         }
-        .milestone::before {
-            content: ''; width: 2px; height: 6px;
-            background: rgba(148,163,184,0.3); margin-bottom: 2px;
+        .road-milestone-dot.reached .road-milestone-label { color: var(--green); font-weight: 700; }
+        .road-milestone-final {
+            width: 15px; height: 15px;
+            animation: roadTargetPulse 2s ease-in-out infinite;
         }
-        .milestone.target span { color: var(--green); font-weight: 700; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); }
-        .milestone.target::before { background: var(--green); height: 8px; }
+        .road-milestone-final .road-milestone-label { font-weight: 700; }
+        @keyframes roadTargetPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(52,211,153,0); }
+        }
 
-        .stat-box {
-            padding: 12px; border-radius: 10px;
+        /* Stats row */
+        .road-stats-row {
+            position: relative; z-index: 2;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+            margin-bottom: 16px;
+        }
+        .road-stat-chip {
+            padding: 12px 14px; border-radius: 10px;
             background: rgba(30,30,50,0.5); border: 1px solid rgba(148,163,184,0.08);
         }
-        .stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 4px; }
-        .stat-value { font-size: 18px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.01em; color: var(--purple); }
+        .road-stat-chip-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 4px; }
+        .road-stat-chip-value { font-size: 19px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.01em; color: var(--purple); }
+        .road-stat-chip-sub { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
+        .road-stat-chip-highlight {
+            background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.28);
+        }
+        .road-stat-chip-highlight .road-stat-chip-value { color: var(--amber); }
 
         .road-message-line {
-            transition: all 0.6s ease; color: var(--text-dim);
+            position: relative; z-index: 2;
+            text-align: center; font-size: 13px; font-weight: 500; color: var(--text-dim);
+            transition: all 0.6s ease;
         }
         .road-message-line.hot { color: var(--amber); font-weight: 600; }
         .road-message-line.reached { color: var(--green); font-weight: 700; font-size: 14px; }
 
         @media (max-width: 768px) {
-            .milestone-markers { height: 24px; }
-            .milestone span { font-size: 9px; }
+            .road-stats-row { grid-template-columns: 1fr; }
+            .road-header-row { flex-direction: column; gap: 10px; }
+            .road-floor-block { text-align: left; }
         }
     </style>
 </head>
@@ -368,56 +448,55 @@
             </div>
         </div>
 
-        <!-- Road to 0.2 ETH — Premium Milestone -->
-        <div class="card road-milestone" style="margin-bottom: 28px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
-                <div>
-                    <h2 style="margin: 0 0 4px 0; font-size: 18px;">🎯 Road to 0.2 ETH</h2>
-                    <p style="font-size: 12px; color: var(--text-faint); margin: 0;">Floor price milestone tracker</p>
+        <!-- Road to 0.2 ETH — Flight Path Milestone -->
+        <div class="card road-milestone" id="roadCard">
+            <div class="road-stars"></div>
+            <div class="road-header-row">
+                <div class="road-title-block">
+                    <h2>🚀 Road to 0.2 ETH</h2>
+                    <p>Floor price milestone tracker</p>
                 </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 28px; font-weight: 700; font-family: 'Space Grotesk'; color: var(--purple);" id="roadFloorDisplay">-.---- ETH</div>
-                    <div style="font-size: 11px; color: var(--text-dim);" id="roadFloorUSD">$---</div>
+                <div class="road-floor-block">
+                    <div class="road-floor-value" id="roadFloorDisplay">-.---- ETH</div>
+                    <div class="road-floor-usd" id="roadFloorUSD">$---</div>
                 </div>
             </div>
 
-            <!-- Progress Bar with Milestones -->
-            <div style="margin-bottom: 20px;">
-                <div class="progress-track">
-                    <div class="progress-fill" id="roadProgressFill" style="width: 0%;"></div>
-                </div>
-                <div class="milestone-markers">
-                    <div class="milestone" style="left: 0%;"><span>0</span></div>
-                    <div class="milestone" style="left: 25%;"><span>0.05</span></div>
-                    <div class="milestone" style="left: 50%;"><span>0.1</span></div>
-                    <div class="milestone" style="left: 75%;"><span>0.15</span></div>
-                    <div class="milestone target" style="left: 100%;"><span>0.2 ✓</span></div>
+            <!-- Flight path -->
+            <div class="road-track-wrap">
+                <div class="road-track">
+                    <div class="road-track-fill" id="roadProgressFill" style="width: 0%;"></div>
+                    <div class="road-ship" id="roadShip" style="left: 0%;">
+                        <div class="road-ship-trail"></div>
+                        <div class="road-ship-icon">🚀</div>
+                    </div>
+                    <div class="road-milestone-dot" data-target="0" style="left: 0%;"><span class="road-milestone-label">0</span></div>
+                    <div class="road-milestone-dot" data-target="0.05" style="left: 25%;"><span class="road-milestone-label">0.05</span></div>
+                    <div class="road-milestone-dot" data-target="0.1" style="left: 50%;"><span class="road-milestone-label">0.10</span></div>
+                    <div class="road-milestone-dot" data-target="0.15" style="left: 75%;"><span class="road-milestone-label">0.15</span></div>
+                    <div class="road-milestone-dot road-milestone-final" data-target="0.2" style="left: 100%;"><span class="road-milestone-label">0.20</span></div>
                 </div>
             </div>
 
             <!-- Stats Row -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
-                <div class="stat-box">
-                    <div class="stat-label">Progress</div>
-                    <div class="stat-value" id="roadProgressPercent">---%</div>
+            <div class="road-stats-row">
+                <div class="road-stat-chip">
+                    <div class="road-stat-chip-label">Progress</div>
+                    <div class="road-stat-chip-value" id="roadProgressPercent">--.-%</div>
                 </div>
-                <div class="stat-box">
-                    <div class="stat-label">Distance to 0.2</div>
-                    <div class="stat-value" id="roadDistanceETH">+-.---- ETH</div>
+                <div class="road-stat-chip">
+                    <div class="road-stat-chip-label">Distance to 0.2</div>
+                    <div class="road-stat-chip-value" id="roadDistanceETH">+-.---- ETH</div>
                 </div>
-                <div class="stat-box">
-                    <div class="stat-label">In Range</div>
-                    <div class="stat-value" id="roadInRange">---</div>
-                    <div style="font-size: 10px; color: var(--text-faint); margin-top: 2px;">to 0.2 ETH</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Status</div>
-                    <div class="stat-value" id="roadStatus" style="font-size: 16px;">🚀 LFG</div>
+                <div class="road-stat-chip road-stat-chip-highlight">
+                    <div class="road-stat-chip-label">Tokens In Range</div>
+                    <div class="road-stat-chip-value" id="roadInRange">--</div>
+                    <div class="road-stat-chip-sub">listed between floor &amp; 0.2</div>
                 </div>
             </div>
 
             <!-- Message -->
-            <div class="road-message-line" id="roadMessageLine" style="text-align: center; font-size: 13px; font-weight: 500; color: var(--text-dim);">
+            <div class="road-message-line" id="roadMessageLine">
                 Charging toward the moon…
             </div>
         </div>
@@ -727,37 +806,37 @@
             const TARGET = 0.2;
             const progress = Math.min(floorETH / TARGET, 1);
             const distance = Math.max(TARGET - floorETH, 0);
+            const progressPct = progress * 100;
 
-            // Update display values
+            // Display values
             setText('roadFloorDisplay', floorETH.toFixed(4) + ' ETH');
             setText('roadFloorUSD', formatCurrency(floorETH * ethPrice));
-            setText('roadProgressPercent', (progress * 100).toFixed(1) + '%');
-            setText('roadDistanceETH', '+' + distance.toFixed(4) + ' ETH');
+            setText('roadProgressPercent', progressPct.toFixed(1) + '%');
+            setText('roadDistanceETH', progress >= 1 ? '✓ reached' : '+' + distance.toFixed(4) + ' ETH');
 
-            // Update progress bar width
+            // Track fill
             const progressFill = document.getElementById('roadProgressFill');
-            if (progressFill) {
-                progressFill.style.width = (progress * 100) + '%';
-            }
+            if (progressFill) progressFill.style.width = progressPct + '%';
 
-            // Update status emoji based on progress
-            const statusEl = document.getElementById('roadStatus');
-            if (statusEl) {
-                if (progress >= 1) statusEl.textContent = '✅ 0.2 REACHED';
-                else if (progress > 0.85) statusEl.textContent = '🔥 NEARLY THERE';
-                else if (progress > 0.7) statusEl.textContent = '⚡ CLOSE';
-                else if (progress > 0.5) statusEl.textContent = '🚀 HALFWAY';
-                else statusEl.textContent = '🚀 LFG';
-            }
+            // Ship position rides the front edge of the fill
+            const ship = document.getElementById('roadShip');
+            if (ship) ship.style.left = progressPct + '%';
 
-            // Update message with hype escalation
+            // Light up milestone dots the floor has passed
+            document.querySelectorAll('.road-milestone-dot').forEach(dot => {
+                const target = parseFloat(dot.dataset.target);
+                dot.classList.toggle('reached', floorETH >= target);
+            });
+
+            // Message with hype escalation
             const msgEl = document.getElementById('roadMessageLine');
+            const card = document.getElementById('roadCard');
             if (msgEl) {
                 let msg = '';
                 if (progress >= 1) {
                     msg = '🎉 MOON LANDED — FLOOR AT 0.2 ETH! 🌙';
                     msgEl.className = 'road-message-line reached';
-                    document.querySelector('.road-milestone').style.borderColor = 'rgba(52,211,153,0.6)';
+                    if (card) card.style.borderColor = 'rgba(52,211,153,0.6)';
                 } else if (progress > 0.85) {
                     msg = '🔥 ALMOST THERE — TO THE MOON! 🚀';
                     msgEl.className = 'road-message-line hot';
