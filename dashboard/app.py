@@ -221,6 +221,7 @@ def _fetch_active_listings(slug=UNDEAD_SLUG, max_pages=5):
     try:
         listings = []
         next_cursor = None
+        pages_fetched = 0
         for _ in range(max_pages):
             params = {'limit': 100}
             if next_cursor:
@@ -229,9 +230,13 @@ def _fetch_active_listings(slug=UNDEAD_SLUG, max_pages=5):
                 f'https://api.opensea.io/api/v2/listings/collection/{slug}/all',
                 headers=opensea_headers(), params=params, timeout=10)
             if response.status_code != 200:
+                print(f'[Listings] Page {pages_fetched} error: {response.status_code}')
                 break
+            pages_fetched += 1
             data = response.json()
-            for item in data.get('listings', []):
+            page_items = data.get('listings', [])
+            print(f'[Listings] Page {pages_fetched}: {len(page_items)} items')
+            for item in page_items:
                 try:
                     current = (item.get('price') or {}).get('current') or {}
                     price_eth = float(current.get('value', 0)) / (10 ** int(current.get('decimals', 18)))
@@ -248,6 +253,7 @@ def _fetch_active_listings(slug=UNDEAD_SLUG, max_pages=5):
             next_cursor = data.get('next')
             if not next_cursor:
                 break
+        print(f'[Listings] Total: {len(listings)} active listings')
         return listings
     except Exception as e:
         print(f'[OpenSea] listings exception: {e}')
