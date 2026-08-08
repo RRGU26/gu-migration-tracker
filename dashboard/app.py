@@ -213,59 +213,69 @@ def fetch_collection_supply(slug):
     return None
 
 
-def _fetch_active_listings(slug=UNDEAD_SLUG, max_pages=5):
-    """All active listings as {token_id, price_eth, created_at, seller}.
+def _fetch_active_listings(slug=UNDEAD_SLUG, max_pages=15):
+    """One row per uniquely-listed token: {token_id, price_eth, created_at, seller}.
+
+    OpenSea's /listings/collection/{slug}/all returns one row per SEAPORT
+    ORDER, not per token — a single token can carry dozens of near-duplicate,
+    short-duration (~10 min) rolling orders (confirmed empirically 2026-08-08:
+    507 raw orders vs 340 unique tokens for this collection). We dedupe to
+    one row per token, keeping the lowest price, since that's the ask a buyer
+    actually hits and it's what every downstream stat (listed count, floor
+    distance, price buckets) should be built on.
 
     Returns None on exception so callers can tell failure from an empty book.
     """
     try:
-        listings = []
+        by_token = {}
         next_cursor = None
-        pages_fetched = 0
         for _ in range(max_pages):
-            params = {'limit': 100, 'status': 'active'}
+            params = {'limit': 100}
             if next_cursor:
                 params['next'] = next_cursor
             response = requests.get(
                 f'https://api.opensea.io/api/v2/listings/collection/{slug}/all',
                 headers=opensea_headers(), params=params, timeout=10)
             if response.status_code != 200:
-                print(f'[Listings] Page {pages_fetched} error: {response.status_code}')
                 break
-            pages_fetched += 1
             data = response.json()
-            page_items = data.get('listings', [])
-            print(f'[Listings] Page {pages_fetched}: {len(page_items)} items')
-            for item in page_items:
+            for item in data.get('listings', []):
                 try:
                     current = (item.get('price') or {}).get('current') or {}
                     price_eth = float(current.get('value', 0)) / (10 ** int(current.get('decimals', 18)))
                     if price_eth <= 0:
                         continue
-                    listings.append({
-                        'token_id': (item.get('asset') or {}).get('identifier'),
-                        'price_eth': price_eth,
-                        'created_at': item.get('order_created_at'),
-                        'seller': ((item.get('protocol_data') or {}).get('parameters') or {}).get('offerer')
-                    })
-                except (TypeError, ValueError):
+                    offer = ((item.get('protocol_data') or {}).get('parameters') or {}).get('offer') or [{}]
+                    token_id = offer[0].get('identifierOrCriteria') or (item.get('asset') or {}).get('identifier')
+                    if token_id is None:
+                        continue
+                    existing = by_token.get(token_id)
+                    if existing is None or price_eth < existing['price_eth']:
+                        by_token[token_id] = {
+                            'token_id': token_id,
+                            'price_eth': price_eth,
+                            'created_at': item.get('order_created_at'),
+                            'seller': ((item.get('protocol_data') or {}).get('parameters') or {}).get('offerer'),
+                        }
+                except (TypeError, ValueError, IndexError):
                     continue
             next_cursor = data.get('next')
             if not next_cursor:
                 break
-        print(f'[Listings] Total: {len(listings)} active listings')
+        listings = list(by_token.values())
+        print(f'[Listings] {len(listings)} unique tokens listed')
         return listings
     except Exception as e:
         print(f'[OpenSea] listings exception: {e}')
         return None
 
 
-def fetch_active_listings(slug=UNDEAD_SLUG, max_pages=5):
+def fetch_active_listings(slug=UNDEAD_SLUG, max_pages=15):
     """Listing book — no cache, always fresh (critical real-time metric)."""
     return _fetch_active_listings(slug, max_pages)
 
 
-def fetch_listings_count(slug=UNDEAD_SLUG, max_pages=5):
+def fetch_listings_count(slug=UNDEAD_SLUG, max_pages=15):
     listings = fetch_active_listings(slug, max_pages)
     return None if listings is None else len(listings)
 
@@ -1246,64 +1256,28 @@ def get_listing_analytics():
 
 @app.route('/api/tokens-in-range')
 def get_tokens_in_range():
-    """Count tokens listed between current floor and 0.2 ETH target — direct OpenSea query."""
+    """Count unique tokens listed between current floor and 0.2 ETH target.
+
+    Reuses fetch_active_listings() (deduped one row per token, min price) so
+    this always agrees with the 'Listed' count and price-distribution stats
+    elsewhere on the dashboard — no separate, divergent counting logic.
+    """
     try:
+        listings = fetch_active_listings()
+        if listings is None:
+            return jsonify({'count': 0, 'status': 'unavailable'}), 503
+
         stats = cached(f'stats:{UNDEAD_SLUG}', 120, lambda: fetch_collection_stats(UNDEAD_SLUG))
         floor = (stats or {}).get('floor_price_eth') or 0.0
-
         TARGET = 0.2
 
-        # Query OpenSea directly for active listings in price range
-        # No caching — always fresh data
-        count = 0
-        next_cursor = None
-
-        while True:
-            params = {
-                'collection_slug': UNDEAD_SLUG,
-                'order_direction': 'asc',
-                'order_by': 'created_date',
-                'status': 'active',
-                'limit': 200,
-            }
-            if next_cursor:
-                params['cursor'] = next_cursor
-
-            response = requests.get(
-                f'https://api.opensea.io/api/v2/listings/collection/{UNDEAD_SLUG}/all',
-                headers=opensea_headers(),
-                params=params,
-                timeout=10
-            )
-
-            if response.status_code != 200:
-                print(f'[TokensInRange] OpenSea error: {response.status_code}')
-                break
-
-            data = response.json()
-            listings = data.get('listings', [])
-
-            if not listings:
-                break
-
-            # Count listings in the target range [floor, 0.2]
-            for item in listings:
-                try:
-                    current = (item.get('price') or {}).get('current') or {}
-                    price_eth = float(current.get('value', 0)) / (10 ** int(current.get('decimals', 18)))
-                    if floor <= price_eth <= TARGET:
-                        count += 1
-                except (TypeError, ValueError):
-                    continue
-
-            next_cursor = data.get('next')
-            if not next_cursor:
-                break
+        count = sum(1 for l in listings if floor <= l['price_eth'] <= TARGET)
 
         return jsonify({
             'count': count,
             'floor_price_eth': floor,
             'target_price_eth': TARGET,
+            'total_listed': len(listings),
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
