@@ -1232,6 +1232,32 @@ def get_listing_analytics():
         return jsonify({'error': str(e), 'generated_at': datetime.now().isoformat()}), 500
 
 
+@app.route('/api/tokens-in-range')
+def get_tokens_in_range():
+    """Count tokens listed between current floor and 0.2 ETH target."""
+    try:
+        listings = fetch_active_listings()
+        if listings is None:
+            return jsonify({'count': 0, 'target': 0.2, 'status': 'unavailable'}), 503
+
+        stats = cached(f'stats:{UNDEAD_SLUG}', 120, lambda: fetch_collection_stats(UNDEAD_SLUG))
+        floor = (stats or {}).get('floor_price_eth') or 0.0
+
+        TARGET = 0.2
+        count = sum(1 for l in listings if floor <= l['price_eth'] <= TARGET)
+
+        return jsonify({
+            'count': count,
+            'floor_price_eth': floor,
+            'target_price_eth': TARGET,
+            'total_listed': len(listings),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        print(f'[TokensInRange] error: {e}')
+        return jsonify({'error': str(e), 'count': 0}), 500
+
+
 @app.route('/api/gustr')
 def get_gustr_data():
     """GUSTR token metrics (cached 5 min — backed by 4-5 external calls)."""

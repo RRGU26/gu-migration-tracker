@@ -714,33 +714,14 @@
         }
 
         function updateRoadTokenCount(floorETH) {
-            if (!listingAnalytics || !listingAnalytics.price_distribution) return;
-
-            const buckets = listingAnalytics.price_distribution.buckets || [];
-            const TARGET = 0.2;
-            let count = 0;
-
-            // Count tokens in buckets between floor and 0.2 ETH
-            buckets.forEach(bucket => {
-                // Extract price range from label (e.g., "1.0 - 1.5x" → extract multiplier and convert)
-                if (bucket.label && bucket.label.includes('x')) {
-                    // Handle multiplier buckets (e.g., "1.0 - 1.5x floor")
-                    const match = bucket.label.match(/([\d.]+)\s*-\s*([\d.]+)/);
-                    if (match) {
-                        const minMult = parseFloat(match[1]);
-                        const maxMult = parseFloat(match[2]);
-                        const minPrice = floorETH * minMult;
-                        const maxPrice = floorETH * maxMult;
-
-                        // If any part of this bucket is between floor and 0.2, count it
-                        if (minPrice < TARGET && maxPrice >= floorETH) {
-                            count += bucket.count || 0;
-                        }
+            fetch('/api/tokens-in-range')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.count !== undefined) {
+                        setText('roadInRange', data.count > 0 ? data.count.toLocaleString() : '0');
                     }
-                }
-            });
-
-            setText('roadInRange', count > 0 ? count.toLocaleString() : '—');
+                })
+                .catch(err => console.error('tokens-in-range error:', err));
         }
 
         function updateRoadTo02(floorETH, ethPrice) {
