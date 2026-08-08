@@ -396,19 +396,14 @@
             </div>
 
             <!-- Stats Row -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
                 <div class="stat-box">
                     <div class="stat-label">Progress</div>
                     <div class="stat-value" id="roadProgressPercent">---%</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-label">Distance</div>
+                    <div class="stat-label">Distance to 0.2</div>
                     <div class="stat-value" id="roadDistanceETH">+-.---- ETH</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">In Range</div>
-                    <div class="stat-value" id="roadInRange">---</div>
-                    <div style="font-size: 10px; color: var(--text-faint); margin-top: 2px;">to 0.2 ETH</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-label">Status</div>
@@ -714,17 +709,6 @@
         }
 
 
-        function updateRoadTokenCount(floorETH) {
-            fetch('/api/tokens-in-range')
-                .then(r => r.json())
-                .then(data => {
-                    if (data.count !== undefined) {
-                        setText('roadInRange', data.count > 0 ? data.count.toLocaleString() : '0');
-                    }
-                })
-                .catch(err => console.error('tokens-in-range error:', err));
-        }
-
         function updateRoadTo02(floorETH, ethPrice) {
             const TARGET = 0.2;
             const progress = Math.min(floorETH / TARGET, 1);
@@ -801,7 +785,6 @@
 
                 // Update the Road to 0.2 ETH graphic
                 updateRoadTo02(floorPrice, ethPrice);
-                updateRoadTokenCount(floorPrice);
             }
 
             if (data.trends) {
