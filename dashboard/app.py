@@ -1275,10 +1275,14 @@ def get_tokens_in_range():
                 break
 
             # Count listings in the target range [floor, 0.2]
-            for listing in listings:
-                price = float(listing.get('price', {}).get('current', {}).get('ethereum', 0))
-                if floor <= price <= TARGET:
-                    count += 1
+            for item in listings:
+                try:
+                    current = (item.get('price') or {}).get('current') or {}
+                    price_eth = float(current.get('value', 0)) / (10 ** int(current.get('decimals', 18)))
+                    if floor <= price_eth <= TARGET:
+                        count += 1
+                except (TypeError, ValueError):
+                    continue
 
             next_cursor = data.get('next')
             if not next_cursor:
