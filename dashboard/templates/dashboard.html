@@ -336,7 +336,7 @@
             </div>
 
             <!-- Stats Row -->
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
                 <div class="stat-box">
                     <div class="stat-label">Progress</div>
                     <div class="stat-value" id="roadProgressPercent">---%</div>
@@ -344,6 +344,11 @@
                 <div class="stat-box">
                     <div class="stat-label">Distance</div>
                     <div class="stat-value" id="roadDistanceETH">+-.---- ETH</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">In Range</div>
+                    <div class="stat-value" id="roadInRange">---</div>
+                    <div style="font-size: 10px; color: var(--text-faint); margin-top: 2px;">to 0.2 ETH</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-label">Status</div>
@@ -634,6 +639,7 @@
         let latestData = null;      // last /api/current payload
         let chartData = null;       // last /api/charts payload
         let currentRange = 90;
+        let listingAnalytics = null; // last listing analytics payload
 
         const BRAND = 'Genuine Undead Analytics';
         const PLOT_CONFIG = { displayModeBar: false, responsive: true };
@@ -705,6 +711,36 @@
             }
             el.textContent = (value >= 0 ? '▲ +' : '▼ ') + value.toFixed(1) + '%' + (suffix || '');
             el.className = 'sub ' + (value >= 0 ? 'up' : 'down');
+        }
+
+        function updateRoadTokenCount(floorETH) {
+            if (!listingAnalytics || !listingAnalytics.price_distribution) return;
+
+            const buckets = listingAnalytics.price_distribution.buckets || [];
+            const TARGET = 0.2;
+            let count = 0;
+
+            // Count tokens in buckets between floor and 0.2 ETH
+            buckets.forEach(bucket => {
+                // Extract price range from label (e.g., "1.0 - 1.5x" → extract multiplier and convert)
+                if (bucket.label && bucket.label.includes('x')) {
+                    // Handle multiplier buckets (e.g., "1.0 - 1.5x floor")
+                    const match = bucket.label.match(/([\d.]+)\s*-\s*([\d.]+)/);
+                    if (match) {
+                        const minMult = parseFloat(match[1]);
+                        const maxMult = parseFloat(match[2]);
+                        const minPrice = floorETH * minMult;
+                        const maxPrice = floorETH * maxMult;
+
+                        // If any part of this bucket is between floor and 0.2, count it
+                        if (minPrice < TARGET && maxPrice >= floorETH) {
+                            count += bucket.count || 0;
+                        }
+                    }
+                }
+            });
+
+            setText('roadInRange', count > 0 ? count.toLocaleString() : '—');
         }
 
         function updateRoadTo02(floorETH, ethPrice) {
@@ -783,6 +819,7 @@
 
                 // Update the Road to 0.2 ETH graphic
                 updateRoadTo02(floorPrice, ethPrice);
+                updateRoadTokenCount(floorPrice);
             }
 
             if (data.trends) {
@@ -1324,6 +1361,8 @@
                 console.error('Listing analytics error:', data && data.error);
                 return;
             }
+            listingAnalytics = data; // Store for Road to 0.2 calculations
+
             const price = data.price_distribution || {};
             const age = data.age_distribution || {};
             const tts = data.time_to_sale || {};
@@ -1355,6 +1394,9 @@
             renderBucketChart('chartPriceDist', 'Asking Price vs Floor', price.buckets, C.purple);
             renderBucketChart('chartAgeDist', 'Listing Age', age.buckets, C.blue);
             renderBucketChart('chartTimeToSale', 'Time to Sale', tts.buckets, C.green);
+
+            // Update Road to 0.2 ETH with token count
+            updateRoadTokenCount(latestData?.undead?.floor_price_eth || 0);
         }
 
         function loadListingAnalytics() {
