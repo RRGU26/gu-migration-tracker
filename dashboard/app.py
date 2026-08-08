@@ -993,11 +993,18 @@ def build_current_payload(latest, conn):
     snapshot_at = None
     try:
         holders = latest['undead_holders']
-        listed = latest['undead_listed']
         diamond = latest['undead_diamond_hands_pct']
         snapshot_at = latest['snapshot_at']
     except (KeyError, IndexError):
         pass
+
+    # Always fetch live listings count, don't use stale database value
+    try:
+        listings = fetch_active_listings()
+        listed = len(listings) if listings else None
+    except Exception as e:
+        print(f'[CurrentPayload] Failed to fetch live listings: {e}')
+        listed = latest.get('undead_listed')
 
     age_minutes = None
     if snapshot_at:
