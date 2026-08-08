@@ -223,7 +223,7 @@ def _fetch_active_listings(slug=UNDEAD_SLUG, max_pages=5):
         next_cursor = None
         pages_fetched = 0
         for _ in range(max_pages):
-            params = {'limit': 100}
+            params = {'limit': 100, 'status': 'active'}
             if next_cursor:
                 params['next'] = next_cursor
             response = requests.get(
