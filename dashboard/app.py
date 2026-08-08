@@ -255,9 +255,8 @@ def _fetch_active_listings(slug=UNDEAD_SLUG, max_pages=5):
 
 
 def fetch_active_listings(slug=UNDEAD_SLUG, max_pages=5):
-    """Cached listing book; the count and the distributions share one fetch."""
-    return cached(f'active_listings:{slug}', 120,
-                  lambda: _fetch_active_listings(slug, max_pages))
+    """Listing book — no cache, always fresh (critical real-time metric)."""
+    return _fetch_active_listings(slug, max_pages)
 
 
 def fetch_listings_count(slug=UNDEAD_SLUG, max_pages=5):
