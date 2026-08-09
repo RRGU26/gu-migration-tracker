@@ -417,6 +417,58 @@
             background: rgba(224,58,62,0.1); border: 1px solid rgba(224,58,62,0.3);
             color: var(--red);
         }
+
+        /* ---------- Mobile pass ---------- */
+        @media (max-width: 640px) {
+            .container { padding: 0 14px; }
+
+            /* Header: stack brand / meta / actions into clean full-width rows
+               instead of the cramped multi-line wrap it was doing */
+            .header-inner { padding: 12px 0; gap: 10px; }
+            .brand-logo { width: 36px; height: 36px; font-size: 15px; }
+            .brand h1 { font-size: 18px; }
+            .brand p { font-size: 11px; }
+            .header-actions { width: 100%; gap: 8px; }
+            .header-meta { width: 100%; text-align: left; order: -1; display: flex; justify-content: space-between; align-items: baseline; }
+            .status-indicator { order: -1; }
+            .btn {
+                flex: 1 1 calc(50% - 4px); justify-content: center;
+                padding: 11px 10px; font-size: 12px;
+            }
+
+            /* Hero band: tighter, still two-across so it doesn't feel sparse */
+            .hero { gap: 18px 24px; padding: 16px 14px; }
+            .hero-stat { flex: 1 1 calc(50% - 24px); }
+            .hero-stat .value { font-size: 20px; }
+
+            /* Metric/trade grids: let two narrower columns fit on a phone
+               instead of collapsing to one */
+            .metrics { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+            .trade-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+            /* GUSTR ticks: 4-across was cramped on a phone */
+            .tick-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+            /* Bigger touch targets on icon-only buttons */
+            .chart-export-btn { padding: 8px; top: 6px; right: 6px; }
+            .road-modal-close, .road-modal-export { padding: 10px; }
+
+            /* Modal: let the seller row wrap cleanly instead of squeezing */
+            .seller-row-head { flex-wrap: wrap; gap: 4px 10px; }
+            .seller-count { font-size: 11px; }
+            .road-modal-head h3 { font-size: 15px; }
+
+            /* Export/range button rows: allow wrap without overflow */
+            .card-head .range-group { width: 100%; }
+        }
+
+        @media (max-width: 400px) {
+            /* Icon-only buttons once there's no room for labels — still
+               identifiable via the icon + accessible via title attr below */
+            .header-actions .btn-label { display: none; }
+            .header-actions .btn { flex: 0 0 auto; padding: 11px 13px; }
+            .hero-stat { flex: 1 1 100%; }
+        }
     </style>
 </head>
 <body>
@@ -435,10 +487,10 @@
                     <div class="updated" id="lastUpdate">Loading…</div>
                 </div>
                 <span class="status-indicator status-loading" id="statusIndicator"></span>
-                <button class="btn" onclick="refreshData()"><i class="fas fa-rotate"></i>Refresh</button>
-                <button class="btn btn-primary" onclick="exportAllCharts()"><i class="fas fa-camera"></i>Export Charts</button>
-                <button class="btn btn-primary" onclick="exportShareCard()"><i class="fas fa-id-card"></i>Share Card</button>
-                <button class="btn btn-green" onclick="shareToTwitter()"><i class="fab fa-twitter"></i>Share</button>
+                <button class="btn" onclick="refreshData()" title="Refresh"><i class="fas fa-rotate"></i><span class="btn-label">Refresh</span></button>
+                <button class="btn btn-primary" onclick="exportAllCharts()" title="Export Charts"><i class="fas fa-camera"></i><span class="btn-label">Export Charts</span></button>
+                <button class="btn btn-primary" onclick="exportShareCard()" title="Share Card"><i class="fas fa-id-card"></i><span class="btn-label">Share Card</span></button>
+                <button class="btn btn-green" onclick="shareToTwitter()" title="Share to Twitter"><i class="fab fa-twitter"></i><span class="btn-label">Share</span></button>
             </div>
         </div>
     </header>
