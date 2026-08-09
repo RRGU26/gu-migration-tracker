@@ -1256,11 +1256,18 @@ def get_listing_analytics():
 
 @app.route('/api/tokens-in-range')
 def get_tokens_in_range():
-    """Count unique tokens listed between current floor and 0.2 ETH target.
+    """Count unique tokens that must sell to push the floor up to 0.2 ETH.
 
     Reuses fetch_active_listings() (deduped one row per token, min price) so
     this always agrees with the 'Listed' count and price-distribution stats
     elsewhere on the dashboard — no separate, divergent counting logic.
+
+    Strictly BELOW target, not inclusive: a token priced exactly at 0.2
+    doesn't need to sell for the floor to reach 0.2 — it becomes the new
+    floor once everything cheaper than it is gone. Verified against a manual
+    community count 2026-08-09 (41 strictly-below vs 53 including-at-0.2,
+    12 tokens sitting exactly at 0.2 — "including 0.2" overcounts by exactly
+    that amount).
     """
     try:
         listings = fetch_active_listings()
@@ -1271,7 +1278,7 @@ def get_tokens_in_range():
         floor = (stats or {}).get('floor_price_eth') or 0.0
         TARGET = 0.2
 
-        count = sum(1 for l in listings if floor <= l['price_eth'] <= TARGET)
+        count = sum(1 for l in listings if floor <= l['price_eth'] < TARGET)
 
         return jsonify({
             'count': count,
