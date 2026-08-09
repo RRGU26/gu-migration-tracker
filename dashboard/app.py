@@ -172,6 +172,18 @@ def get_eth_price():
     return 2000.0
 
 
+def resolve_ens_name(address):
+    """Reverse ENS lookup — returns a name like 'vitalik.eth' or None if the
+    wallet has no ENS reverse record set. Best-effort: never raises."""
+    try:
+        response = requests.get(f'https://api.ensideas.com/ens/resolve/{address}', timeout=4)
+        if response.status_code == 200:
+            return response.json().get('name')
+    except Exception as e:
+        print(f'[ENS] lookup failed for {address}: {e}')
+    return None
+
+
 def fetch_collection_stats(slug):
     """OpenSea stats: floor, owners, one-day volume/sales. Returns dict or None."""
     try:
@@ -1319,6 +1331,7 @@ def get_tokens_below_target_detail():
         sellers = [
             {
                 'seller': seller,
+                'ens_name': cached(f'ens:{seller}', 86400, lambda a=seller: resolve_ens_name(a)) if seller != 'unknown' else None,
                 'count': len(items),
                 'tokens': [
                     {'token_id': i['token_id'], 'price_eth': i['price_eth']}

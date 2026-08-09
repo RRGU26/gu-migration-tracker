@@ -390,6 +390,12 @@
         }
         .road-modal-head h3 { font-size: 16px; font-weight: 700; margin: 0 0 4px 0; }
         .road-modal-head p { font-size: 12px; color: var(--text-dim); margin: 0; }
+        .road-modal-head-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .road-modal-export {
+            background: none; border: none; color: var(--text-dim); font-size: 15px;
+            cursor: pointer; padding: 6px 8px; border-radius: 6px; transition: color 0.15s;
+        }
+        .road-modal-export:hover { color: var(--purple); background: rgba(148,163,184,0.1); }
         .road-modal-close {
             background: none; border: none; color: var(--text-dim); font-size: 22px;
             line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px;
@@ -410,6 +416,8 @@
             font-family: 'Space Grotesk', monospace; color: var(--blue); font-weight: 600;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
+        .seller-addr.has-name { color: var(--amber); }
+        .seller-addr .addr-sub { color: var(--text-faint); font-weight: 500; font-size: 10px; margin-left: 6px; }
         .seller-count { color: var(--text-faint); flex-shrink: 0; }
         .seller-tokens { display: flex; flex-wrap: wrap; gap: 5px; }
         .token-chip {
@@ -566,7 +574,10 @@
                         <h3>Tokens Below 0.2 ETH</h3>
                         <p id="roadModalSub">Loading…</p>
                     </div>
-                    <button class="road-modal-close" id="roadModalClose" aria-label="Close">&times;</button>
+                    <div class="road-modal-head-actions">
+                        <button class="road-modal-export" id="roadModalExport" title="Export as image"><i class="fas fa-camera"></i></button>
+                        <button class="road-modal-close" id="roadModalClose" aria-label="Close">&times;</button>
+                    </div>
                 </div>
                 <div class="road-modal-body" id="roadModalBody">
                     <div class="road-modal-loading">Loading…</div>
@@ -878,9 +889,15 @@
         // ------------------------------------------------------------------
         // Road to 0.2 drill-down: double-click opens seller breakdown
         // ------------------------------------------------------------------
+        let roadModalData = null; // last-fetched detail payload, for export
+
         function shortAddr(addr) {
             if (!addr || addr === 'unknown') return 'unknown seller';
             return addr.slice(0, 6) + '…' + addr.slice(-4);
+        }
+
+        function sellerLabel(s) {
+            return s.ens_name ? s.ens_name : shortAddr(s.seller);
         }
 
         function openRoadModal() {
@@ -898,6 +915,7 @@
                         body.innerHTML = '<div class="road-modal-loading">Could not load listings.</div>';
                         return;
                     }
+                    roadModalData = data;
                     sub.textContent = data.count + ' tokens · ' + data.unique_sellers + ' sellers · floor ' +
                         data.floor_price_eth.toFixed(4) + ' ETH → target 0.2 ETH';
 
@@ -909,7 +927,7 @@
                     body.innerHTML = data.sellers.map(s => `
                         <div class="seller-row">
                             <div class="seller-row-head">
-                                <span class="seller-addr" title="${s.seller}">${shortAddr(s.seller)}</span>
+                                <span class="seller-addr ${s.ens_name ? 'has-name' : ''}" title="${s.seller}">${sellerLabel(s)}${s.ens_name ? '<span class="addr-sub">' + shortAddr(s.seller) + '</span>' : ''}</span>
                                 <span class="seller-count">${s.count} token${s.count > 1 ? 's' : ''} · from ${s.min_price_eth.toFixed(4)} ETH</span>
                             </div>
                             <div class="seller-tokens">
@@ -926,6 +944,82 @@
 
         function closeRoadModal() {
             document.getElementById('roadModalBackdrop').classList.remove('open');
+        }
+
+        function exportRoadModalCard() {
+            if (!roadModalData || !roadModalData.sellers.length) {
+                alert('Nothing loaded to export yet.');
+                return;
+            }
+            const d = roadModalData;
+            const rowH = 46, headerH = 150, footerH = 50, pad = 40;
+            const rows = d.sellers.slice(0, 15); // cap so the card stays a reasonable size
+            const W = 900, H = headerH + rows.length * rowH + footerH + pad;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = W * 2;
+            canvas.height = H * 2;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(2, 2);
+
+            // Background
+            const grad = ctx.createLinearGradient(0, 0, W, H);
+            grad.addColorStop(0, '#13111f');
+            grad.addColorStop(1, '#1e1430');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+
+            // Header
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 30px "Space Grotesk", Arial';
+            ctx.fillText('Tokens Below 0.2 ETH', pad, 56);
+            ctx.font = '17px Inter, Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.fillText(d.count + ' tokens · ' + d.unique_sellers + ' sellers · floor ' + d.floor_price_eth.toFixed(4) + ' ETH → target 0.2 ETH', pad, 86);
+            ctx.font = '14px Inter, Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.fillText(new Date().toLocaleString(), pad, 110);
+            if (d.sellers.length > rows.length) {
+                ctx.fillText('showing top ' + rows.length + ' of ' + d.sellers.length + ' sellers by listing count', pad, 130);
+            }
+
+            // Rows
+            rows.forEach((s, i) => {
+                const y = headerH + i * rowH;
+                if (i % 2 === 0) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+                    ctx.fillRect(pad - 12, y, W - (pad - 12) * 2, rowH - 6);
+                }
+                ctx.fillStyle = s.ens_name ? '#fbbf24' : '#60a5fa';
+                ctx.font = 'bold 17px "Space Grotesk", Arial';
+                ctx.fillText(sellerLabel(s), pad, y + 28);
+
+                ctx.font = '13px Inter, Arial';
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                const labelWidth = ctx.measureText(sellerLabel(s)).width;
+                if (s.ens_name) {
+                    ctx.fillText(shortAddr(s.seller), pad + 200, y + 28);
+                }
+
+                ctx.textAlign = 'right';
+                ctx.fillStyle = 'rgba(255,255,255,0.75)';
+                ctx.font = '15px Inter, Arial';
+                ctx.fillText(s.count + ' token' + (s.count > 1 ? 's' : '') + ' · from ' + s.min_price_eth.toFixed(4) + ' ETH', W - pad, y + 28);
+                ctx.textAlign = 'left';
+            });
+
+            // Footer
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.font = '13px Inter, Arial';
+            ctx.fillText(window.location.host, pad, H - 20);
+
+            canvas.toBlob(blob => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'gu-tokens-below-0.2-' + new Date().toISOString().slice(0, 10) + '.png';
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }, 'image/png');
         }
 
         function updateRoadTo02(floorETH, ethPrice) {
@@ -1632,6 +1726,7 @@
 
             document.getElementById('roadCard').addEventListener('dblclick', openRoadModal);
             document.getElementById('roadModalClose').addEventListener('click', closeRoadModal);
+            document.getElementById('roadModalExport').addEventListener('click', exportRoadModalCard);
             document.getElementById('roadModalBackdrop').addEventListener('click', (e) => {
                 if (e.target.id === 'roadModalBackdrop') closeRoadModal();
             });
