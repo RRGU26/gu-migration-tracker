@@ -362,6 +362,61 @@
             .road-header-row { flex-direction: column; gap: 10px; }
             .road-floor-block { text-align: left; }
         }
+
+        .road-milestone { cursor: pointer; }
+        .road-drilldown-hint {
+            position: relative; z-index: 2;
+            text-align: center; font-size: 10px; color: var(--text-faint);
+            margin-top: 8px; letter-spacing: 0.02em;
+        }
+
+        /* ---------- Road drill-down modal ---------- */
+        .road-modal-backdrop {
+            display: none; position: fixed; inset: 0; z-index: 200;
+            background: rgba(5, 5, 12, 0.72); backdrop-filter: blur(4px);
+            align-items: center; justify-content: center; padding: 20px;
+        }
+        .road-modal-backdrop.open { display: flex; }
+        .road-modal {
+            width: 100%; max-width: 560px; max-height: 82vh;
+            background: linear-gradient(160deg, #17172a 0%, #1b1430 100%);
+            border: 1px solid rgba(139, 92, 246, 0.28);
+            border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .road-modal-head {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            padding: 18px 20px; border-bottom: 1px solid rgba(148,163,184,0.1);
+        }
+        .road-modal-head h3 { font-size: 16px; font-weight: 700; margin: 0 0 4px 0; }
+        .road-modal-head p { font-size: 12px; color: var(--text-dim); margin: 0; }
+        .road-modal-close {
+            background: none; border: none; color: var(--text-dim); font-size: 22px;
+            line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+        }
+        .road-modal-close:hover { color: var(--text); background: rgba(148,163,184,0.1); }
+        .road-modal-body { overflow-y: auto; padding: 14px 20px 20px; }
+        .road-modal-loading { text-align: center; color: var(--text-faint); font-size: 13px; padding: 30px 0; }
+
+        .seller-row {
+            padding: 10px 0; border-bottom: 1px solid rgba(148,163,184,0.07);
+        }
+        .seller-row:last-child { border-bottom: none; }
+        .seller-row-head {
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            font-size: 12px; margin-bottom: 6px;
+        }
+        .seller-addr {
+            font-family: 'Space Grotesk', monospace; color: var(--blue); font-weight: 600;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .seller-count { color: var(--text-faint); flex-shrink: 0; }
+        .seller-tokens { display: flex; flex-wrap: wrap; gap: 5px; }
+        .token-chip {
+            font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+            background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25);
+            color: var(--amber);
+        }
     </style>
 </head>
 <body>
@@ -489,7 +544,7 @@
                     <div class="road-stat-chip-label">Distance to 0.2</div>
                     <div class="road-stat-chip-value" id="roadDistanceETH">+-.---- ETH</div>
                 </div>
-                <div class="road-stat-chip road-stat-chip-highlight">
+                <div class="road-stat-chip road-stat-chip-highlight" id="roadInRangeChip">
                     <div class="road-stat-chip-label">Tokens Below 0.2</div>
                     <div class="road-stat-chip-value" id="roadInRange">--</div>
                     <div class="road-stat-chip-sub">need to sell to reach 0.2</div>
@@ -499,6 +554,23 @@
             <!-- Message -->
             <div class="road-message-line" id="roadMessageLine">
                 Charging toward the moon…
+            </div>
+            <div class="road-drilldown-hint">Double-click for the seller breakdown</div>
+        </div>
+
+        <!-- Road to 0.2 drill-down modal -->
+        <div class="road-modal-backdrop" id="roadModalBackdrop">
+            <div class="road-modal">
+                <div class="road-modal-head">
+                    <div>
+                        <h3>Tokens Below 0.2 ETH</h3>
+                        <p id="roadModalSub">Loading…</p>
+                    </div>
+                    <button class="road-modal-close" id="roadModalClose" aria-label="Close">&times;</button>
+                </div>
+                <div class="road-modal-body" id="roadModalBody">
+                    <div class="road-modal-loading">Loading…</div>
+                </div>
             </div>
         </div>
 
@@ -801,6 +873,59 @@
                     }
                 })
                 .catch(err => console.error('tokens-in-range error:', err));
+        }
+
+        // ------------------------------------------------------------------
+        // Road to 0.2 drill-down: double-click opens seller breakdown
+        // ------------------------------------------------------------------
+        function shortAddr(addr) {
+            if (!addr || addr === 'unknown') return 'unknown seller';
+            return addr.slice(0, 6) + '…' + addr.slice(-4);
+        }
+
+        function openRoadModal() {
+            const backdrop = document.getElementById('roadModalBackdrop');
+            const body = document.getElementById('roadModalBody');
+            const sub = document.getElementById('roadModalSub');
+            backdrop.classList.add('open');
+            body.innerHTML = '<div class="road-modal-loading">Loading…</div>';
+            sub.textContent = 'Loading…';
+
+            fetch('/api/tokens-below-target-detail')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        body.innerHTML = '<div class="road-modal-loading">Could not load listings.</div>';
+                        return;
+                    }
+                    sub.textContent = data.count + ' tokens · ' + data.unique_sellers + ' sellers · floor ' +
+                        data.floor_price_eth.toFixed(4) + ' ETH → target 0.2 ETH';
+
+                    if (!data.sellers.length) {
+                        body.innerHTML = '<div class="road-modal-loading">Nothing listed below 0.2 right now.</div>';
+                        return;
+                    }
+
+                    body.innerHTML = data.sellers.map(s => `
+                        <div class="seller-row">
+                            <div class="seller-row-head">
+                                <span class="seller-addr" title="${s.seller}">${shortAddr(s.seller)}</span>
+                                <span class="seller-count">${s.count} token${s.count > 1 ? 's' : ''} · from ${s.min_price_eth.toFixed(4)} ETH</span>
+                            </div>
+                            <div class="seller-tokens">
+                                ${s.tokens.map(t => `<span class="token-chip">#${t.token_id} · ${t.price_eth.toFixed(4)}</span>`).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+                })
+                .catch(err => {
+                    console.error('tokens-below-target-detail error:', err);
+                    body.innerHTML = '<div class="road-modal-loading">Could not load listings.</div>';
+                });
+        }
+
+        function closeRoadModal() {
+            document.getElementById('roadModalBackdrop').classList.remove('open');
         }
 
         function updateRoadTo02(floorETH, ethPrice) {
@@ -1504,6 +1629,15 @@
             if (new URLSearchParams(location.search).get('export_preview') === '1') {
                 showExportPreview();
             }
+
+            document.getElementById('roadCard').addEventListener('dblclick', openRoadModal);
+            document.getElementById('roadModalClose').addEventListener('click', closeRoadModal);
+            document.getElementById('roadModalBackdrop').addEventListener('click', (e) => {
+                if (e.target.id === 'roadModalBackdrop') closeRoadModal();
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeRoadModal();
+            });
         });
     </script>
 </body>

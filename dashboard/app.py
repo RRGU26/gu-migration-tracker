@@ -909,7 +909,7 @@ def _build_gustr_payload():
                             token_data.get('price_usd', 0), token_data.get('volume_24h', 0))
 
     return {
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'token': {
             'name': 'GenuineUndeadStrategy', 'symbol': 'GUSTR', 'address': GUSTR_ADDRESS,
             **token_data,
@@ -1037,7 +1037,7 @@ def build_current_payload(latest, conn):
 
     trends = build_trends(conn, latest)
     return {
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'analytics_date': latest['analytics_date'],
         'eth_price_usd': eth_price,
         'freshness': {
@@ -1084,13 +1084,13 @@ def get_current_data():
             if not latest:
                 kick_background_collection()
                 return jsonify({'error': 'No data available yet — collection started',
-                                'timestamp': datetime.now().isoformat()})
+                                'timestamp': datetime.now(timezone.utc).isoformat()})
             payload = build_current_payload(latest, conn)
         if payload['freshness']['stale']:
             kick_background_collection()
         return jsonify(payload)
     except Exception as e:
-        return jsonify({'error': str(e), 'timestamp': datetime.now().isoformat()}), 500
+        return jsonify({'error': str(e), 'timestamp': datetime.now(timezone.utc).isoformat()}), 500
 
 
 @app.route('/api/refresh')
@@ -1116,10 +1116,10 @@ def snapshot():
         result = collect_snapshot(force=True)
         if result:
             return jsonify({'status': 'collected', **result,
-                            'timestamp': datetime.now().isoformat()})
+                            'timestamp': datetime.now(timezone.utc).isoformat()})
         return jsonify({'status': 'skipped',
                         'reason': 'collection already in progress or source unavailable',
-                        'timestamp': datetime.now().isoformat()}), 202
+                        'timestamp': datetime.now(timezone.utc).isoformat()}), 202
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
@@ -1135,7 +1135,7 @@ def rebuild_history_endpoint():
     try:
         result = rebuild_history(days=365)
         return jsonify({'status': 'rebuilt', **result,
-                        'timestamp': datetime.now().isoformat()})
+                        'timestamp': datetime.now(timezone.utc).isoformat()})
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
@@ -1196,7 +1196,7 @@ def get_chart_data():
                 'origins_max_supply': ORIGINS_MAX_SUPPLY,
                 'live_since': next((series['dates'][i] for i, src in enumerate(series['source'])
                                     if src == 'live'), None),
-                'generated_at': datetime.now().isoformat(),
+                'generated_at': datetime.now(timezone.utc).isoformat(),
             },
         })
     except Exception as e:
@@ -1210,7 +1210,7 @@ def get_listing_analytics():
         listings = fetch_active_listings()
         if listings is None:
             return jsonify({'error': 'listings unavailable',
-                            'generated_at': datetime.now().isoformat()}), 503
+                            'generated_at': datetime.now(timezone.utc).isoformat()}), 503
 
         stats = cached(f'stats:{UNDEAD_SLUG}', 120, lambda: fetch_collection_stats(UNDEAD_SLUG))
         floor = (stats or {}).get('floor_price_eth') or 0.0
@@ -1231,7 +1231,7 @@ def get_listing_analytics():
         near_floor = sum(b['count'] for b in price_buckets[:3])
 
         return jsonify({
-            'generated_at': datetime.now().isoformat(),
+            'generated_at': datetime.now(timezone.utc).isoformat(),
             'floor_price_eth': floor,
             'total_listings': total,
             'price_distribution': {
@@ -1251,7 +1251,7 @@ def get_listing_analytics():
         })
     except Exception as e:
         print(f'[ListingAnalytics] error: {e}')
-        return jsonify({'error': str(e), 'generated_at': datetime.now().isoformat()}), 500
+        return jsonify({'error': str(e), 'generated_at': datetime.now(timezone.utc).isoformat()}), 500
 
 
 @app.route('/api/tokens-in-range')
@@ -1285,11 +1285,62 @@ def get_tokens_in_range():
             'floor_price_eth': floor,
             'target_price_eth': TARGET,
             'total_listed': len(listings),
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
         print(f'[TokensInRange] error: {e}')
         return jsonify({'error': str(e), 'count': 0}), 500
+
+
+@app.route('/api/tokens-below-target-detail')
+def get_tokens_below_target_detail():
+    """Drill-down for the Road to 0.2 card: which tokens sit below the 0.2
+    target, grouped by the wallet that listed them. Same source and same
+    strictly-below boundary as /api/tokens-in-range — this is its detail view,
+    not a separate count.
+    """
+    try:
+        listings = fetch_active_listings()
+        if listings is None:
+            return jsonify({'error': 'listings unavailable', 'sellers': []}), 503
+
+        stats = cached(f'stats:{UNDEAD_SLUG}', 120, lambda: fetch_collection_stats(UNDEAD_SLUG))
+        floor = (stats or {}).get('floor_price_eth') or 0.0
+        TARGET = 0.2
+
+        below = [l for l in listings if floor <= l['price_eth'] < TARGET]
+        below.sort(key=lambda l: l['price_eth'])
+
+        by_seller = {}
+        for l in below:
+            seller = l.get('seller') or 'unknown'
+            by_seller.setdefault(seller, []).append(l)
+
+        sellers = [
+            {
+                'seller': seller,
+                'count': len(items),
+                'tokens': [
+                    {'token_id': i['token_id'], 'price_eth': i['price_eth']}
+                    for i in sorted(items, key=lambda x: x['price_eth'])
+                ],
+                'min_price_eth': min(i['price_eth'] for i in items),
+            }
+            for seller, items in by_seller.items()
+        ]
+        sellers.sort(key=lambda s: -s['count'])
+
+        return jsonify({
+            'floor_price_eth': floor,
+            'target_price_eth': TARGET,
+            'count': len(below),
+            'unique_sellers': len(sellers),
+            'sellers': sellers,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as e:
+        print(f'[TokensBelowDetail] error: {e}')
+        return jsonify({'error': str(e), 'sellers': []}), 500
 
 
 @app.route('/api/gustr')
@@ -1300,9 +1351,9 @@ def get_gustr_data():
         if payload:
             return jsonify(payload)
         return jsonify({'error': 'Unable to fetch GUSTR data',
-                        'timestamp': datetime.now().isoformat()}), 502
+                        'timestamp': datetime.now(timezone.utc).isoformat()}), 502
     except Exception as e:
-        return jsonify({'error': str(e), 'timestamp': datetime.now().isoformat()}), 500
+        return jsonify({'error': str(e), 'timestamp': datetime.now(timezone.utc).isoformat()}), 500
 
 
 @app.route('/api/export-history')
@@ -1332,7 +1383,7 @@ def export_history():
 
 @app.route('/health')
 def health():
-    info = {'status': 'healthy', 'timestamp': datetime.now().isoformat(),
+    info = {'status': 'healthy', 'timestamp': datetime.now(timezone.utc).isoformat(),
             'version': VERSION}
     try:
         with db.get_connection() as conn:
