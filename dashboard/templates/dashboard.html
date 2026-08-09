@@ -4,67 +4,90 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Genuine Undead Analytics — Live Dashboard</title>
+    <meta name="description" content="Live floor price, market cap, migration and holder analytics for the Genuine Undead NFT collection.">
+    <link rel="canonical" href="https://web-production-2ae4a.up.railway.app/">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://web-production-2ae4a.up.railway.app/">
     <meta property="og:title" content="Genuine Undead Analytics">
     <meta property="og:description" content="Live floor price, market cap, migration and holder analytics for the Genuine Undead NFT collection.">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22><stop offset=%220%22 stop-color=%22%237c3aed%22/><stop offset=%221%22 stop-color=%22%2310b981%22/></linearGradient></defs><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22url(%23g)%22/><text x=%2250%22 y=%2268%22 font-size=%2248%22 font-family=%22Arial%22 font-weight=%22bold%22 fill=%22white%22 text-anchor=%22middle%22>GU</text></svg>">
+    <meta property="og:image" content="https://web-production-2ae4a.up.railway.app/static/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Genuine Undead Analytics">
+    <meta name="twitter:description" content="Live floor price, market cap, migration and holder analytics for the Genuine Undead NFT collection.">
+    <meta name="twitter:image" content="https://web-production-2ae4a.up.railway.app/static/og-image.png">
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23161616%22/><text x=%2250%22 y=%2268%22 font-size=%2248%22 font-family=%22Georgia,serif%22 font-weight=%22bold%22 fill=%22%23e03a3e%22 text-anchor=%22middle%22>GU</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400..700;1,400..700&family=Oswald:wght@400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
+        /* Genuine Undead brand tokens — adapted from the official design
+           system (GU_GUIDELINES.pdf palette + genuineundead.com): flat,
+           square-cornered, black/bone/red, no drop shadows. Chrome (bg,
+           cards, buttons, borders, headings) is fully on-brand. Data
+           semantics (price up/down, live/stale status) keep real muted
+           green/amber/blue rather than flattening to bone — a live market
+           dashboard needs that functional color, brand purity would make
+           it harder to read at a glance. Variable NAMES kept from the prior
+           scheme so every existing var(--purple) etc. reference stays
+           wired; only values changed. */
         :root {
-            --bg: #0b0b14;
-            --card: rgba(23, 23, 38, 0.72);
-            --card-border: rgba(139, 92, 246, 0.16);
-            --card-border-hover: rgba(139, 92, 246, 0.4);
-            --text: #e2e8f0;
-            --text-dim: #94a3b8;
-            --text-faint: #64748b;
-            --purple: #a78bfa;
-            --green: #34d399;
-            --blue: #60a5fa;
-            --amber: #fbbf24;
-            --red: #f87171;
+            --bg: #161616;                  /* gu-black */
+            --card: #1c1c1c;                /* gu-ink, flat (no translucency/blur) */
+            --card-border: rgba(244, 241, 234, 0.14);  /* border-subtle */
+            --card-border-hover: rgba(244, 241, 234, 0.32); /* border-strong */
+            --text: #f4f1ea;                /* gu-bone */
+            --text-dim: #a9a59c;            /* gu-grey-300 */
+            --text-faint: #6f6c66;          /* gu-grey-500 */
+            --purple: #a9a59c;              /* was decorative violet — neutralized to grey-300 */
+            --green: #5aab7e;               /* muted, on-brand-compatible positive/online */
+            --blue: #7c98ad;                /* muted, on-brand-compatible info accent */
+            --amber: #c9962e;               /* muted gold — caution/stale, distinct from the red accent */
+            --red: #e03a3e;                 /* gu-red — brand's single accent + negative/alert */
+            --accent: #e03a3e;
+            --accent-deep: #b32226;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Archivo', 'Helvetica Neue', sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
             font-feature-settings: 'tnum';
-            background-image:
-                radial-gradient(ellipse 60% 40% at 15% -5%, rgba(124, 58, 237, 0.18), transparent),
-                radial-gradient(ellipse 50% 35% at 85% 0%, rgba(16, 185, 129, 0.10), transparent),
-                radial-gradient(ellipse 40% 30% at 50% 110%, rgba(124, 58, 237, 0.08), transparent);
-            background-attachment: fixed;
         }
-        h1, h2, h3, .display { font-family: 'Space Grotesk', 'Inter', sans-serif; }
+        h1, h2, h3, .display { font-family: 'Playfair Display', Georgia, serif; }
+        .label, .card-head .sub, .metric .label, .stat-label, .road-stat-chip-label,
+        .hero-stat .label, .trade-box .label, .tick .label {
+            font-family: 'Oswald', 'Arial Narrow', sans-serif !important;
+            letter-spacing: 0.1em !important;
+        }
 
         .container { max-width: 1280px; margin: 0 auto; padding: 0 20px; }
 
         /* ---------- header ---------- */
         header {
             position: sticky; top: 0; z-index: 50;
-            background: rgba(11, 11, 20, 0.82);
-            backdrop-filter: blur(14px);
+            background: var(--bg);
             border-bottom: 1px solid var(--card-border);
         }
         .header-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 0; }
         .brand { display: flex; align-items: center; gap: 14px; }
         .brand-logo {
-            width: 42px; height: 42px; border-radius: 12px;
+            width: 42px; height: 42px; border-radius: 0;
             display: flex; align-items: center; justify-content: center;
-            font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; color: #fff;
-            background: linear-gradient(135deg, #7c3aed, #10b981);
-            box-shadow: 0 0 18px rgba(124, 58, 237, 0.45);
+            font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 18px; color: var(--red);
+            background: var(--bg); border: 1px solid var(--red);
             letter-spacing: 0.02em;
         }
         .brand h1 {
-            font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
-            background: linear-gradient(90deg, #c4b5fd, #34d399);
-            -webkit-background-clip: text; background-clip: text; color: transparent;
+            font-size: 22px; font-weight: 700; letter-spacing: -0.01em;
+            color: var(--text); font-family: 'Playfair Display', Georgia, serif;
         }
         .brand p { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
         .header-meta { text-align: right; }
@@ -74,28 +97,27 @@
 
         .btn {
             display: inline-flex; align-items: center; gap: 7px;
-            font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
-            padding: 8px 14px; border-radius: 10px; cursor: pointer;
+            font-family: 'Archivo', sans-serif; font-size: 13px; font-weight: 600;
+            padding: 8px 14px; border-radius: 0; cursor: pointer;
             border: 1px solid var(--card-border); color: var(--text);
-            background: rgba(139, 92, 246, 0.08);
+            background: transparent;
             transition: all 0.15s ease;
         }
-        .btn:hover { border-color: var(--card-border-hover); background: rgba(139, 92, 246, 0.18); transform: translateY(-1px); }
+        .btn:hover { border-color: var(--card-border-hover); background: rgba(244, 241, 234, 0.06); }
         .btn-primary {
-            background: linear-gradient(135deg, #7c3aed, #5b21b6);
-            border-color: rgba(167, 139, 250, 0.45);
-            box-shadow: 0 0 18px rgba(124, 58, 237, 0.3);
+            background: var(--red);
+            border-color: var(--red); color: #fff;
         }
-        .btn-primary:hover { box-shadow: 0 0 26px rgba(124, 58, 237, 0.5); background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+        .btn-primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
         .btn-green {
-            background: linear-gradient(135deg, #059669, #047857);
-            border-color: rgba(52, 211, 153, 0.4);
+            background: transparent;
+            border-color: var(--green); color: var(--green);
         }
-        .btn-green:hover { background: linear-gradient(135deg, #10b981, #059669); }
+        .btn-green:hover { background: rgba(90, 171, 126, 0.1); }
 
-        .status-indicator { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-        .status-online { background: var(--green); box-shadow: 0 0 10px rgba(52, 211, 153, 0.8); }
-        .status-stale { background: var(--amber); box-shadow: 0 0 10px rgba(251, 191, 36, 0.8); }
+        .status-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-online { background: var(--green); }
+        .status-stale { background: var(--amber); }
         .status-loading { background: var(--amber); animation: pulse 1s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
@@ -104,8 +126,7 @@
         .card {
             background: var(--card);
             border: 1px solid var(--card-border);
-            border-radius: 16px;
-            backdrop-filter: blur(10px);
+            border-radius: 0;
             padding: 20px;
             margin-bottom: 18px;
         }
@@ -116,8 +137,8 @@
         .pill {
             display: inline-flex; align-items: center; gap: 6px;
             font-size: 11px; font-weight: 600; padding: 4px 11px; border-radius: 999px;
-            background: rgba(52, 211, 153, 0.12); color: var(--green);
-            border: 1px solid rgba(52, 211, 153, 0.25);
+            background: rgba(90, 171, 126, 0.12); color: var(--green);
+            border: 1px solid rgba(90, 171, 126, 0.3);
         }
         .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.6s infinite; }
 
@@ -125,55 +146,56 @@
         .hero { display: flex; flex-wrap: wrap; justify-content: center; gap: 40px; padding: 18px 20px; }
         .hero-stat { text-align: center; }
         .hero-stat .label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
-        .hero-stat .value { font-size: 24px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; margin-top: 2px; }
-        .hero-stat .value.eth { color: var(--purple); }
+        .hero-stat .value { font-size: 24px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; margin-top: 2px; }
+        .hero-stat .value.eth { color: var(--red); }
 
         /* ---------- metric grid ---------- */
         .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
         .metric {
-            background: rgba(30, 30, 50, 0.5);
-            border: 1px solid rgba(148, 163, 184, 0.09);
-            border-left: 3px solid var(--accent, var(--purple));
-            border-radius: 12px; padding: 14px 16px;
-            transition: transform 0.15s ease, border-color 0.15s ease;
+            background: rgba(244, 241, 234, 0.03);
+            border: 1px solid var(--card-border);
+            border-left: 3px solid var(--accent, var(--text-faint));
+            border-radius: 0; padding: 14px 16px;
+            transition: border-color 0.15s ease;
         }
-        .metric:hover { transform: translateY(-2px); border-left-color: var(--accent, var(--purple)); border-color: var(--card-border-hover); }
+        .metric:hover { border-left-color: var(--accent, var(--text-faint)); border-color: var(--card-border-hover); }
         .metric .label { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 5px; }
-        .metric .value { font-size: 20px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.01em; }
+        .metric .value { font-size: 20px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; letter-spacing: -0.01em; }
         .metric .sub { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
         .metric .sub.up { color: var(--green); }
         .metric .sub.down { color: var(--red); }
-        .m-purple { --accent: #a78bfa; }
-        .m-blue { --accent: #60a5fa; }
-        .m-green { --accent: #34d399; }
-        .m-indigo { --accent: #818cf8; }
-        .m-orange { --accent: #fb923c; }
-        .m-pink { --accent: #f472b6; }
-        .m-amber { --accent: #fbbf24; }
-        .m-cyan { --accent: #22d3ee; }
-        .m-rose { --accent: #fb7185; }
-        .m-slate { --accent: #94a3b8; }
+        /* Category accents — muted, brand-compatible tones (not a bright rainbow) */
+        .m-purple { --accent: #a9a59c; }
+        .m-blue { --accent: #7c98ad; }
+        .m-green { --accent: #5aab7e; }
+        .m-indigo { --accent: #8b93a0; }
+        .m-orange { --accent: #c9962e; }
+        .m-pink { --accent: #b5707a; }
+        .m-amber { --accent: #c9962e; }
+        .m-cyan { --accent: #6f9a94; }
+        .m-rose { --accent: #b5707a; }
+        .m-slate { --accent: #6f6c66; }
 
         /* ---------- charts ---------- */
         .range-group { display: flex; gap: 6px; align-items: center; }
         .range-btn {
             padding: 5px 13px; border-radius: 999px; font-size: 12px; font-weight: 600;
-            color: var(--text-dim); background: rgba(148, 163, 184, 0.08);
-            border: 1px solid transparent; cursor: pointer; transition: all 0.15s;
-            font-family: 'Inter', sans-serif;
+            color: var(--text-dim); background: transparent;
+            border: 1px solid var(--card-border); cursor: pointer; transition: all 0.15s;
+            font-family: 'Archivo', sans-serif;
         }
         .range-btn:hover { color: var(--text); }
         .range-btn.active {
-            background: rgba(124, 58, 237, 0.25); color: #d8b4fe;
-            border-color: rgba(167, 139, 250, 0.4);
+            background: rgba(224, 58, 62, 0.14); color: var(--red);
+            border-color: rgba(224, 58, 62, 0.4);
         }
         .chart-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
         @media (min-width: 1024px) { .chart-grid { grid-template-columns: 1fr 1fr; } }
         .chart-card {
             position: relative;
-            background: rgba(15, 15, 28, 0.6);
-            border: 1px solid rgba(148, 163, 184, 0.09);
-            border-radius: 12px; padding: 6px;
+            background: rgba(244, 241, 234, 0.02);
+            border: 1px solid var(--card-border);
+            border-radius: 0; padding: 6px;
         }
         .chart-card.full { grid-column: 1 / -1; }
         .chart-export-btn {
@@ -181,26 +203,26 @@
             background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 14px;
             transition: color 0.15s;
         }
-        .chart-export-btn:hover { color: var(--purple); }
+        .chart-export-btn:hover { color: var(--red); }
         .chart-meta { font-size: 11px; color: var(--text-faint); margin-top: 12px; }
 
         /* ---------- GUSTR trading ---------- */
         .tick-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
         .tick {
-            text-align: center; padding: 9px 6px; border-radius: 10px;
-            background: rgba(30, 30, 50, 0.6); border: 1px solid rgba(148, 163, 184, 0.08);
+            text-align: center; padding: 9px 6px; border-radius: 0;
+            background: rgba(244, 241, 234, 0.03); border: 1px solid var(--card-border);
         }
         .tick .label { font-size: 10px; color: var(--text-faint); font-weight: 600; }
         .tick .value { font-size: 13px; font-weight: 700; margin-top: 2px; }
         .trade-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
         .trade-box {
-            background: rgba(30, 30, 50, 0.5); border: 1px solid rgba(148, 163, 184, 0.09);
-            border-radius: 12px; padding: 14px 16px;
+            background: rgba(244, 241, 234, 0.03); border: 1px solid var(--card-border);
+            border-radius: 0; padding: 14px 16px;
         }
         .trade-box .label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-faint); margin-bottom: 6px; }
-        .trade-box .value { font-size: 20px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
+        .trade-box .value { font-size: 20px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; }
         .trade-box .row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--text-dim); }
-        .bar-track { display: flex; margin-top: 6px; height: 5px; border-radius: 99px; overflow: hidden; background: rgba(148,163,184,0.1); }
+        .bar-track { display: flex; margin-top: 6px; height: 5px; border-radius: 99px; overflow: hidden; background: rgba(244,241,234,0.1); }
 
         .ext-link { font-size: 12px; color: var(--blue); text-decoration: none; }
         .ext-link:hover { color: #93c5fd; }
@@ -220,37 +242,12 @@
 
         /* ---------- Road to 0.2 ETH — flight-path milestone ---------- */
         .road-milestone {
-            background: linear-gradient(135deg, rgba(23,23,38,0.96) 0%, rgba(30,20,50,0.85) 100%);
-            border: 2px solid rgba(124,58,237,0.32);
+            background: var(--card);
+            border: 1px solid var(--red);
             position: relative;
             overflow: hidden;
-            transition: border-color 1s ease;
-            animation: roadBorderBreathe 4s ease-in-out infinite;
         }
-        @keyframes roadBorderBreathe {
-            0%, 100% { box-shadow: 0 0 0 rgba(124,58,237,0); }
-            50% { box-shadow: 0 0 28px rgba(124,58,237,0.12); }
-        }
-        .road-milestone::before {
-            content: '';
-            position: absolute; top: -120px; right: -100px;
-            width: 340px; height: 340px;
-            background: radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%);
-            pointer-events: none;
-        }
-        .road-stars {
-            position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
-            background-image:
-                radial-gradient(1.5px 1.5px at 8% 20%, rgba(255,255,255,0.7), transparent),
-                radial-gradient(1px 1px at 22% 65%, rgba(255,255,255,0.5), transparent),
-                radial-gradient(1.5px 1.5px at 38% 15%, rgba(255,255,255,0.6), transparent),
-                radial-gradient(1px 1px at 55% 78%, rgba(255,255,255,0.4), transparent),
-                radial-gradient(1.5px 1.5px at 70% 30%, rgba(255,255,255,0.6), transparent),
-                radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.5), transparent),
-                radial-gradient(1.5px 1.5px at 95% 15%, rgba(255,255,255,0.5), transparent);
-            animation: roadTwinkle 5s ease-in-out infinite;
-        }
-        @keyframes roadTwinkle { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.65; } }
+        .road-stars { display: none; } /* decorative starfield dropped — flat brand, no glow effects */
 
         .road-header-row {
             position: relative; z-index: 2;
@@ -261,27 +258,23 @@
         .road-title-block p { font-size: 12px; color: var(--text-faint); margin: 0; }
         .road-floor-block { text-align: right; }
         .road-floor-value {
-            font-size: 28px; font-weight: 700; font-family: 'Space Grotesk', sans-serif;
-            color: var(--purple); text-shadow: 0 0 18px rgba(167,139,250,0.35);
+            font-size: 28px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif;
+            color: var(--red);
         }
         .road-floor-usd { font-size: 11px; color: var(--text-dim); }
 
         /* Flight path */
         .road-track-wrap { position: relative; z-index: 2; padding: 30px 6px 26px; }
         .road-track {
-            position: relative; height: 10px; border-radius: 999px;
-            background: rgba(148,163,184,0.14);
+            position: relative; height: 6px; border-radius: 999px;
+            background: rgba(244,241,234,0.14);
         }
         .road-track-fill {
             position: relative; height: 100%; border-radius: 999px;
-            background: linear-gradient(90deg, #f87171 0%, #fbbf24 55%, #34d399 100%);
-            background-size: 200% 100%;
-            box-shadow: 0 0 16px rgba(52,211,153,0.35);
+            background: linear-gradient(90deg, var(--text-faint) 0%, var(--red) 100%);
             transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
-            animation: roadShimmer 3s linear infinite;
             overflow: hidden;
         }
-        @keyframes roadShimmer { 0% { background-position: 0% 0; } 100% { background-position: -200% 0; } }
 
         .road-ship {
             position: absolute; top: 50%; transform: translate(-50%, -50%);
@@ -289,8 +282,7 @@
             z-index: 3;
         }
         .road-ship-icon {
-            font-size: 22px; display: block; transform: rotate(90deg);
-            filter: drop-shadow(0 0 8px rgba(251,191,36,0.6));
+            font-size: 20px; display: block; transform: rotate(90deg);
             animation: roadShipFloat 2.2s ease-in-out infinite;
         }
         @keyframes roadShipFloat {
@@ -299,36 +291,28 @@
         }
         .road-ship-trail {
             position: absolute; top: 50%; right: 100%;
-            width: 34px; height: 6px; transform: translateY(-50%);
-            background: linear-gradient(90deg, transparent, rgba(251,191,36,0.55));
-            border-radius: 999px; filter: blur(2px);
+            width: 28px; height: 2px; transform: translateY(-50%);
+            background: linear-gradient(90deg, transparent, var(--card-border-hover));
         }
 
         .road-milestone-dot {
             position: absolute; top: 100%; margin-top: 8px; transform: translateX(-50%);
-            width: 9px; height: 9px; border-radius: 50%;
-            background: rgba(148,163,184,0.25); border: 2px solid rgba(15,15,28,0.9);
-            transition: background 0.5s ease, box-shadow 0.5s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--text-faint); border: 2px solid var(--bg);
+            transition: background 0.5s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
         }
         .road-milestone-dot.reached {
-            background: var(--green); box-shadow: 0 0 10px rgba(52,211,153,0.7);
-            transform: translateX(-50%) scale(1.35);
+            background: var(--red);
+            transform: translateX(-50%) scale(1.3);
         }
         .road-milestone-label {
             position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
             font-size: 10px; font-weight: 600; color: var(--text-faint); white-space: nowrap;
             transition: color 0.5s ease;
         }
-        .road-milestone-dot.reached .road-milestone-label { color: var(--green); font-weight: 700; }
-        .road-milestone-final {
-            width: 15px; height: 15px;
-            animation: roadTargetPulse 2s ease-in-out infinite;
-        }
+        .road-milestone-dot.reached .road-milestone-label { color: var(--red); font-weight: 700; }
+        .road-milestone-final { width: 14px; height: 14px; }
         .road-milestone-final .road-milestone-label { font-weight: 700; }
-        @keyframes roadTargetPulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
-            50% { box-shadow: 0 0 0 6px rgba(52,211,153,0); }
-        }
 
         /* Stats row */
         .road-stats-row {
@@ -338,23 +322,23 @@
             margin-bottom: 16px;
         }
         .road-stat-chip {
-            padding: 12px 14px; border-radius: 10px;
-            background: rgba(30,30,50,0.5); border: 1px solid rgba(148,163,184,0.08);
+            padding: 12px 14px; border-radius: 0;
+            background: rgba(244,241,234,0.03); border: 1px solid var(--card-border);
         }
         .road-stat-chip-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 4px; }
-        .road-stat-chip-value { font-size: 19px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.01em; color: var(--purple); }
+        .road-stat-chip-value { font-size: 19px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; letter-spacing: -0.01em; color: var(--text); }
         .road-stat-chip-sub { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
         .road-stat-chip-highlight {
-            background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.28);
+            background: rgba(224,58,62,0.08); border-color: rgba(224,58,62,0.32);
         }
-        .road-stat-chip-highlight .road-stat-chip-value { color: var(--amber); }
+        .road-stat-chip-highlight .road-stat-chip-value { color: var(--red); }
 
         .road-message-line {
             position: relative; z-index: 2;
             text-align: center; font-size: 13px; font-weight: 500; color: var(--text-dim);
             transition: all 0.6s ease;
         }
-        .road-message-line.hot { color: var(--amber); font-weight: 600; }
+        .road-message-line.hot { color: var(--red); font-weight: 600; }
         .road-message-line.reached { color: var(--green); font-weight: 700; font-size: 14px; }
 
         @media (max-width: 768px) {
@@ -373,39 +357,39 @@
         /* ---------- Road drill-down modal ---------- */
         .road-modal-backdrop {
             display: none; position: fixed; inset: 0; z-index: 200;
-            background: rgba(5, 5, 12, 0.72); backdrop-filter: blur(4px);
+            background: rgba(5, 5, 5, 0.78);
             align-items: center; justify-content: center; padding: 20px;
         }
         .road-modal-backdrop.open { display: flex; }
         .road-modal {
             width: 100%; max-width: 560px; max-height: 82vh;
-            background: linear-gradient(160deg, #17172a 0%, #1b1430 100%);
-            border: 1px solid rgba(139, 92, 246, 0.28);
-            border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            background: var(--card);
+            border: 1px solid var(--red);
+            border-radius: 0;
             display: flex; flex-direction: column; overflow: hidden;
         }
         .road-modal-head {
             display: flex; justify-content: space-between; align-items: flex-start;
-            padding: 18px 20px; border-bottom: 1px solid rgba(148,163,184,0.1);
+            padding: 18px 20px; border-bottom: 1px solid var(--card-border);
         }
-        .road-modal-head h3 { font-size: 16px; font-weight: 700; margin: 0 0 4px 0; }
+        .road-modal-head h3 { font-size: 16px; font-weight: 700; margin: 0 0 4px 0; font-family: 'Playfair Display', Georgia, serif; }
         .road-modal-head p { font-size: 12px; color: var(--text-dim); margin: 0; }
         .road-modal-head-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
         .road-modal-export {
             background: none; border: none; color: var(--text-dim); font-size: 15px;
-            cursor: pointer; padding: 6px 8px; border-radius: 6px; transition: color 0.15s;
+            cursor: pointer; padding: 6px 8px; border-radius: 0; transition: color 0.15s;
         }
-        .road-modal-export:hover { color: var(--purple); background: rgba(148,163,184,0.1); }
+        .road-modal-export:hover { color: var(--red); background: rgba(244,241,234,0.06); }
         .road-modal-close {
             background: none; border: none; color: var(--text-dim); font-size: 22px;
-            line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+            line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 0;
         }
-        .road-modal-close:hover { color: var(--text); background: rgba(148,163,184,0.1); }
+        .road-modal-close:hover { color: var(--text); background: rgba(244,241,234,0.06); }
         .road-modal-body { overflow-y: auto; padding: 14px 20px 20px; }
         .road-modal-loading { text-align: center; color: var(--text-faint); font-size: 13px; padding: 30px 0; }
 
         .seller-row {
-            padding: 10px 0; border-bottom: 1px solid rgba(148,163,184,0.07);
+            padding: 10px 0; border-bottom: 1px solid var(--card-border);
         }
         .seller-row:last-child { border-bottom: none; }
         .seller-row-head {
@@ -413,17 +397,17 @@
             font-size: 12px; margin-bottom: 6px;
         }
         .seller-addr {
-            font-family: 'Space Grotesk', monospace; color: var(--blue); font-weight: 600;
+            font-family: 'Oswald', monospace; color: var(--blue); font-weight: 600;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
-        .seller-addr.has-name { color: var(--amber); }
+        .seller-addr.has-name { color: var(--red); }
         .seller-addr .addr-sub { color: var(--text-faint); font-weight: 500; font-size: 10px; margin-left: 6px; }
         .seller-count { color: var(--text-faint); flex-shrink: 0; }
         .seller-tokens { display: flex; flex-wrap: wrap; gap: 5px; }
         .token-chip {
             font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
-            background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25);
-            color: var(--amber);
+            background: rgba(224,58,62,0.1); border: 1px solid rgba(224,58,62,0.3);
+            color: var(--red);
         }
     </style>
 </head>
@@ -804,11 +788,13 @@
 
         const BRAND = 'Genuine Undead Analytics';
         const PLOT_CONFIG = { displayModeBar: false, responsive: true };
-        const PLOT_FONT = { family: 'Inter, Arial, sans-serif' };
+        const PLOT_FONT = { family: 'Archivo, Arial, sans-serif' };
+        // Genuine Undead brand palette: black/bone/red, muted functional
+        // green/blue/amber for chart data that needs it (see :root comment).
         const C = {
-            text: '#e2e8f0', dim: '#94a3b8', faint: '#64748b',
-            grid: 'rgba(148, 163, 184, 0.08)', line: 'rgba(148, 163, 184, 0.18)',
-            purple: '#a78bfa', green: '#34d399', blue: '#60a5fa', amber: '#fbbf24'
+            text: '#f4f1ea', dim: '#a9a59c', faint: '#6f6c66',
+            grid: 'rgba(244, 241, 234, 0.08)', line: 'rgba(244, 241, 234, 0.18)',
+            purple: '#e03a3e', green: '#5aab7e', blue: '#7c98ad', amber: '#c9962e'
         };
 
         function formatNumber(num, decimals = 0) {
@@ -962,22 +948,21 @@
             const ctx = canvas.getContext('2d');
             ctx.scale(2, 2);
 
-            // Background
-            const grad = ctx.createLinearGradient(0, 0, W, H);
-            grad.addColorStop(0, '#13111f');
-            grad.addColorStop(1, '#1e1430');
-            ctx.fillStyle = grad;
+            // Flat black background, red hairline top accent
+            ctx.fillStyle = '#161616';
             ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = '#e03a3e';
+            ctx.fillRect(0, 0, W, 4);
 
             // Header
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 30px "Space Grotesk", Arial';
-            ctx.fillText('Tokens Below 0.2 ETH', pad, 56);
-            ctx.font = '17px Inter, Arial';
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            ctx.fillText(d.count + ' tokens · ' + d.unique_sellers + ' sellers · floor ' + d.floor_price_eth.toFixed(4) + ' ETH → target 0.2 ETH', pad, 86);
-            ctx.font = '14px Inter, Arial';
-            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.fillStyle = '#f4f1ea';
+            ctx.font = 'bold 30px "Playfair Display", Georgia, serif';
+            ctx.fillText('Tokens Below 0.2 ETH', pad, 60);
+            ctx.font = '17px Archivo, Arial';
+            ctx.fillStyle = 'rgba(244,241,234,0.6)';
+            ctx.fillText(d.count + ' tokens · ' + d.unique_sellers + ' sellers · floor ' + d.floor_price_eth.toFixed(4) + ' ETH → target 0.2 ETH', pad, 88);
+            ctx.font = '14px Archivo, Arial';
+            ctx.fillStyle = 'rgba(244,241,234,0.35)';
             ctx.fillText(new Date().toLocaleString(), pad, 110);
             if (d.sellers.length > rows.length) {
                 ctx.fillText('showing top ' + rows.length + ' of ' + d.sellers.length + ' sellers by listing count', pad, 130);
@@ -987,30 +972,29 @@
             rows.forEach((s, i) => {
                 const y = headerH + i * rowH;
                 if (i % 2 === 0) {
-                    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+                    ctx.fillStyle = 'rgba(244,241,234,0.03)';
                     ctx.fillRect(pad - 12, y, W - (pad - 12) * 2, rowH - 6);
                 }
-                ctx.fillStyle = s.ens_name ? '#fbbf24' : '#60a5fa';
-                ctx.font = 'bold 17px "Space Grotesk", Arial';
+                ctx.fillStyle = s.ens_name ? '#e03a3e' : '#7c98ad';
+                ctx.font = 'bold 17px Oswald, Arial';
                 ctx.fillText(sellerLabel(s), pad, y + 28);
 
-                ctx.font = '13px Inter, Arial';
-                ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                const labelWidth = ctx.measureText(sellerLabel(s)).width;
+                ctx.font = '13px Archivo, Arial';
+                ctx.fillStyle = 'rgba(244,241,234,0.4)';
                 if (s.ens_name) {
                     ctx.fillText(shortAddr(s.seller), pad + 200, y + 28);
                 }
 
                 ctx.textAlign = 'right';
-                ctx.fillStyle = 'rgba(255,255,255,0.75)';
-                ctx.font = '15px Inter, Arial';
+                ctx.fillStyle = 'rgba(244,241,234,0.75)';
+                ctx.font = '15px Archivo, Arial';
                 ctx.fillText(s.count + ' token' + (s.count > 1 ? 's' : '') + ' · from ' + s.min_price_eth.toFixed(4) + ' ETH', W - pad, y + 28);
                 ctx.textAlign = 'left';
             });
 
             // Footer
-            ctx.fillStyle = 'rgba(255,255,255,0.35)';
-            ctx.font = '13px Inter, Arial';
+            ctx.fillStyle = 'rgba(244,241,234,0.35)';
+            ctx.font = '13px Archivo, Arial';
             ctx.fillText(window.location.host, pad, H - 20);
 
             canvas.toBlob(blob => {
@@ -1173,7 +1157,7 @@
         // ------------------------------------------------------------------
         function baseLayout(title, yTitle) {
             return {
-                title: { text: title, x: 0.5, font: { size: 15, color: C.text, family: 'Space Grotesk, Inter, sans-serif' } },
+                title: { text: title, x: 0.5, font: { size: 15, color: C.text, family: 'Playfair Display, Georgia, serif' } },
                 xaxis: { showgrid: false, showline: true, linecolor: C.line, tickfont: { size: 11, color: C.dim } },
                 yaxis: { title: { text: yTitle, font: { size: 12, color: C.dim } }, showgrid: true, gridcolor: C.grid,
                          showline: true, linecolor: C.line, tickfont: { size: 11, color: C.dim }, zeroline: false },
@@ -1182,7 +1166,7 @@
                 margin: { t: 46, l: 64, r: 24, b: 40 },
                 showlegend: false,
                 font: PLOT_FONT,
-                hoverlabel: { bgcolor: '#1e1b34', bordercolor: 'rgba(167,139,250,0.4)', font: { color: C.text, size: 12 } }
+                hoverlabel: { bgcolor: '#1c1c1c', bordercolor: 'rgba(224,58,62,0.4)', font: { color: C.text, size: 12 } }
             };
         }
 
@@ -1203,7 +1187,7 @@
                       new Date(d[d.length - 1] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
                 showarrow: true, arrowhead: 0, arrowcolor: color, ax: -55, ay: -32,
                 font: { size: 12, color: color },
-                bgcolor: 'rgba(15,15,28,0.85)', bordercolor: color, borderpad: 4
+                bgcolor: 'rgba(22,22,22,0.9)', bordercolor: color, borderpad: 4
             }];
         }
 
@@ -1219,7 +1203,7 @@
             Plotly.react('chartMcap', [{
                 x: s.dates, y: s.market_cap_usd, type: 'scatter', mode: 'lines+markers',
                 line: { color: C.green, width: 2.5 }, marker: { size: 4 },
-                fill: 'tozeroy', fillcolor: 'rgba(52,211,153,0.10)',
+                fill: 'tozeroy', fillcolor: 'rgba(90,171,126,0.10)',
                 hovertemplate: '<b>$%{y:,.0f}</b><br>%{x}<extra></extra>'
             }], mcapLayout, PLOT_CONFIG);
 
@@ -1231,7 +1215,7 @@
             Plotly.react('chartFloor', [{
                 x: s.dates, y: s.floor_eth, type: 'scatter', mode: 'lines+markers',
                 line: { color: C.purple, width: 2.5 }, marker: { size: 4 },
-                fill: 'tozeroy', fillcolor: 'rgba(167,139,250,0.10)',
+                fill: 'tozeroy', fillcolor: 'rgba(224,58,62,0.10)',
                 customdata: s.floor_usd,
                 hovertemplate: '<b>%{y:.4f} ETH</b> ($%{customdata:,.0f})<br>%{x}<extra></extra>'
             }], floorLayout, PLOT_CONFIG);
@@ -1246,7 +1230,7 @@
                 volLayout.legend = { orientation: 'h', y: -0.18, font: { size: 11, color: C.dim } };
                 Plotly.react('chartVolume', [
                     { x: sales.dates, y: sales.volume_eth, type: 'bar', name: 'Volume (ETH)',
-                      marker: { color: 'rgba(167,139,250,0.55)', line: { color: 'rgba(167,139,250,0.9)', width: 1 } },
+                      marker: { color: 'rgba(224,58,62,0.5)', line: { color: 'rgba(224,58,62,0.9)', width: 1 } },
                       hovertemplate: '<b>%{y:.3f} ETH</b><br>%{x}<extra></extra>' },
                     { x: sales.dates, y: sales.sales_count, type: 'scatter', mode: 'lines+markers', name: 'Sales',
                       yaxis: 'y2', line: { color: C.amber, width: 2 }, marker: { size: 4 },
@@ -1302,7 +1286,7 @@
         // ------------------------------------------------------------------
         // Export: per-chart PNG, all-charts composite, share card
         // ------------------------------------------------------------------
-        const EXPORT_BG = '#11101e';
+        const EXPORT_BG = '#161616'; // gu-black
 
         function todayStamp() {
             return new Date().toISOString().slice(0, 10);
@@ -1358,26 +1342,24 @@
             const ctx = canvas.getContext('2d');
             ctx.scale(2, 2);
 
-            // Dark background + header band
+            // Flat black background + red-hairline header band (GU brand: no
+            // gradients, one accent, flat surfaces)
             ctx.fillStyle = EXPORT_BG;
             ctx.fillRect(0, 0, W, totalH);
-            const grad = ctx.createLinearGradient(0, 0, W, 0);
-            grad.addColorStop(0, '#4c1d95');
-            grad.addColorStop(1, '#065f46');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, W, HEADER);
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 40px "Space Grotesk", Arial';
-            ctx.fillText(BRAND, 40, 64);
-            ctx.font = '22px Inter, Arial';
+            ctx.fillStyle = '#e03a3e';
+            ctx.fillRect(0, 0, W, 4);
+            ctx.fillStyle = '#f4f1ea';
+            ctx.font = 'bold 40px "Playfair Display", Georgia, serif';
+            ctx.fillText(BRAND, 40, 68);
+            ctx.font = '22px Archivo, Arial';
             const u = latestData?.undead || {};
             const statline = 'Floor ' + (u.floor_price_eth || 0).toFixed(4) + ' ETH  ·  Market Cap ' +
                 formatCurrency(u.market_cap_usd || 0) + '  ·  Supply ' + (u.total_supply || 0).toLocaleString() +
                 (u.holders_count ? ('  ·  Holders ' + u.holders_count.toLocaleString()) : '');
-            ctx.fillText(statline, 40, 104);
-            ctx.font = '18px Inter, Arial';
-            ctx.fillStyle = 'rgba(255,255,255,0.8)';
-            ctx.fillText(new Date().toUTCString(), 40, 134);
+            ctx.fillText(statline, 40, 108);
+            ctx.font = '18px Archivo, Arial';
+            ctx.fillStyle = 'rgba(244,241,234,0.55)';
+            ctx.fillText(new Date().toUTCString(), 40, 136);
 
             // Charts with subtle separators
             images.forEach((img, i) => {
@@ -1385,8 +1367,8 @@
             });
 
             // Footer
-            ctx.fillStyle = 'rgba(226,232,240,0.45)';
-            ctx.font = '18px Inter, Arial';
+            ctx.fillStyle = 'rgba(244,241,234,0.4)';
+            ctx.font = '18px Archivo, Arial';
             ctx.fillText(window.location.host, 40, totalH - 24);
 
             return canvas;
@@ -1410,28 +1392,20 @@
             const ctx = canvas.getContext('2d');
             ctx.scale(2, 2);
 
-            // Background
-            const grad = ctx.createLinearGradient(0, 0, W, H);
-            grad.addColorStop(0, '#13111f');
-            grad.addColorStop(0.55, '#1e1b4b');
-            grad.addColorStop(1, '#064e3b');
-            ctx.fillStyle = grad;
+            // Flat black background, single red hairline accent (GU brand:
+            // no gradients, no glow — this is the shareable public face)
+            ctx.fillStyle = '#161616';
             ctx.fillRect(0, 0, W, H);
-
-            // Subtle glow accents
-            const glow = ctx.createRadialGradient(W - 150, 80, 0, W - 150, 80, 400);
-            glow.addColorStop(0, 'rgba(124,58,237,0.25)');
-            glow.addColorStop(1, 'rgba(124,58,237,0)');
-            ctx.fillStyle = glow;
-            ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = '#e03a3e';
+            ctx.fillRect(0, 0, W, 5);
 
             // Title
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 52px "Space Grotesk", Arial';
-            ctx.fillText('Genuine Undead', 60, 95);
-            ctx.font = '26px Inter, Arial';
-            ctx.fillStyle = 'rgba(255,255,255,0.65)';
-            ctx.fillText('Collection Stats · ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), 60, 140);
+            ctx.fillStyle = '#f4f1ea';
+            ctx.font = 'bold 52px "Playfair Display", Georgia, serif';
+            ctx.fillText('Genuine Undead', 60, 100);
+            ctx.font = 'italic 26px Georgia, serif';
+            ctx.fillStyle = '#a9a59c';
+            ctx.fillText('Collection Stats · ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), 60, 145);
 
             // Stat blocks
             const stats = [
@@ -1446,16 +1420,16 @@
             ];
             stats.forEach(([label, value, sub], i) => {
                 const x = 60 + (i % 2) * 560;
-                const y = 230 + Math.floor(i / 2) * 150;
-                ctx.fillStyle = 'rgba(196,181,253,0.6)';
-                ctx.font = 'bold 19px Inter, Arial';
+                const y = 235 + Math.floor(i / 2) * 150;
+                ctx.fillStyle = '#e03a3e';
+                ctx.font = 'bold 15px Oswald, Arial';
                 ctx.fillText(label, x, y);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 46px "Space Grotesk", Arial';
+                ctx.fillStyle = '#f4f1ea';
+                ctx.font = 'bold 46px "Playfair Display", Georgia, serif';
                 ctx.fillText(value, x, y + 50);
                 if (sub) {
-                    ctx.fillStyle = sub.startsWith('+') ? '#34d399' : (sub.startsWith('-') ? '#f87171' : 'rgba(255,255,255,0.55)');
-                    ctx.font = '22px Inter, Arial';
+                    ctx.fillStyle = sub.startsWith('+') ? '#5aab7e' : (sub.startsWith('-') ? '#e03a3e' : 'rgba(244,241,234,0.55)');
+                    ctx.font = '22px Archivo, Arial';
                     ctx.fillText(sub, x, y + 84);
                 }
             });
@@ -1466,10 +1440,8 @@
                 const sx = 60, sy = 560, sw = 1080, sh = 70;
                 const vals = s.floor_eth.filter(v => v !== null);
                 const min = Math.min(...vals), max = Math.max(...vals);
-                ctx.strokeStyle = '#a78bfa';
-                ctx.lineWidth = 3;
-                ctx.shadowColor = 'rgba(167,139,250,0.6)';
-                ctx.shadowBlur = 8;
+                ctx.strokeStyle = '#e03a3e';
+                ctx.lineWidth = 2.5;
                 ctx.beginPath();
                 vals.forEach((v, i) => {
                     const px = sx + (i / (vals.length - 1)) * sw;
@@ -1477,9 +1449,8 @@
                     i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
                 });
                 ctx.stroke();
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                ctx.font = '17px Inter, Arial';
+                ctx.fillStyle = 'rgba(244,241,234,0.4)';
+                ctx.font = '17px Archivo, Arial';
                 ctx.fillText('Floor price · last ' + vals.length + ' snapshots', sx, sy - 12);
             }
 
