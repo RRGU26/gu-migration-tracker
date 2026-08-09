@@ -131,8 +131,8 @@
             margin-bottom: 18px;
         }
         .card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
-        .card-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
-        .card-head .sub { font-size: 11px; color: var(--text-faint); }
+        .card-head h2 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+        .card-head .sub { font-size: 12px; color: var(--text-dim); }
 
         .pill {
             display: inline-flex; align-items: center; gap: 6px;
@@ -145,7 +145,7 @@
         /* ---------- hero band ---------- */
         .hero { display: flex; flex-wrap: wrap; justify-content: center; gap: 40px; padding: 18px 20px; }
         .hero-stat { text-align: center; }
-        .hero-stat .label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
+        .hero-stat .label { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
         .hero-stat .value { font-size: 24px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; margin-top: 2px; }
         .hero-stat .value.eth { color: var(--red); }
 
@@ -159,7 +159,7 @@
             transition: border-color 0.15s ease;
         }
         .metric:hover { border-left-color: var(--accent, var(--text-faint)); border-color: var(--card-border-hover); }
-        .metric .label { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 5px; }
+        .metric .label { font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 5px; }
         .metric .value { font-size: 20px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; letter-spacing: -0.01em; }
         .metric .sub { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
         .metric .sub.up { color: var(--green); }
@@ -212,14 +212,14 @@
             text-align: center; padding: 9px 6px; border-radius: 0;
             background: rgba(244, 241, 234, 0.03); border: 1px solid var(--card-border);
         }
-        .tick .label { font-size: 10px; color: var(--text-faint); font-weight: 600; }
+        .tick .label { font-size: 11px; color: var(--text-dim); font-weight: 600; }
         .tick .value { font-size: 13px; font-weight: 700; margin-top: 2px; }
         .trade-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
         .trade-box {
             background: rgba(244, 241, 234, 0.03); border: 1px solid var(--card-border);
             border-radius: 0; padding: 14px 16px;
         }
-        .trade-box .label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-faint); margin-bottom: 6px; }
+        .trade-box .label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 6px; }
         .trade-box .value { font-size: 20px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; }
         .trade-box .row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--text-dim); }
         .bar-track { display: flex; margin-top: 6px; height: 5px; border-radius: 99px; overflow: hidden; background: rgba(244,241,234,0.1); }
@@ -254,8 +254,8 @@
             display: flex; justify-content: space-between; align-items: flex-start;
             margin-bottom: 44px;
         }
-        .road-title-block h2 { margin: 0 0 4px 0; font-size: 18px; }
-        .road-title-block p { font-size: 12px; color: var(--text-faint); margin: 0; }
+        .road-title-block h2 { margin: 0 0 4px 0; font-size: 19px; }
+        .road-title-block p { font-size: 13px; color: var(--text-dim); margin: 0; }
         .road-floor-block { text-align: right; }
         .road-floor-value {
             font-size: 28px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif;
@@ -325,13 +325,20 @@
             padding: 12px 14px; border-radius: 0;
             background: rgba(244,241,234,0.03); border: 1px solid var(--card-border);
         }
-        .road-stat-chip-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 4px; }
+        .road-stat-chip-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 4px; }
         .road-stat-chip-value { font-size: 19px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; letter-spacing: -0.01em; color: var(--text); }
-        .road-stat-chip-sub { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
+        .road-stat-chip-sub { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
         .road-stat-chip-highlight {
             background: rgba(224,58,62,0.08); border-color: rgba(224,58,62,0.32);
+            cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .road-stat-chip-highlight:hover {
+            background: rgba(224,58,62,0.16); border-color: var(--red);
         }
         .road-stat-chip-highlight .road-stat-chip-value { color: var(--red); }
+        .road-stat-chip-click-icon {
+            font-size: 10px; margin-left: 5px; opacity: 0.75;
+        }
 
         .road-message-line {
             position: relative; z-index: 2;
@@ -350,9 +357,10 @@
         .road-milestone { cursor: pointer; }
         .road-drilldown-hint {
             position: relative; z-index: 2;
-            text-align: center; font-size: 10px; color: var(--text-faint);
-            margin-top: 8px; letter-spacing: 0.02em;
+            text-align: center; font-size: 12px; color: var(--text-dim);
+            margin-top: 10px; letter-spacing: 0.01em;
         }
+        .road-drilldown-hint i { color: var(--red); margin-right: 4px; }
 
         /* ---------- Road drill-down modal ---------- */
         .road-modal-backdrop {
@@ -536,9 +544,9 @@
                     <div class="road-stat-chip-label">Distance to 0.2</div>
                     <div class="road-stat-chip-value" id="roadDistanceETH">+-.---- ETH</div>
                 </div>
-                <div class="road-stat-chip road-stat-chip-highlight" id="roadInRangeChip">
+                <div class="road-stat-chip road-stat-chip-highlight" id="roadInRangeChip" title="Click to see who's listed below 0.2">
                     <div class="road-stat-chip-label">Tokens Below 0.2</div>
-                    <div class="road-stat-chip-value" id="roadInRange">--</div>
+                    <div class="road-stat-chip-value"><span id="roadInRange">--</span><span class="road-stat-chip-click-icon"><i class="fas fa-arrow-up-right-from-square"></i></span></div>
                     <div class="road-stat-chip-sub">need to sell to reach 0.2</div>
                 </div>
             </div>
@@ -547,7 +555,7 @@
             <div class="road-message-line" id="roadMessageLine">
                 Charging toward the moon…
             </div>
-            <div class="road-drilldown-hint">Double-click for the seller breakdown</div>
+            <div class="road-drilldown-hint"><i class="fas fa-magnifying-glass"></i>Click "Tokens Below 0.2" above to see who's listed and where</div>
         </div>
 
         <!-- Road to 0.2 drill-down modal -->
@@ -1696,6 +1704,10 @@
             }
 
             document.getElementById('roadCard').addEventListener('dblclick', openRoadModal);
+            document.getElementById('roadInRangeChip').addEventListener('click', (e) => {
+                e.stopPropagation();
+                openRoadModal();
+            });
             document.getElementById('roadModalClose').addEventListener('click', closeRoadModal);
             document.getElementById('roadModalExport').addEventListener('click', exportRoadModalCard);
             document.getElementById('roadModalBackdrop').addEventListener('click', (e) => {
