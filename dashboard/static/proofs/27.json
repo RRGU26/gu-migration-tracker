@@ -1,0 +1,37 @@
+{
+  "v1TokenId": 27,
+  "record": {
+    "v1TokenId": 27,
+    "v1MintTxHash": "0xa5fd920534dc54f318e5f4cec74f7e4035b940bc640731003b55aceac88ccc27",
+    "v1MintBlock": 15332921,
+    "v1OriginalMinter": "0xc2112742eedb9ecf44afc89ae3a62e99f59ab62f",
+    "v3Status": "claimed",
+    "v3TokenId": 27,
+    "v3AirdropTxHash": "0x61c646e09aaf71e3085b5bcdafc24ffd0e115a148ef8e226cabb4a902340ac62",
+    "v3AirdropBlock": 25103198,
+    "v3AirdropRecipient": "0x4ab2755ce319a406cb827c6755233c6f232b6fc4",
+    "v1ToV2Status": "migrated",
+    "v2TokenId": 27,
+    "v2MigrationTxHash": "0x91161b0ee259255c3b92ef75296b009d459e653227e1747ef5c7a7a1bd616129",
+    "v2MigrationBlock": 20852726,
+    "imageHash": "0x1655a766c1cb99c71ac31fd34217b40a7de0b2202804dac3de8b689c4ddc1f2e",
+    "imageSourceUri": "ipfs://QmVUgP9fnFh9R6HF3eMP3ro2fxvv76fQsrBud7yyPDAMdQ/27.png",
+    "metadataHash": "0x3d8296d6f8bae326870e150c3f97fde72ab38910294732a6217f8138bb65ac34",
+    "metadataSourceUri": "ipfs://Qmf6XY7fBnd8yQcBmC1nRE6Wvnm87dwmRixStwvf7QNVWx/27.json"
+  },
+  "proof": [
+    "0xc73d7169e088533dc5652021817fc910db93c9375fe63ec52824b26cbcd35d9a",
+    "0x2d832c808e630f93c606a732cc66d0401aa3e2c5314c850217190b722a98fa1f",
+    "0x6af8054c8b66bdedb5ef259507bf3db4d415611fa31b3b1c17a3ed0579180e33",
+    "0x1f84a25b97f38927af4008c6c62f152b03956b075ef792528931de611dd5c754",
+    "0x6041f299fa5f90260ec1d58444dd36a5b216b94fa107ab164fbbd9c4125c3b4b",
+    "0xc0ec10813e22371e474ec6ae4daa8b471f73d8b527a83647ef9c3c876a9ffef4",
+    "0x763a1730389c169f4467bf937e89c4f1bd6fc3b780e90541c8bcb6bad77cce38",
+    "0xc85a697e59343b004538f1c2828940542f6d968bdbda048ba2f0a0b6fa6d04dc",
+    "0x920438de9410c29ded874645389cd00449b8896860421fc1877be32f4458d58b",
+    "0x628bb29201f7125a87171552dbe7c8efeb1a388ce38acc0570e1d918f880325a",
+    "0xef7a5c22c2a3bd308f80c82c296a99b264845377c0e7b584c2e67cb5011a31db",
+    "0x17cfe689c7bc1259e72922b6191be59df0a2632021a41b2472a476dfd76b0627",
+    "0x9e87e86e9a58238301462b9dc206ce1bc857ac2213fd542c1aef560673d012bc"
+  ]
+}

@@ -114,6 +114,7 @@
             border-color: var(--green); color: var(--green);
         }
         .btn-green:hover { background: rgba(90, 171, 126, 0.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 
         .status-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
         .status-online { background: var(--green); }
@@ -173,6 +174,8 @@
         .prov-search input::placeholder { color: var(--text-faint); }
         .prov-status { font-size: 13px; color: var(--text-dim); margin-top: 10px; min-height: 18px; }
         .prov-status.error { color: var(--red); }
+        .prov-example { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--text-faint); }
+        .prov-example:hover { color: var(--red); border-bottom-color: var(--red); }
 
         .prov-result { display: none; }
         .prov-result.active { display: block; }
@@ -543,6 +546,17 @@
 
             /* Export/range button rows: allow wrap without overflow */
             .card-head .range-group { width: 100%; }
+
+            /* Provenance tab */
+            .tab-nav { top: 63px; }
+            .tab-btn { padding: 12px 14px; font-size: 12px; }
+            .prov-search { flex-direction: column; }
+            .prov-search input { font-size: 16px; } /* 16px avoids iOS auto-zoom-on-focus */
+            .prov-header { gap: 12px; }
+            .prov-image { width: 72px; height: 72px; }
+            .prov-header h2 { font-size: 19px; }
+            .prov-row { flex-wrap: wrap; }
+            .prov-row .v { text-align: left; flex-basis: 100%; }
         }
 
         @media (max-width: 400px) {
@@ -935,7 +949,11 @@
                 <input type="number" id="provTokenInput" placeholder="V1 Token ID (1&ndash;9999)" min="1" max="9999" />
                 <button class="btn btn-primary" id="provVerifyBtn" onclick="lookupProvenance()">Verify</button>
             </div>
-            <div class="prov-status" id="provStatus"></div>
+            <div class="prov-status" id="provStatus">
+                Try <a href="#" class="prov-example" data-id="1">#1</a>,
+                <a href="#" class="prov-example" data-id="216">#216</a>, or
+                <a href="#" class="prov-example" data-id="9999">#9999</a>
+            </div>
         </div>
 
         <div class="card prov-result" id="provResult">
@@ -1938,10 +1956,10 @@
         import { createPublicClient, http, fallback } from 'https://esm.sh/viem@2';
         import { mainnet } from 'https://esm.sh/viem@2/chains';
 
-        // TODO: set after mainnet deployment (packages/contracts/script/Deploy.s.sol
-        // prints the deployed address). Zero address = "not deployed yet" and the
-        // UI shows a friendly notice instead of attempting a call.
-        const REGISTRY_ADDRESS = '0x0000000000000000000000000000000000000000';
+        // Deployed 2026-08-14, mainnet block 25755179, tx
+        // 0xc5b39831199d531074178aee8b921d6edb43289e37ba7ee94396f5fc822e08aa
+        // Merkle root 0xa48cfe1d24f596d57dfca1ca4ae24fd5414ab99583c7ca1ea129a8310ad4d726
+        const REGISTRY_ADDRESS = '0x90Eb92Cbc09d649B9b195D3954F0d8482F9688d4';
 
         const REGISTRY_ABI = [
             {
@@ -2102,7 +2120,15 @@
             setText('provSubtitle', r.imageSourceUri ? 'Original V1 artwork' : '');
             const img = document.getElementById('provImage');
             if (r.imageSourceUri) {
-                img.src = r.imageSourceUri.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                const ipfsPath = r.imageSourceUri.replace('ipfs://', '');
+                // Same gateway-fallback discipline as the hashing pipeline
+                // (packages/binding/src/ipfs-fetch.ts) - one gateway being
+                // slow/down shouldn't show a broken image.
+                img.onerror = () => {
+                    img.onerror = null;
+                    img.src = `https://ipfs.filebase.io/ipfs/${ipfsPath}`;
+                };
+                img.src = `https://gateway.pinata.cloud/ipfs/${ipfsPath}`;
                 img.style.display = '';
             } else {
                 img.style.display = 'none';
@@ -2143,6 +2169,10 @@
             document.getElementById('tab-provenance').classList.toggle('active', tab === 'provenance');
             document.getElementById('tabBtnAnalytics').classList.toggle('active', tab === 'analytics');
             document.getElementById('tabBtnProvenance').classList.toggle('active', tab === 'provenance');
+            if (tab === 'provenance') {
+                const input = document.getElementById('provTokenInput');
+                if (!input.value) input.focus();
+            }
         }
 
         // Registry link/address display, and Enter-to-verify.
@@ -2154,6 +2184,13 @@
             }
             document.getElementById('provTokenInput').addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') lookupProvenance();
+            });
+            document.querySelectorAll('.prov-example').forEach((el) => {
+                el.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    document.getElementById('provTokenInput').value = el.dataset.id;
+                    lookupProvenance();
+                });
             });
         });
 

@@ -1,0 +1,38 @@
+{
+  "v1TokenId": 8028,
+  "record": {
+    "v1TokenId": 8028,
+    "v1MintTxHash": "0x262c17a5e921b510a3a971cd4e4b7eec52d9589d3c7e71df46c7634791cba52f",
+    "v1MintBlock": 15332959,
+    "v1OriginalMinter": "0x51afe21ee4684b1cba449efd86090d8dd957f926",
+    "v3Status": "claimed",
+    "v3TokenId": 8028,
+    "v3AirdropTxHash": "0x9997c18b1db9a993263373866524509976694b1a06cd1ec0669cd12faee3ec60",
+    "v3AirdropBlock": 25103172,
+    "v3AirdropRecipient": "0x07d6a0d73f9978e493d4032748152da4eb94abf1",
+    "v1ToV2Status": "unmigrated",
+    "v2TokenId": null,
+    "v2MigrationTxHash": null,
+    "v2MigrationBlock": null,
+    "imageHash": "0xfb58f8719b811126c3a2caf20babdb0df6e85827e25516775d3b1ebe8864e8af",
+    "imageSourceUri": "ipfs://QmVUgP9fnFh9R6HF3eMP3ro2fxvv76fQsrBud7yyPDAMdQ/8028.png",
+    "metadataHash": "0xa90c65d4fd61dbfa0eeec79ca5bc9871dfaa0d83d7f62e8728bf488cf764538b",
+    "metadataSourceUri": "ipfs://Qmf6XY7fBnd8yQcBmC1nRE6Wvnm87dwmRixStwvf7QNVWx/8028.json"
+  },
+  "proof": [
+    "0x0565d485ac1b91214642486604aa6b857a93fb4001f6371f58f37ccdad55285e",
+    "0x27ad7253b0f4d440b1c0ac6d0f84b3fccd9780c830a6cba755548bc22a09262b",
+    "0x55e765b17b57e029bd6baade81bb4cb0fb53994e2ccbfff0153b7dbd996bc278",
+    "0xc99271f281718bf1a1003e730964b41867b092e9180e3fad920b011429831e4f",
+    "0x38be21df7a3f2d084dc5ce3f8f7c511be6d02fc6917457c78f936d6cbef6cd83",
+    "0x14d70694b40aa05c7b9ccf68b9e8070c4695d07dfe4e798f095a9c25283cd2ec",
+    "0x6c6bad49520c8cff45c2e8091fc8e593ec75e70380f294925cd1418fd4ca67cd",
+    "0xe17001198765528adab2908faa66754192bab019bcf91c19904732a0a1970edf",
+    "0xe9ebbe0254b42337fdadadf83bd7872426cddf5fe28a376ce1046002f52ef4f3",
+    "0x055b0313c0b0fc9a5addeee31ed77d57d4f66785135ddca82811decb813271e4",
+    "0x1fd425e9f3f148c5a12aaa304fd6ea8e04d30e76d968d13914ee331ce9bacdb5",
+    "0x1d3e48ba79f765112bca042ae41d6eeb18f3249388bf6272f05a5b99ee4a8c35",
+    "0x68b758e11fc5043f8d3b6b2e75c926a8ed74b9adea4635ff44521758ddda24ce",
+    "0x9e87e86e9a58238301462b9dc206ce1bc857ac2213fd542c1aef560673d012bc"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "v1TokenId": 79,
+  "record": {
+    "v1TokenId": 79,
+    "v1MintTxHash": "0x40488d6dd49e2072adf773368bb5624e8c0637d3269d2861ca002ac139232f00",
+    "v1MintBlock": 15332933,
+    "v1OriginalMinter": "0x818a2601e852a116d0d5450e81fadf300063eeb4",
+    "v3Status": "claimed",
+    "v3TokenId": 79,
+    "v3AirdropTxHash": "0x61c646e09aaf71e3085b5bcdafc24ffd0e115a148ef8e226cabb4a902340ac62",
+    "v3AirdropBlock": 25103198,
+    "v3AirdropRecipient": "0x80b9c8c776d582baf36aac01229d1603179a31f5",
+    "v1ToV2Status": "migrated",
+    "v2TokenId": 79,
+    "v2MigrationTxHash": "0xf38a82f7f678506c7b257c334c2b699461b4636cc71741b28c4c23d2c7e9f23d",
+    "v2MigrationBlock": 22617748,
+    "imageHash": "0x61fa8187e13565c0966ea4089b2212b921afcf75c12cf1dd6f327fe2ee4aecbd",
+    "imageSourceUri": "ipfs://QmVUgP9fnFh9R6HF3eMP3ro2fxvv76fQsrBud7yyPDAMdQ/79.png",
+    "metadataHash": "0x6b34de9fdf440e8e45be6032f882052eda4d8799f04b1a9b342a44fe1b0d0512",
+    "metadataSourceUri": "ipfs://Qmf6XY7fBnd8yQcBmC1nRE6Wvnm87dwmRixStwvf7QNVWx/79.json"
+  },
+  "proof": [
+    "0x5febfd7234081d1332e12b3bb7672c7b6e2c216b5cde1bcb14178d222dcc78f6",
+    "0xb0a7792caef2df811464ed07b9ea689a4b606011d9cad0e03e80b3dea976130c",
+    "0xa8ccac411e0815a9ec49fc9ffaafade558b071e5cd0af7d8ac792920a3455bec",
+    "0x6a0710c8e3db04c19495c115219617c16e736b09529145120b199832c692f78c",
+    "0x14962ec7f8963320eaca01e204c95d84c5740a9ef0205df7ce41271a6aa4ae23",
+    "0xda67a3b16394b82904acf1ccc18a7ce7c5b6053c949616b3e20511762456ac95",
+    "0x892d3a7355677adbbba18f7a1469c88aabce563c0e69bd6dd7ea69e2d3baed67",
+    "0x5a72209155ced684c73112335b7d2bee6f3593c2e95cb33eaa22c396b2cce53e",
+    "0xc84da2296532fdbf9ae81bfb91a26a67fc97c20686cae00fc5966849590af166",
+    "0x98d759a24f4aa419ecfff699e6cfa9067d0343aa0470d7916f611fa45ef8fb0b",
+    "0x8c9d8617a8de21ae51cb752ffe44b1f80ca3c2e23b975c5e6ab906bbcbe13d22",
+    "0x5d1bce8ad0a3ca9826d68ca92221ee1772cd481a56b5c3781941a4494843c02a",
+    "0x28e080c19c36874f50cea5a11b25ef4fdff1975edd5b0fc79ab51cf10a95b30b"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "v1TokenId": 350,
+  "record": {
+    "v1TokenId": 350,
+    "v1MintTxHash": "0x0f1b7e4c52769c1d351013d93a4de63fe942c4d1eb10ca5348d3db489230c9b4",
+    "v1MintBlock": 15332942,
+    "v1OriginalMinter": "0x68698221819f044803313b5520022953c7d9172a",
+    "v3Status": "claimed",
+    "v3TokenId": 350,
+    "v3AirdropTxHash": "0x59bbc3bdab1970daccee9aff6e96f84e6913c37e885166896a94131bc4ecf738",
+    "v3AirdropBlock": 25103146,
+    "v3AirdropRecipient": "0x07d6a0d73f9978e493d4032748152da4eb94abf1",
+    "v1ToV2Status": "unmigrated",
+    "v2TokenId": null,
+    "v2MigrationTxHash": null,
+    "v2MigrationBlock": null,
+    "imageHash": "0x64adfe8d266db463f9d37d05b5f16a5e04e5a5cf9fcf777916ddcd04c67a9b07",
+    "imageSourceUri": "ipfs://QmVUgP9fnFh9R6HF3eMP3ro2fxvv76fQsrBud7yyPDAMdQ/350.png",
+    "metadataHash": "0xc81cd0136a37466e6a2f19f73473382b21f7a722ab37d84babdb79c1b7f79947",
+    "metadataSourceUri": "ipfs://Qmf6XY7fBnd8yQcBmC1nRE6Wvnm87dwmRixStwvf7QNVWx/350.json"
+  },
+  "proof": [
+    "0xae2b9ce3c559c39f7a10ca44676983086b7b070b47b76cd6b3b09e26c5c95657",
+    "0x09382244efe078940b95a9f218eb43a917bd89d570e1dad58f6c6d4460ae1e5f",
+    "0xe4ab78e9e953ac0d25fb0561ef4598c151b9ce88fbdd18c745a7be6a668b5d4e",
+    "0xfc54038bf4d2c461ff9460eada1d13a00cc0c763b22430a1428bea91052aa8ed",
+    "0x632d5751dc0cbc4dcf65e7f5684ad0345a6506e041e3256190b8be108f83be29",
+    "0x5d646cd5303d7e4678a59b6a429bb08e2026cfc2b74f820bf6b94e2acd9a72b1",
+    "0xe1b710b0c493bcf322dc7b267fe984e5a22de2c9afd80f29223cd726050d41b4",
+    "0xb8cc1a0aa79da18c4529d22f606994b5fca36bb909c7495d5c2ffcea79a5152f",
+    "0xd60d1140edb4af8835eeac20ecb2486667b3c4cca711ea2148e301bb2680ef72",
+    "0x613b2c44e521232b7cf3c2326d6456db25c559f1200304bd4866d6ae64c697ec",
+    "0x4ddc5daa0379a69ea21a89bde78b0bc96f8c07d5551db00f828fdfdd966107c0",
+    "0x59e3b31494dbef8712b0006c4333364e6a6cf8a8ac0340c6cf40dc0cd3a015ff",
+    "0x28e080c19c36874f50cea5a11b25ef4fdff1975edd5b0fc79ab51cf10a95b30b"
+  ]
+}

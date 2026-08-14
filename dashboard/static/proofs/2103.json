@@ -1,0 +1,38 @@
+{
+  "v1TokenId": 2103,
+  "record": {
+    "v1TokenId": 2103,
+    "v1MintTxHash": "0xde3011a63a1befb8d15bbcaecce958e60ccc9b0601c0ffa889776360c95f1297",
+    "v1MintBlock": 15332948,
+    "v1OriginalMinter": "0xc4bf412251fc1c2a6c73223b2bf309f1776f9c96",
+    "v3Status": "claimed",
+    "v3TokenId": 2103,
+    "v3AirdropTxHash": "0xc23ef701cb5344c7cd96146f9535ddb7a4ba8f4e4329afa8beeab4685bb0959c",
+    "v3AirdropBlock": 25103207,
+    "v3AirdropRecipient": "0x5c0de4ac56aed13433303f3587f26bd583ab0af8",
+    "v1ToV2Status": "migrated",
+    "v2TokenId": 2103,
+    "v2MigrationTxHash": "0x7d3e6ea72dccfeb7f9e4207695a9f0d8f1ae7df17ec0b1bbd1ed9ff9844d33b9",
+    "v2MigrationBlock": 20700602,
+    "imageHash": "0x27bfd034583c1fee591322bfea1e8b547b4e52dd438d19b3dbf100a700ebd7e8",
+    "imageSourceUri": "ipfs://QmVUgP9fnFh9R6HF3eMP3ro2fxvv76fQsrBud7yyPDAMdQ/2103.png",
+    "metadataHash": "0xec562c393637b12b41b84a5110d5a5d07a0edcf3db6e97f190cc8d3f6ba08075",
+    "metadataSourceUri": "ipfs://Qmf6XY7fBnd8yQcBmC1nRE6Wvnm87dwmRixStwvf7QNVWx/2103.json"
+  },
+  "proof": [
+    "0x16a2549b2d7b3f1134b9a6f9d78a4932f3cc67862545dfb6ba8225bbbd21e903",
+    "0xc6844ffdf32dcf1bf31c90c299ba9680bbbda9a384f53a97f4beb752170e3d91",
+    "0x9a84a9b2af4492b67b96bb637590c98e306b3e34ce556acb3d3330757b49a7a5",
+    "0x03a606d7e875710c8c4b22bb1747ed71e953a244d1d5286d3c0fdf583f40fb59",
+    "0xcc70880bcb5a328a535b052c1f2d04d45af7a437d05179384843860feda3634b",
+    "0x96125b6ccf697cce7b7169ba9ca2007ae9d563636ad2d915af28f3473fa9caf6",
+    "0x75da5c9d6f75cf7177be60767b3e00a68e19696e4d1628ff88e5dff38bfa121a",
+    "0xb4d46ee9d36586ae23368c470227df630f9da321bafc924d796e365494728ad6",
+    "0x9f60455bc3843dd2b96e9486bf7743a54810d89d571171ffbaaa117ee0716ad3",
+    "0x0207ea147af143a79219920a47006b2aa09de12bbf59a5cf878a6922e97d26b9",
+    "0x6117f781de9b6c7f393b1fdb2e1a253f28f7fb7ab1824d8c28a286a0bb05b59f",
+    "0x1d3e48ba79f765112bca042ae41d6eeb18f3249388bf6272f05a5b99ee4a8c35",
+    "0x68b758e11fc5043f8d3b6b2e75c926a8ed74b9adea4635ff44521758ddda24ce",
+    "0x9e87e86e9a58238301462b9dc206ce1bc857ac2213fd542c1aef560673d012bc"
+  ]
+}

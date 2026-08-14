@@ -1,0 +1,37 @@
+{
+  "v1TokenId": 1116,
+  "record": {
+    "v1TokenId": 1116,
+    "v1MintTxHash": "0xbf2d972ebf33036f4eec0537b34219ca32437bc78545f3f601c6c60304e2b7b8",
+    "v1MintBlock": 15332946,
+    "v1OriginalMinter": "0x6c3dc2aea8e0724963889bce04296917532ee7f9",
+    "v3Status": "claimed",
+    "v3TokenId": 1116,
+    "v3AirdropTxHash": "0x6eea18f9dadc19ba4025cda4c12f30c12e93a16931050316d5ac7cfdf2798f77",
+    "v3AirdropBlock": 25103201,
+    "v3AirdropRecipient": "0x22cbde853a50db5a036e5d62b1c82490465557c0",
+    "v1ToV2Status": "migrated",
+    "v2TokenId": 1116,
+    "v2MigrationTxHash": "0x9a097c108b5c15af05aab3e21937fc42505b99ab0d0edc4fc78ade3753b55698",
+    "v2MigrationBlock": 23088923,
+    "imageHash": "0x34e63f45a22b8ab1c666a1f5edea6276615e7bd67ecced907b7c4d033addb53c",
+    "imageSourceUri": "ipfs://QmVUgP9fnFh9R6HF3eMP3ro2fxvv76fQsrBud7yyPDAMdQ/1116.png",
+    "metadataHash": "0x411e2f940f4124c25c84b0ad5ad7c6b952098e9801c4c59695038a1314de012c",
+    "metadataSourceUri": "ipfs://Qmf6XY7fBnd8yQcBmC1nRE6Wvnm87dwmRixStwvf7QNVWx/1116.json"
+  },
+  "proof": [
+    "0xf12201732adebb1373263a73bdaf8a08d1f86c19a4c53471a94a4c6387f282eb",
+    "0xb81aeefeb02834f153a3682cbdcf19f0eb5a0c4543b98e2cfa0db4e6c09b5d65",
+    "0x20dfd525d298a977754045231be987ca8c5bf55cad50e4642f6da72df1aaf719",
+    "0xf2b4f2753457bbb225b408e3ab16159846692b73fc59166401d6b4ee1b04c153",
+    "0xb26efb002af6c3f55e3411f11ea447731064958218bf6878d9cc367440b1b742",
+    "0x1da4b2dbfe86cce76009b78a845a6b016e4c91aeddf8edfac54a3cf41a027ab5",
+    "0xaaacbd670cde74a8fa6f547ed1fbc98e922b0a5b66cd40bdd775533d521f2e32",
+    "0x16d1cb2bcba2bce269b84a118a690cae5c8fa16aa80b26393724bfb8485a9058",
+    "0x49d910cade5689a343efecfa7c025efbbc2a2a38ecabac6680cd17e921e2fb30",
+    "0x900e31e3b5c1285e62226899f7bf56f6ef3cc0a0552f884080be65e433916fb0",
+    "0x54aea0d59dd147c19244b73b43a0ecd968bf3e87004d0270d4362251a6c00c32",
+    "0x17cfe689c7bc1259e72922b6191be59df0a2632021a41b2472a476dfd76b0627",
+    "0x9e87e86e9a58238301462b9dc206ce1bc857ac2213fd542c1aef560673d012bc"
+  ]
+}

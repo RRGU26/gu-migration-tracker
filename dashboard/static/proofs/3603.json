@@ -1,0 +1,37 @@
+{
+  "v1TokenId": 3603,
+  "record": {
+    "v1TokenId": 3603,
+    "v1MintTxHash": "0xd4ab1af4ef55b3baeb1e824669bcb233b295ccd1aa24a63ef775ccd43aef2eb4",
+    "v1MintBlock": 15332951,
+    "v1OriginalMinter": "0xce4a2c2068eb8340649b36907cb7e23230070bc0",
+    "v3Status": "claimed",
+    "v3TokenId": 3603,
+    "v3AirdropTxHash": "0x0117f4270364b8f169027d37def009689035662f6209a51f0654839d8b86fdea",
+    "v3AirdropBlock": 25103210,
+    "v3AirdropRecipient": "0xd484c9307df5fbc2cd5cde71212a6ae870ddacd0",
+    "v1ToV2Status": "migrated",
+    "v2TokenId": 3603,
+    "v2MigrationTxHash": "0x4c7c616223c86e28062f7b67824bfec98256826aec95cbd23cd89e59eb1aa4d9",
+    "v2MigrationBlock": 22632184,
+    "imageHash": "0xb72f2f97ad0a2c894227382602547215eab3ae2062602762b55879a7da2ae3f8",
+    "imageSourceUri": "ipfs://QmVUgP9fnFh9R6HF3eMP3ro2fxvv76fQsrBud7yyPDAMdQ/3603.png",
+    "metadataHash": "0x9696c2f01110e934e8ea92a1ed5937a0d22ea76f40db3b0e74c0844f38a08075",
+    "metadataSourceUri": "ipfs://Qmf6XY7fBnd8yQcBmC1nRE6Wvnm87dwmRixStwvf7QNVWx/3603.json"
+  },
+  "proof": [
+    "0x6fcc75dc22eb40869f37550e3424447d2e470286caab866a455b7f59d8519dac",
+    "0xdeafc88d9cac0760e46a4488d57f02a2667b39485cdc264f06c776e5a2b51edf",
+    "0x2607601d21b9a206cbc4dd3a43d96e8e274f8d9f738a154ad255fc85a66c4b4c",
+    "0x6141f3b19a38084db6cb216bf272bf63a248b3359b0216e6b38c86ef3c2394db",
+    "0xe15104771e8999fe3a9eaacc881ffe6004df5d5296a53263e05c655ed79ec1a3",
+    "0xde0bef2b01bcac3d12407b21f7b95a436c66e418043ef4443c0d607a2d96848f",
+    "0xa65a152ded3a61924db1dc67ef4e42d667025ddd58c2a0ee3e42ada4148c8fb0",
+    "0x2a774ee45c47a85b4caa9f34fedd96b573295fc90dd5782b83ecf1657e21860d",
+    "0x798cec2dffc043b4f77d274d912d917470cb1069fc2c38fa8492817fbc8a179e",
+    "0x3eee52cab5a88de932e79fbe453165929371c3f8f56b83651832e7392771aeaf",
+    "0x8c9d8617a8de21ae51cb752ffe44b1f80ca3c2e23b975c5e6ab906bbcbe13d22",
+    "0x5d1bce8ad0a3ca9826d68ca92221ee1772cd481a56b5c3781941a4494843c02a",
+    "0x28e080c19c36874f50cea5a11b25ef4fdff1975edd5b0fc79ab51cf10a95b30b"
+  ]
+}
