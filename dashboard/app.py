@@ -33,6 +33,9 @@ VERSION = '2026-06-11-v4-industrial'
 
 UNDEAD_SLUG = 'genuine-undead'
 ORIGINS_SLUG = 'gu-origins'
+ROAD_TARGET_ETH = 0.25  # "Road to X ETH" floor milestone - single source of truth,
+                        # read by both /api/tokens-in-range and
+                        # /api/tokens-below-target-detail so they can never drift apart
 ORIGINS_MAX_SUPPLY = 9993
 BURNED_GU = 26  # GU burned before migration started; counted as migrated
 GUSTR_ADDRESS = '0x34a2f31ccfdc1e2e7753a1a28afe5feb190f7f00'
@@ -1268,18 +1271,19 @@ def get_listing_analytics():
 
 @app.route('/api/tokens-in-range')
 def get_tokens_in_range():
-    """Count unique tokens that must sell to push the floor up to 0.2 ETH.
+    """Count unique tokens that must sell to push the floor up to ROAD_TARGET_ETH.
 
     Reuses fetch_active_listings() (deduped one row per token, min price) so
     this always agrees with the 'Listed' count and price-distribution stats
     elsewhere on the dashboard — no separate, divergent counting logic.
 
-    Strictly BELOW target, not inclusive: a token priced exactly at 0.2
-    doesn't need to sell for the floor to reach 0.2 — it becomes the new
-    floor once everything cheaper than it is gone. Verified against a manual
-    community count 2026-08-09 (41 strictly-below vs 53 including-at-0.2,
-    12 tokens sitting exactly at 0.2 — "including 0.2" overcounts by exactly
-    that amount).
+    Strictly BELOW target, not inclusive: a token priced exactly at target
+    doesn't need to sell for the floor to reach target — it becomes the new
+    floor once everything cheaper than it is gone. This boundary logic was
+    verified against a manual community count 2026-08-09 when the target was
+    0.2 ETH (41 strictly-below vs 53 including-at-target, a 12-token gap from
+    tokens sitting exactly at the target) — target has since moved to
+    ROAD_TARGET_ETH; the boundary rule itself is unaffected by that move.
     """
     try:
         listings = fetch_active_listings()
@@ -1288,14 +1292,13 @@ def get_tokens_in_range():
 
         stats = cached(f'stats:{UNDEAD_SLUG}', 120, lambda: fetch_collection_stats(UNDEAD_SLUG))
         floor = (stats or {}).get('floor_price_eth') or 0.0
-        TARGET = 0.2
 
-        count = sum(1 for l in listings if floor <= l['price_eth'] < TARGET)
+        count = sum(1 for l in listings if floor <= l['price_eth'] < ROAD_TARGET_ETH)
 
         return jsonify({
             'count': count,
             'floor_price_eth': floor,
-            'target_price_eth': TARGET,
+            'target_price_eth': ROAD_TARGET_ETH,
             'total_listed': len(listings),
             'timestamp': datetime.now(timezone.utc).isoformat()
         })
@@ -1306,10 +1309,10 @@ def get_tokens_in_range():
 
 @app.route('/api/tokens-below-target-detail')
 def get_tokens_below_target_detail():
-    """Drill-down for the Road to 0.2 card: which tokens sit below the 0.2
-    target, grouped by the wallet that listed them. Same source and same
-    strictly-below boundary as /api/tokens-in-range — this is its detail view,
-    not a separate count.
+    """Drill-down for the Road to X ETH card: which tokens sit below
+    ROAD_TARGET_ETH, grouped by the wallet that listed them. Same source and
+    same strictly-below boundary as /api/tokens-in-range — this is its detail
+    view, not a separate count.
     """
     try:
         listings = fetch_active_listings()
@@ -1318,9 +1321,8 @@ def get_tokens_below_target_detail():
 
         stats = cached(f'stats:{UNDEAD_SLUG}', 120, lambda: fetch_collection_stats(UNDEAD_SLUG))
         floor = (stats or {}).get('floor_price_eth') or 0.0
-        TARGET = 0.2
 
-        below = [l for l in listings if floor <= l['price_eth'] < TARGET]
+        below = [l for l in listings if floor <= l['price_eth'] < ROAD_TARGET_ETH]
         below.sort(key=lambda l: l['price_eth'])
 
         by_seller = {}
@@ -1345,7 +1347,7 @@ def get_tokens_below_target_detail():
 
         return jsonify({
             'floor_price_eth': floor,
-            'target_price_eth': TARGET,
+            'target_price_eth': ROAD_TARGET_ETH,
             'count': len(below),
             'unique_sellers': len(sellers),
             'sellers': sellers,

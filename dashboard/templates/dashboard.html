@@ -142,6 +142,89 @@
         }
         .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.6s infinite; }
 
+        /* ---------- tab nav ---------- */
+        .tab-nav {
+            position: sticky; top: 75px; z-index: 40;
+            background: var(--bg); border-bottom: 1px solid var(--card-border);
+        }
+        .tab-nav-inner { display: flex; gap: 4px; }
+        .tab-btn {
+            font-family: 'Oswald', 'Arial Narrow', sans-serif;
+            font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--text-dim); background: transparent; border: none;
+            padding: 14px 18px; cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.15s ease, border-color 0.15s ease;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--text); border-bottom-color: var(--red); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ---------- provenance lookup ---------- */
+        .prov-search { display: flex; gap: 10px; align-items: stretch; }
+        .prov-search input {
+            flex: 1; min-width: 0;
+            font-family: 'Archivo', sans-serif; font-size: 15px; color: var(--text);
+            background: rgba(244, 241, 234, 0.03); border: 1px solid var(--card-border);
+            border-radius: 0; padding: 12px 14px;
+        }
+        .prov-search input:focus { outline: none; border-color: var(--red); }
+        .prov-search input::placeholder { color: var(--text-faint); }
+        .prov-status { font-size: 13px; color: var(--text-dim); margin-top: 10px; min-height: 18px; }
+        .prov-status.error { color: var(--red); }
+
+        .prov-result { display: none; }
+        .prov-result.active { display: block; }
+        .prov-verify-badge {
+            display: inline-flex; align-items: center; gap: 9px;
+            font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+            padding: 10px 16px; border-radius: 0; margin-bottom: 18px;
+        }
+        .prov-verify-badge.ok { background: rgba(90, 171, 126, 0.12); color: var(--green); border: 1px solid rgba(90, 171, 126, 0.3); }
+        .prov-verify-badge.fail { background: rgba(224, 58, 62, 0.12); color: var(--red); border: 1px solid rgba(224, 58, 62, 0.3); }
+        .prov-verify-badge.pending { background: rgba(244, 241, 234, 0.05); color: var(--text-dim); border: 1px solid var(--card-border); }
+        .prov-spinner {
+            width: 12px; height: 12px; border-radius: 50%;
+            border: 2px solid var(--text-faint); border-top-color: var(--text-dim);
+            animation: prov-spin 0.7s linear infinite;
+        }
+        @keyframes prov-spin { to { transform: rotate(360deg); } }
+
+        .prov-header { display: flex; gap: 18px; align-items: center; margin-bottom: 20px; }
+        .prov-image {
+            width: 96px; height: 96px; object-fit: cover; border: 1px solid var(--card-border);
+            background: rgba(244, 241, 234, 0.03); flex-shrink: 0;
+        }
+        .prov-header h2 { font-size: 24px; }
+        .prov-header .sub { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+        .prov-section { margin-bottom: 16px; }
+        .prov-section-title {
+            font-family: 'Oswald', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--text-dim); margin-bottom: 8px;
+        }
+        .prov-row {
+            display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+            padding: 8px 0; border-bottom: 1px solid var(--card-border);
+            font-size: 13px;
+        }
+        .prov-row:last-child { border-bottom: none; }
+        .prov-row .k { color: var(--text-dim); flex-shrink: 0; }
+        .prov-row .v { text-align: right; word-break: break-all; font-variant-numeric: tabular-nums; }
+        .prov-row .v a { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--text-faint); }
+        .prov-row .v a:hover { color: var(--red); border-bottom-color: var(--red); }
+        .prov-badge {
+            display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+            padding: 3px 9px; border-radius: 999px;
+        }
+        .prov-badge.claimed, .prov-badge.migrated { background: rgba(90, 171, 126, 0.12); color: var(--green); border: 1px solid rgba(90, 171, 126, 0.3); }
+        .prov-badge.unclaimed, .prov-badge.unmigrated { background: rgba(169, 165, 156, 0.12); color: var(--text-dim); border: 1px solid var(--card-border); }
+        .prov-badge.stranded { background: rgba(201, 150, 46, 0.12); color: var(--amber); border: 1px solid rgba(201, 150, 46, 0.3); }
+        .prov-mono { font-family: 'Consolas', 'Menlo', monospace; font-size: 12px; }
+        .prov-registry-line { font-size: 12px; color: var(--text-faint); margin-top: 14px; }
+        .prov-registry-line a { color: var(--text-dim); }
+
         /* ---------- hero band ---------- */
         .hero { display: flex; flex-wrap: wrap; justify-content: center; gap: 40px; padding: 18px 20px; }
         .hero-stat { text-align: center; }
@@ -240,7 +323,7 @@
         .text-down { color: var(--red); }
         .text-dim { color: var(--text-dim); }
 
-        /* ---------- Road to 0.2 ETH — flight-path milestone ---------- */
+        /* ---------- Road to 0.25 ETH — flight-path milestone ---------- */
         .road-milestone {
             background: var(--card);
             border: 1px solid var(--red);
@@ -495,7 +578,14 @@
         </div>
     </header>
 
-    <main class="container">
+    <nav class="tab-nav">
+        <div class="container tab-nav-inner">
+            <button class="tab-btn active" id="tabBtnAnalytics" onclick="switchTab('analytics')">Analytics</button>
+            <button class="tab-btn" id="tabBtnProvenance" onclick="switchTab('provenance')">Provenance</button>
+        </div>
+    </nav>
+
+    <main class="container tab-panel active" id="tab-analytics">
         <!-- Hero band -->
         <div class="card hero">
             <div class="hero-stat">
@@ -556,12 +646,12 @@
             </div>
         </div>
 
-        <!-- Road to 0.2 ETH — Flight Path Milestone -->
+        <!-- Road to 0.25 ETH — Flight Path Milestone -->
         <div class="card road-milestone" id="roadCard">
             <div class="road-stars"></div>
             <div class="road-header-row">
                 <div class="road-title-block">
-                    <h2>🚀 Road to 0.2 ETH</h2>
+                    <h2>🚀 Road to 0.25 ETH</h2>
                     <p>Floor price milestone tracker</p>
                 </div>
                 <div class="road-floor-block">
@@ -579,10 +669,11 @@
                         <div class="road-ship-icon">🚀</div>
                     </div>
                     <div class="road-milestone-dot" data-target="0" style="left: 0%;"><span class="road-milestone-label">0</span></div>
-                    <div class="road-milestone-dot" data-target="0.05" style="left: 25%;"><span class="road-milestone-label">0.05</span></div>
-                    <div class="road-milestone-dot" data-target="0.1" style="left: 50%;"><span class="road-milestone-label">0.10</span></div>
-                    <div class="road-milestone-dot" data-target="0.15" style="left: 75%;"><span class="road-milestone-label">0.15</span></div>
-                    <div class="road-milestone-dot road-milestone-final" data-target="0.2" style="left: 100%;"><span class="road-milestone-label">0.20</span></div>
+                    <div class="road-milestone-dot" data-target="0.05" style="left: 20%;"><span class="road-milestone-label">0.05</span></div>
+                    <div class="road-milestone-dot" data-target="0.1" style="left: 40%;"><span class="road-milestone-label">0.10</span></div>
+                    <div class="road-milestone-dot" data-target="0.15" style="left: 60%;"><span class="road-milestone-label">0.15</span></div>
+                    <div class="road-milestone-dot" data-target="0.2" style="left: 80%;"><span class="road-milestone-label">0.20</span></div>
+                    <div class="road-milestone-dot road-milestone-final" data-target="0.25" style="left: 100%;"><span class="road-milestone-label">0.25</span></div>
                 </div>
             </div>
 
@@ -593,13 +684,13 @@
                     <div class="road-stat-chip-value" id="roadProgressPercent">--.-%</div>
                 </div>
                 <div class="road-stat-chip">
-                    <div class="road-stat-chip-label">Distance to 0.2</div>
+                    <div class="road-stat-chip-label">Distance to 0.25</div>
                     <div class="road-stat-chip-value" id="roadDistanceETH">+-.---- ETH</div>
                 </div>
-                <div class="road-stat-chip road-stat-chip-highlight" id="roadInRangeChip" title="Click to see who's listed below 0.2">
-                    <div class="road-stat-chip-label">Tokens Below 0.2</div>
+                <div class="road-stat-chip road-stat-chip-highlight" id="roadInRangeChip" title="Click to see who's listed below 0.25">
+                    <div class="road-stat-chip-label">Tokens Below 0.25</div>
                     <div class="road-stat-chip-value"><span id="roadInRange">--</span><span class="road-stat-chip-click-icon"><i class="fas fa-arrow-up-right-from-square"></i></span></div>
-                    <div class="road-stat-chip-sub">need to sell to reach 0.2</div>
+                    <div class="road-stat-chip-sub">need to sell to reach 0.25</div>
                 </div>
             </div>
 
@@ -607,15 +698,15 @@
             <div class="road-message-line" id="roadMessageLine">
                 Charging toward the moon…
             </div>
-            <div class="road-drilldown-hint"><i class="fas fa-magnifying-glass"></i>Click "Tokens Below 0.2" above to see who's listed and where</div>
+            <div class="road-drilldown-hint"><i class="fas fa-magnifying-glass"></i>Click "Tokens Below 0.25" above to see who's listed and where</div>
         </div>
 
-        <!-- Road to 0.2 drill-down modal -->
+        <!-- Road to 0.25 drill-down modal -->
         <div class="road-modal-backdrop" id="roadModalBackdrop">
             <div class="road-modal">
                 <div class="road-modal-head">
                     <div>
-                        <h3>Tokens Below 0.2 ETH</h3>
+                        <h3>Tokens Below 0.25 ETH</h3>
                         <p id="roadModalSub">Loading…</p>
                     </div>
                     <div class="road-modal-head-actions">
@@ -829,6 +920,70 @@
         </div>
     </main>
 
+    <section class="container tab-panel" id="tab-provenance">
+        <div class="card">
+            <div class="card-head">
+                <h2>Provenance Registry</h2>
+                <div class="pill"><span class="dot"></span>On-chain verified</div>
+            </div>
+            <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px;">
+                Look up any Genuine Undead V1 token to see its full V1 &rarr; V2 &rarr; V3 history, verified live
+                against the immutable <span class="prov-mono" id="provRegistryShortAddr">GUProvenanceRegistry</span>
+                contract &mdash; not a database claim, a real on-chain proof.
+            </p>
+            <div class="prov-search">
+                <input type="number" id="provTokenInput" placeholder="V1 Token ID (1&ndash;9999)" min="1" max="9999" />
+                <button class="btn btn-primary" id="provVerifyBtn" onclick="lookupProvenance()">Verify</button>
+            </div>
+            <div class="prov-status" id="provStatus"></div>
+        </div>
+
+        <div class="card prov-result" id="provResult">
+            <div class="prov-verify-badge pending" id="provVerifyBadge">Not yet checked</div>
+
+            <div class="prov-header">
+                <img class="prov-image" id="provImage" src="" alt="" style="display:none;" />
+                <div>
+                    <h2>GU #<span id="provTokenId">--</span></h2>
+                    <div class="sub" id="provSubtitle">&mdash;</div>
+                </div>
+            </div>
+
+            <div class="prov-section">
+                <div class="prov-section-title">V1 &mdash; Original Mint</div>
+                <div class="prov-row"><span class="k">Minted by</span><span class="v" id="provV1Minter">--</span></div>
+                <div class="prov-row"><span class="k">Mint transaction</span><span class="v" id="provV1Tx">--</span></div>
+                <div class="prov-row"><span class="k">Block</span><span class="v" id="provV1Block">--</span></div>
+            </div>
+
+            <div class="prov-section">
+                <div class="prov-section-title">V1 &rarr; V2 &mdash; Community Migration</div>
+                <div class="prov-row"><span class="k">Status</span><span class="v" id="provV2Status">--</span></div>
+                <div class="prov-row" id="provV2TxRow"><span class="k">Migration transaction</span><span class="v" id="provV2Tx">--</span></div>
+                <div class="prov-row" id="provV2BlockRow"><span class="k">Block</span><span class="v" id="provV2Block">--</span></div>
+            </div>
+
+            <div class="prov-section">
+                <div class="prov-section-title">V3 &mdash; Primary Anchor (team-attested airdrop)</div>
+                <div class="prov-row"><span class="k">Status</span><span class="v" id="provV3Status">--</span></div>
+                <div class="prov-row" id="provV3TxRow"><span class="k">Airdrop transaction</span><span class="v" id="provV3Tx">--</span></div>
+                <div class="prov-row" id="provV3BlockRow"><span class="k">Block</span><span class="v" id="provV3Block">--</span></div>
+                <div class="prov-row" id="provV3RecipientRow"><span class="k">Recipient</span><span class="v" id="provV3Recipient">--</span></div>
+            </div>
+
+            <div class="prov-section">
+                <div class="prov-section-title">Content Hashes</div>
+                <div class="prov-row"><span class="k">Image (sha256)</span><span class="v prov-mono" id="provImageHash">--</span></div>
+                <div class="prov-row"><span class="k">Metadata (sha256)</span><span class="v prov-mono" id="provMetadataHash">--</span></div>
+            </div>
+
+            <div class="prov-registry-line">
+                Verified against Merkle root <span class="prov-mono" id="provMerkleRoot">--</span> on
+                <span id="provRegistryLink">GUProvenanceRegistry</span>.
+            </div>
+        </div>
+    </section>
+
     <footer>
         <div class="container">
             <p>Built for the GU community</p>
@@ -933,7 +1088,7 @@
         }
 
         // ------------------------------------------------------------------
-        // Road to 0.2 drill-down: double-click opens seller breakdown
+        // Road to 0.25 drill-down: double-click opens seller breakdown
         // ------------------------------------------------------------------
         let roadModalData = null; // last-fetched detail payload, for export
 
@@ -963,10 +1118,10 @@
                     }
                     roadModalData = data;
                     sub.textContent = data.count + ' tokens · ' + data.unique_sellers + ' sellers · floor ' +
-                        data.floor_price_eth.toFixed(4) + ' ETH → target 0.2 ETH';
+                        data.floor_price_eth.toFixed(4) + ' ETH → target 0.25 ETH';
 
                     if (!data.sellers.length) {
-                        body.innerHTML = '<div class="road-modal-loading">Nothing listed below 0.2 right now.</div>';
+                        body.innerHTML = '<div class="road-modal-loading">Nothing listed below 0.25 right now.</div>';
                         return;
                     }
 
@@ -1017,10 +1172,10 @@
             // Header
             ctx.fillStyle = '#f4f1ea';
             ctx.font = 'bold 30px "Playfair Display", Georgia, serif';
-            ctx.fillText('Tokens Below 0.2 ETH', pad, 60);
+            ctx.fillText('Tokens Below 0.25 ETH', pad, 60);
             ctx.font = '17px Archivo, Arial';
             ctx.fillStyle = 'rgba(244,241,234,0.6)';
-            ctx.fillText(d.count + ' tokens · ' + d.unique_sellers + ' sellers · floor ' + d.floor_price_eth.toFixed(4) + ' ETH → target 0.2 ETH', pad, 88);
+            ctx.fillText(d.count + ' tokens · ' + d.unique_sellers + ' sellers · floor ' + d.floor_price_eth.toFixed(4) + ' ETH → target 0.25 ETH', pad, 88);
             ctx.font = '14px Archivo, Arial';
             ctx.fillStyle = 'rgba(244,241,234,0.35)';
             ctx.fillText(new Date().toLocaleString(), pad, 110);
@@ -1060,14 +1215,14 @@
             canvas.toBlob(blob => {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = 'gu-tokens-below-0.2-' + new Date().toISOString().slice(0, 10) + '.png';
+                a.download = 'gu-tokens-below-0.25-' + new Date().toISOString().slice(0, 10) + '.png';
                 a.click();
                 URL.revokeObjectURL(a.href);
             }, 'image/png');
         }
 
-        function updateRoadTo02(floorETH, ethPrice) {
-            const TARGET = 0.2;
+        function updateRoadToTarget(floorETH, ethPrice) {
+            const TARGET = 0.25;
             const progress = Math.min(floorETH / TARGET, 1);
             const distance = Math.max(TARGET - floorETH, 0);
             const progressPct = progress * 100;
@@ -1098,7 +1253,7 @@
             if (msgEl) {
                 let msg = '';
                 if (progress >= 1) {
-                    msg = '🎉 MOON LANDED — FLOOR AT 0.2 ETH! 🌙';
+                    msg = '🎉 MOON LANDED — FLOOR AT 0.25 ETH! 🌙';
                     msgEl.className = 'road-message-line reached';
                     if (card) card.style.borderColor = 'rgba(52,211,153,0.6)';
                 } else if (progress > 0.85) {
@@ -1111,7 +1266,7 @@
                     msg = 'Halfway to the moon… building momentum 🚀';
                     msgEl.className = 'road-message-line';
                 } else {
-                    msg = 'Charging toward 0.2 ETH milestone…';
+                    msg = 'Charging toward 0.25 ETH milestone…';
                     msgEl.className = 'road-message-line';
                 }
                 msgEl.textContent = msg;
@@ -1140,8 +1295,8 @@
                 setText('listingPercent', u.listing_percent ? u.listing_percent.toFixed(1) + '% of supply' : '— of supply');
                 setText('diamondHands', (u.diamond_hands_pct !== null && u.diamond_hands_pct !== undefined) ? u.diamond_hands_pct.toFixed(1) + '%' : '—');
 
-                // Update the Road to 0.2 ETH graphic
-                updateRoadTo02(floorPrice, ethPrice);
+                // Update the Road to 0.25 ETH graphic
+                updateRoadToTarget(floorPrice, ethPrice);
                 updateRoadTokenCount(floorPrice);
             }
 
@@ -1671,7 +1826,7 @@
                 console.error('Listing analytics error:', data && data.error);
                 return;
             }
-            listingAnalytics = data; // Store for Road to 0.2 calculations
+            listingAnalytics = data; // Store for Road to 0.25 calculations
 
             const price = data.price_distribution || {};
             const age = data.age_distribution || {};
@@ -1705,7 +1860,7 @@
             renderBucketChart('chartAgeDist', 'Listing Age', age.buckets, C.blue);
             renderBucketChart('chartTimeToSale', 'Time to Sale', tts.buckets, C.green);
 
-            // Update Road to 0.2 ETH with token count
+            // Update Road to 0.25 ETH with token count
             updateRoadTokenCount(latestData?.undead?.floor_price_eth || 0);
         }
 
@@ -1769,6 +1924,241 @@
                 if (e.key === 'Escape') closeRoadModal();
             });
         });
+    </script>
+
+    <script type="module">
+        // ---------------------------------------------------------------
+        // Provenance tab: per-token lookup + LIVE on-chain verification
+        // against the deployed GUProvenanceRegistry contract (gu-provenance
+        // repo, packages/contracts/src/GUProvenanceRegistry.sol). No backend
+        // involved in the verify step itself - this calls the public chain
+        // directly from the browser via a public RPC, same as anyone else
+        // could, so the "verified" result is real, not something this site
+        // could fake.
+        import { createPublicClient, http, fallback } from 'https://esm.sh/viem@2';
+        import { mainnet } from 'https://esm.sh/viem@2/chains';
+
+        // TODO: set after mainnet deployment (packages/contracts/script/Deploy.s.sol
+        // prints the deployed address). Zero address = "not deployed yet" and the
+        // UI shows a friendly notice instead of attempting a call.
+        const REGISTRY_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+        const REGISTRY_ABI = [
+            {
+                type: 'function', name: 'verify', stateMutability: 'view',
+                inputs: [
+                    { name: 'record', type: 'tuple', components: [
+                        { name: 'v1TokenId', type: 'uint256' },
+                        { name: 'v1MintTxHash', type: 'bytes32' },
+                        { name: 'v1MintBlock', type: 'uint256' },
+                        { name: 'v1OriginalMinter', type: 'address' },
+                        { name: 'v3Status', type: 'uint8' },
+                        { name: 'v3AirdropTxHash', type: 'bytes32' },
+                        { name: 'v3AirdropBlock', type: 'uint256' },
+                        { name: 'v3AirdropRecipient', type: 'address' },
+                        { name: 'v1ToV2Status', type: 'uint8' },
+                        { name: 'v2MigrationTxHash', type: 'bytes32' },
+                        { name: 'v2MigrationBlock', type: 'uint256' },
+                        { name: 'imageHash', type: 'bytes32' },
+                        { name: 'metadataHash', type: 'bytes32' },
+                    ]},
+                    { name: 'proof', type: 'bytes32[]' },
+                ],
+                outputs: [{ name: '', type: 'bool' }],
+            },
+            { type: 'function', name: 'MERKLE_ROOT', stateMutability: 'view', inputs: [], outputs: [{ type: 'bytes32' }] },
+        ];
+
+        const client = createPublicClient({
+            chain: mainnet,
+            transport: fallback([
+                http('https://ethereum-rpc.publicnode.com'),
+                http('https://cloudflare-eth.com'),
+            ]),
+        });
+
+        // Mirrors packages/binding/src/build-tree.ts's V3_STATUS / V1_TO_V2_STATUS /
+        // toLeafValues() exactly - MUST stay in lockstep with that file and with
+        // GUProvenanceRegistry.sol's enums, or a correct record would wrongly
+        // fail verification here.
+        const ZERO_HASH = '0x' + '00'.repeat(32);
+        const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+        const V3_STATUS = { unclaimed: 0, claimed: 1 };
+        const V1_TO_V2_STATUS = { unmigrated: 0, migrated: 1, stranded: 2 };
+
+        function toContractRecord(r) {
+            return {
+                v1TokenId: BigInt(r.v1TokenId),
+                v1MintTxHash: r.v1MintTxHash,
+                v1MintBlock: BigInt(r.v1MintBlock),
+                v1OriginalMinter: r.v1OriginalMinter,
+                v3Status: V3_STATUS[r.v3Status],
+                v3AirdropTxHash: r.v3AirdropTxHash ?? ZERO_HASH,
+                v3AirdropBlock: BigInt(r.v3AirdropBlock ?? 0),
+                v3AirdropRecipient: r.v3AirdropRecipient ?? ZERO_ADDRESS,
+                v1ToV2Status: V1_TO_V2_STATUS[r.v1ToV2Status],
+                v2MigrationTxHash: r.v2MigrationTxHash ?? ZERO_HASH,
+                v2MigrationBlock: BigInt(r.v2MigrationBlock ?? 0),
+                imageHash: r.imageHash,
+                metadataHash: r.metadataHash,
+            };
+        }
+
+        function shortHex(h, lead = 6, trail = 4) {
+            if (!h) return '--';
+            return h.length > lead + trail + 2 ? `${h.slice(0, lead + 2)}…${h.slice(-trail)}` : h;
+        }
+        function etherscanTxLink(hash) {
+            return `<a href="https://etherscan.io/tx/${hash}" target="_blank" rel="noopener">${shortHex(hash)}</a>`;
+        }
+        function etherscanAddrLink(addr) {
+            return `<a href="https://etherscan.io/address/${addr}" target="_blank" rel="noopener">${shortHex(addr)}</a>`;
+        }
+        function statusBadge(text) {
+            return `<span class="prov-badge ${text.toLowerCase()}">${text}</span>`;
+        }
+        function setRowVisible(rowId, visible) {
+            const el = document.getElementById(rowId);
+            if (el) el.style.display = visible ? '' : 'none';
+        }
+        function setText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        }
+        function setHtml(id, html) {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
+        }
+        function setStatus(msg, isError) {
+            const el = document.getElementById('provStatus');
+            el.textContent = msg;
+            el.classList.toggle('error', !!isError);
+        }
+        function setBadge(state, text) {
+            const el = document.getElementById('provVerifyBadge');
+            el.className = `prov-verify-badge ${state}`;
+            el.innerHTML = state === 'pending' && text.includes('Checking')
+                ? `<span class="prov-spinner"></span>${text}`
+                : text;
+        }
+
+        async function lookupProvenance() {
+            const input = document.getElementById('provTokenInput');
+            const tokenId = parseInt(input.value, 10);
+            const resultCard = document.getElementById('provResult');
+
+            if (!Number.isInteger(tokenId) || tokenId < 1 || tokenId > 9999) {
+                setStatus('Enter a valid V1 token ID between 1 and 9999.', true);
+                resultCard.classList.remove('active');
+                return;
+            }
+
+            if (REGISTRY_ADDRESS === ZERO_ADDRESS) {
+                setStatus('The registry contract is not deployed yet - check back soon.', true);
+                resultCard.classList.remove('active');
+                return;
+            }
+
+            setStatus('Fetching record…');
+            document.getElementById('provVerifyBtn').disabled = true;
+
+            try {
+                const res = await fetch(`/static/proofs/${tokenId}.json`);
+                if (!res.ok) throw new Error(`No provenance record found for token ${tokenId}.`);
+                const { record, proof } = await res.json();
+
+                // Populate the record fields immediately (off-chain data, from the
+                // same source the tree was built from) while the live on-chain
+                // check runs, so the page feels responsive.
+                resultCard.classList.add('active');
+                setBadge('pending', 'Checking on-chain…');
+                renderRecord(tokenId, record);
+
+                const contractRecord = toContractRecord(record);
+                const [verified, merkleRoot] = await Promise.all([
+                    client.readContract({ address: REGISTRY_ADDRESS, abi: REGISTRY_ABI, functionName: 'verify', args: [contractRecord, proof] }),
+                    client.readContract({ address: REGISTRY_ADDRESS, abi: REGISTRY_ABI, functionName: 'MERKLE_ROOT' }),
+                ]);
+
+                setText('provMerkleRoot', shortHex(merkleRoot, 8, 6));
+                if (verified) {
+                    setBadge('ok', '✓ Verified on-chain');
+                    setStatus('');
+                } else {
+                    setBadge('fail', '✗ Verification failed');
+                    setStatus('This record did not verify against the on-chain Merkle root - please report this.', true);
+                }
+            } catch (err) {
+                console.error(err);
+                setBadge('fail', '✗ Could not verify');
+                setStatus(err.message || 'Something went wrong looking up that token.', true);
+            } finally {
+                document.getElementById('provVerifyBtn').disabled = false;
+            }
+        }
+
+        function renderRecord(tokenId, r) {
+            setText('provTokenId', tokenId);
+            setText('provSubtitle', r.imageSourceUri ? 'Original V1 artwork' : '');
+            const img = document.getElementById('provImage');
+            if (r.imageSourceUri) {
+                img.src = r.imageSourceUri.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                img.style.display = '';
+            } else {
+                img.style.display = 'none';
+            }
+
+            setHtml('provV1Minter', etherscanAddrLink(r.v1OriginalMinter));
+            setHtml('provV1Tx', etherscanTxLink(r.v1MintTxHash));
+            setText('provV1Block', r.v1MintBlock.toLocaleString());
+
+            const v2Label = r.v1ToV2Status.charAt(0).toUpperCase() + r.v1ToV2Status.slice(1);
+            setHtml('provV2Status', statusBadge(v2Label));
+            const migrated = r.v1ToV2Status === 'migrated';
+            setRowVisible('provV2TxRow', migrated);
+            setRowVisible('provV2BlockRow', migrated);
+            if (migrated) {
+                setHtml('provV2Tx', etherscanTxLink(r.v2MigrationTxHash));
+                setText('provV2Block', r.v2MigrationBlock.toLocaleString());
+            }
+
+            const v3Label = r.v3Status.charAt(0).toUpperCase() + r.v3Status.slice(1);
+            setHtml('provV3Status', statusBadge(v3Label));
+            const claimed = r.v3Status === 'claimed';
+            setRowVisible('provV3TxRow', claimed);
+            setRowVisible('provV3BlockRow', claimed);
+            setRowVisible('provV3RecipientRow', claimed);
+            if (claimed) {
+                setHtml('provV3Tx', etherscanTxLink(r.v3AirdropTxHash));
+                setText('provV3Block', r.v3AirdropBlock.toLocaleString());
+                setHtml('provV3Recipient', etherscanAddrLink(r.v3AirdropRecipient));
+            }
+
+            setText('provImageHash', r.imageHash);
+            setText('provMetadataHash', r.metadataHash);
+        }
+
+        function switchTab(tab) {
+            document.getElementById('tab-analytics').classList.toggle('active', tab === 'analytics');
+            document.getElementById('tab-provenance').classList.toggle('active', tab === 'provenance');
+            document.getElementById('tabBtnAnalytics').classList.toggle('active', tab === 'analytics');
+            document.getElementById('tabBtnProvenance').classList.toggle('active', tab === 'provenance');
+        }
+
+        // Registry link/address display, and Enter-to-verify.
+        document.addEventListener('DOMContentLoaded', () => {
+            if (REGISTRY_ADDRESS !== ZERO_ADDRESS) {
+                const link = `<a href="https://etherscan.io/address/${REGISTRY_ADDRESS}" target="_blank" rel="noopener">GUProvenanceRegistry</a>`;
+                setHtml('provRegistryLink', link);
+                setText('provRegistryShortAddr', shortHex(REGISTRY_ADDRESS));
+            }
+            document.getElementById('provTokenInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') lookupProvenance();
+            });
+        });
+
+        window.switchTab = switchTab;
+        window.lookupProvenance = lookupProvenance;
     </script>
 </body>
 </html>
